@@ -1,0 +1,4 @@
+import { MfaPanel } from "@/components/mfa-panel";
+import { requireCreator } from "@/lib/dal";
+import { logout } from "@/app/(auth)/actions";
+export default async function Page(){await requireCreator();return <><div className="mb-8"><p className="eyebrow">Account protection</p><h1 className="mt-2 text-3xl font-semibold">Security</h1></div><div className="grid gap-6 xl:grid-cols-2"><section className="surface rounded-xl p-6"><h2 className="font-semibold">Two-factor authentication</h2><p className="mb-6 mt-2 text-sm text-zinc-500">Use a TOTP authenticator and store recovery codes securely.</p><MfaPanel/></section><section className="surface rounded-xl p-6"><h2 className="font-semibold">Session</h2><p className="my-4 text-sm text-zinc-400">Signing out clears the cookie-backed Supabase session for this browser.</p><form action={logout}><button className="button button-secondary">Sign out</button></form></section></div></>}

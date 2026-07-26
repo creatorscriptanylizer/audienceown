@@ -1,0 +1,3 @@
+import { test,expect } from "@playwright/test";
+test("landing page has working account routes",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:/Your reach can disappear/})).toBeVisible();await page.getByRole("link",{name:"Claim your page"}).first().click();await expect(page).toHaveURL(/signup/);await expect(page.getByRole("button",{name:"Create account"})).toBeVisible()});
+test("unknown creator has an honest not-found state",async({page})=>{await page.goto("/this_creator_should_not_exist");await expect(page.getByRole("heading",{name:"This creator page isn’t live."})).toBeVisible()});

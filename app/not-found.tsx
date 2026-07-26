@@ -1,0 +1,2 @@
+import Link from "next/link"; import { Radio } from "lucide-react";
+export default function NotFound(){return <main className="grid min-h-screen place-items-center px-5 text-center"><div><Radio className="mx-auto text-violet-400"/><p className="eyebrow mt-6">Signal unavailable</p><h1 className="mt-3 text-3xl font-semibold">This creator page isn’t live.</h1><p className="mx-auto mt-3 max-w-md text-zinc-400">The handle may be unknown, unpublished, or suspended.</p><Link href="/" className="button button-secondary mt-7">Return to OwnSignal</Link></div></main>}

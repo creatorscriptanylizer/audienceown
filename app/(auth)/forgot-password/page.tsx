@@ -1,0 +1,2 @@
+import { AuthForm } from "@/components/auth-form"; import { forgotPassword } from "../actions";
+export default function Page(){return <section className="surface rounded-2xl p-7 sm:p-9"><h1 className="text-2xl font-semibold">Reset your password</h1><p className="mt-2 mb-7 text-sm text-zinc-400">We’ll email a secure reset link if the account exists.</p><AuthForm action={forgotPassword} mode="forgot"/></section>}
