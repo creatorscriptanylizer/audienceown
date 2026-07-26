@@ -175,15 +175,15 @@ export type Database = {
       follower_connections: {
         Row: {
           activated_at: string | null
+          consent_source: string
           consented_at: string
           created_at: string
           creator_id: string
+          deactivated_at: string | null
           follower_contact_id: string
           id: string
-          deactivated_at: string | null
           landing_path: string | null
           preference_token_hash: string
-          consent_source: string
           source_campaign: string | null
           source_platform: string
           source_referrer: string | null
@@ -194,15 +194,15 @@ export type Database = {
         }
         Insert: {
           activated_at?: string | null
+          consent_source?: string
           consented_at?: string
           created_at?: string
           creator_id: string
+          deactivated_at?: string | null
           follower_contact_id: string
           id?: string
-          deactivated_at?: string | null
           landing_path?: string | null
           preference_token_hash: string
-          consent_source?: string
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
@@ -213,15 +213,15 @@ export type Database = {
         }
         Update: {
           activated_at?: string | null
+          consent_source?: string
           consented_at?: string
           created_at?: string
           creator_id?: string
+          deactivated_at?: string | null
           follower_contact_id?: string
           id?: string
-          deactivated_at?: string | null
           landing_path?: string | null
           preference_token_hash?: string
-          consent_source?: string
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
@@ -283,6 +283,38 @@ export type Database = {
         }
         Relationships: []
       }
+      follower_notification_preferences: {
+        Row: {
+          creator_announcements: boolean
+          follower_connection_id: string
+          important_account_updates: boolean
+          new_content: boolean
+          updated_at: string
+        }
+        Insert: {
+          creator_announcements?: boolean
+          follower_connection_id: string
+          important_account_updates?: boolean
+          new_content?: boolean
+          updated_at?: string
+        }
+        Update: {
+          creator_announcements?: boolean
+          follower_connection_id?: string
+          important_account_updates?: boolean
+          new_content?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follower_notification_preferences_follower_connection_id_fkey"
+            columns: ["follower_connection_id"]
+            isOneToOne: true
+            referencedRelation: "follower_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follower_recovery_methods: {
         Row: {
           consented_at: string
@@ -329,38 +361,6 @@ export type Database = {
             columns: ["follower_contact_id"]
             isOneToOne: false
             referencedRelation: "follower_contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      follower_notification_preferences: {
-        Row: {
-          creator_announcements: boolean
-          follower_connection_id: string
-          important_account_updates: boolean
-          new_content: boolean
-          updated_at: string
-        }
-        Insert: {
-          creator_announcements?: boolean
-          follower_connection_id: string
-          important_account_updates?: boolean
-          new_content?: boolean
-          updated_at?: string
-        }
-        Update: {
-          creator_announcements?: boolean
-          follower_connection_id?: string
-          important_account_updates?: boolean
-          new_content?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "follower_notification_preferences_follower_connection_id_fkey"
-            columns: ["follower_connection_id"]
-            isOneToOne: true
-            referencedRelation: "follower_connections"
             referencedColumns: ["id"]
           },
         ]
