@@ -28,9 +28,15 @@ export default async function Page() {
   const officialAccounts = allAccounts.filter((account) => account.account_type === "official");
   const backupAccounts = allAccounts.filter((account) => account.account_type === "backup");
   const activeSubscribers = (subscribers ?? []).filter((subscriber) => subscriber.status === "active");
-  const media = (path: string | null) => path ? supabase.storage.from("creator-media").getPublicUrl(path).data.publicUrl : null;
-  const profileImage = media(creator.profile_image_path);
-  const bannerImage = media(creator.banner_image_path);
+  const media = async (path: string | null) => {
+    if (!path) return null;
+    const { data } = await supabase.storage.from("creator-media").createSignedUrl(path, 3600);
+    return data?.signedUrl ?? null;
+  };
+  const [profileImage, bannerImage] = await Promise.all([
+    media(creator.profile_image_path),
+    media(creator.banner_image_path),
+  ]);
   const checklist = [
     { label: "Claimed URL", complete: Boolean(creator.public_slug), href: "/dashboard/creator-page#profile" },
     { label: "Profile photo", complete: Boolean(creator.profile_image_path), href: "/dashboard/creator-page#images" },

@@ -1,0 +1,532 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  Activity, ArrowLeft, ArrowRight, BellRing, CalendarDays, Check, CheckCircle2, ChevronRight,
+  ExternalLink, Globe2, Mail, Megaphone, MessageCircle, Radio, RadioTower,
+  RotateCcw, Settings2, ShieldCheck, ShoppingBag, Smartphone, Trash2, Users,
+  Video, X,
+} from "lucide-react";
+import { getPlatform } from "@/lib/platforms";
+import {
+  CreatorRecord, readSavedRecoveryPass, readStoredCreator,
+  removeSavedRecoveryPass, type SavedRecoveryPass, saveRecoveryPass, updateSavedRecoveryPass,
+} from "@/lib/public-creators";
+import {
+  DEFAULT_RECOVERY_PREFERENCES,
+  isValidRecoveryContact,
+  type RecoveryCategory,
+  type RecoveryPreferences,
+} from "@/lib/recovery-preferences";
+
+type AlertMethod = "Email" | "SMS" | "WhatsApp" | "Browser notification";
+const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
+  { name: "Email", detail: "Best for important, lasting updates", icon: Mail },
+  { name: "SMS", detail: "Get a text when recovery begins", icon: Smartphone },
+  { name: "WhatsApp", detail: "Receive alerts in WhatsApp", icon: MessageCircle },
+  { name: "Browser notification", detail: "Alerts on this device", icon: BellRing },
+];
+
+const optionalPreferenceCards: {
+  key: Exclude<RecoveryCategory, "recovery">;
+  title: string;
+  description: string;
+  icon: typeof Video;
+}[] = [
+  { key: "videos", title: "New videos", description: "Be first to know when a new upload drops.", icon: Video },
+  { key: "livestreams", title: "Live streams", description: "Get a reminder before they go live.", icon: RadioTower },
+  { key: "announcements", title: "Creator updates", description: "Big announcements and important news.", icon: Megaphone },
+  { key: "products", title: "Official drops", description: "Merch, tickets, courses and exclusive releases.", icon: ShoppingBag },
+];
+
+function initials(name: string) {
+  return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function timeLabel(value: string) {
+  const date = new Date(value);
+  const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function PlatformMark({ id }: { id: string }) {
+  const platform = getPlatform(id === "website" || id === "newsletter" ? "more" : id);
+  const Icon = platform?.icon ?? Globe2;
+  return <span className="fan-platform-mark" style={{ color: platform?.brandColor, background: platform?.brandBackground }}><Icon size={20} /></span>;
+}
+
+function Header() {
+  return <header className="fan-nav">
+    <Link href="/" className="fan-wordmark"><Radio size={18} /> AudienceOwn</Link>
+    <div className="fan-nav-right">
+      <span><i /> Verified creator page</span>
+    </div>
+  </header>;
+}
+
+function Profile({ creator, emergency = false, showUpdated = false }: { creator: CreatorRecord; emergency?: boolean; showUpdated?: boolean }) {
+  return <div className="fan-profile">
+    <div className={`fan-avatar ${emergency ? "fan-avatar-emergency" : ""}`}>
+      {creator.avatar ? <span style={{ backgroundImage: `url(${creator.avatar})` }} /> : initials(creator.displayName)}
+      <i><Check size={11} strokeWidth={3} /></i>
+    </div>
+    <div>
+      <div className="fan-profile-name">{creator.displayName} <ShieldCheck size={17} /></div>
+      <p>@{creator.handle}</p>
+      {showUpdated && <small>Last updated {timeLabel(creator.lastVerifiedAt)}</small>}
+    </div>
+  </div>;
+}
+
+function OfficialLinks({ creator, heading = "Official accounts" }: { creator: CreatorRecord; heading?: string }) {
+  return <section className="fan-section" id="official-accounts">
+    <div className="fan-section-heading">
+      <div><p className="fan-kicker">Verified destinations</p><h2>{heading}</h2></div>
+      <span>{creator.officialLinks.length} active</span>
+    </div>
+    <div className="fan-links">
+      {creator.officialLinks.map((link) => <a href={link.url} target="_blank" rel="noreferrer" key={link.id} className="fan-link-card">
+        <PlatformMark id={link.id} />
+        <span><small>{link.platform}</small><strong>{link.label}</strong></span>
+        <b>{link.action} <ExternalLink size={13} /></b>
+      </a>)}
+    </div>
+  </section>;
+}
+
+function useDialogFocusTrap(onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const selector = "button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex='-1'])";
+    const first = dialog.querySelector<HTMLElement>(selector);
+    first?.focus();
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...dialog!.querySelectorAll<HTMLElement>(selector)];
+      if (!focusable.length) return;
+      const firstItem = focusable[0];
+      const lastItem = focusable.at(-1)!;
+      if (event.shiftKey && document.activeElement === firstItem) {
+        event.preventDefault();
+        lastItem.focus();
+      } else if (!event.shiftKey && document.activeElement === lastItem) {
+        event.preventDefault();
+        firstItem.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      previous?.focus();
+    };
+  }, [onClose]);
+  return dialogRef;
+}
+
+function PreferenceCards({ preferences, onChange }: {
+  preferences: RecoveryPreferences;
+  onChange: (preferences: RecoveryPreferences) => void;
+}) {
+  return <>
+    <article className="required-alert-card">
+      <div className="preference-icon"><ShieldCheck size={22} /></div>
+      <div><div className="preference-title"><h3>Never lose this creator</h3><span>Always On</span></div><p>If this creator gets hacked, banned, suspended, deleted or moves to a new account, AudienceOwn will always show you their real verified account.</p><small>This is the promise of your Recovery Pass.</small></div>
+      <CheckCircle2 className="required-check" size={21} aria-hidden="true" />
+    </article>
+    <div className="optional-heading"><h3>Don’t miss a moment</h3><p>Everything below is optional.</p></div>
+    <div className="optional-preference-grid">
+      {optionalPreferenceCards.map(({ key, title, description, icon: Icon }) => {
+        const enabled = preferences[key];
+        return <label key={key} className={`optional-preference-card ${enabled ? "selected" : ""}`}>
+          <input type="checkbox" checked={enabled} onChange={(event) => onChange({ ...preferences, recovery: true, [key]: event.target.checked })} />
+          <span className="preference-icon"><Icon size={20} /></span>
+          <span className="preference-copy"><strong>{title}</strong><small>{description}</small></span>
+          <span className="preference-toggle" aria-hidden="true"><i /></span>
+        </label>;
+      })}
+    </div>
+  </>;
+}
+
+function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: CreatorRecord; source?: string; onClose: () => void; onSaved: (member: number) => void; onManage: () => void }) {
+  const [step, setStep] = useState(1);
+  const [method, setMethod] = useState<AlertMethod>("Email");
+  const [contact, setContact] = useState("");
+  const [contactTouched, setContactTouched] = useState(false);
+  const [preferences, setPreferences] = useState<RecoveryPreferences>(() =>
+    readSavedRecoveryPass(creator.handle)?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES },
+  );
+  const memberNumber = useMemo(() => creator.recoveryCoreFans + 1, [creator.recoveryCoreFans]);
+  const dialogRef = useDialogFocusTrap(onClose);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const contactValid = isValidRecoveryContact(method, contact);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 4) return;
+    const timer = window.setTimeout(onClose, 1400);
+    return () => window.clearTimeout(timer);
+  }, [onClose, step]);
+
+  function finish() {
+    saveRecoveryPass(creator.handle, {
+      method, contact, consent: true, memberNumber, savedAt: new Date().toISOString(), source,
+      preferences: { ...preferences, recovery: true },
+    });
+    setStep(4);
+    onSaved(memberNumber);
+  }
+
+  return <div className="pass-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div ref={dialogRef} className={`pass-modal premium-pass-modal step-${step}`} role="dialog" aria-modal="true" aria-labelledby="pass-flow-heading">
+      <div className="pass-modal-top">
+        <Link href="/" className="fan-wordmark"><Radio size={17} /> AudienceOwn</Link>
+        {step < 4 && <span>Step {step} of 3</span>}
+        <button onClick={onClose} aria-label="Close"><X size={20} /></button>
+      </div>
+      {step < 4 && <div className="pass-progress"><i style={{ width: `${step / 3 * 100}%` }} /></div>}
+      <div className="pass-modal-body">
+        {step === 1 && <>
+          <p className="fan-kicker">Save your Recovery Pass</p>
+          <h2 id="pass-flow-heading" ref={headingRef} tabIndex={-1}>Choose recovery method</h2>
+          <p className="pass-intro">Choose one private channel for important recovery alerts from {creator.displayName}.</p>
+          <div className="pass-methods">{methods.map(({ name, detail, icon: Icon }) => <button key={name} aria-pressed={method === name} onClick={() => setMethod(name)} className={method === name ? "selected" : ""}>
+            <i><Icon size={19} /></i><span><strong>{name}</strong><small>{detail}</small></span><b aria-hidden="true">{method === name && <Check size={14} />}</b>
+          </button>)}</div>
+          <button className="button button-primary pass-next" onClick={() => setStep(2)}>Continue <ArrowRight size={16} /></button>
+        </>}
+        {step === 2 && <>
+          <button className="pass-back" onClick={() => setStep(1)}><ArrowLeft size={15} /> Back</button>
+          <p className="fan-kicker">Your {method.toLowerCase()}</p>
+          <h2 id="pass-flow-heading" ref={headingRef} tabIndex={-1}>{method === "Browser notification" ? "Confirm this device" : "Where should we send alerts?"}</h2>
+          <p className="pass-intro">We’ll use this only for your Recovery Pass and the updates you choose.</p>
+          <label className="label" htmlFor="fan-contact">{method === "Email" ? "Email address" : method === "Browser notification" ? "Device" : "Mobile number"}</label>
+          {method === "Browser notification"
+            ? <button className="pass-device"><BellRing size={18} /><span><strong>This browser</strong><small>Notifications will be enabled after consent</small></span><CheckCircle2 size={18} /></button>
+            : <input id="fan-contact" className="input pass-contact" type={method === "Email" ? "email" : "tel"} inputMode={method === "Email" ? "email" : "tel"} autoComplete={method === "Email" ? "email" : "tel"} autoCapitalize="none" spellCheck={false} aria-invalid={contactTouched && !contactValid} aria-describedby={contactTouched && !contactValid ? "contact-error" : undefined} placeholder={method === "Email" ? "you@example.com" : "+1 555 000 0000"} value={contact} onBlur={() => setContactTouched(true)} onChange={(e) => setContact(e.target.value)} />}
+          {contactTouched && !contactValid && <p id="contact-error" className="pass-validation" role="alert">{method === "Email" ? "Enter a valid email address." : "Enter a valid mobile number."}</p>}
+          <button className="button button-primary pass-next" disabled={!contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>
+          <p className="pass-privacy">No password. No newsletter. You control every alert.</p>
+        </>}
+        {step === 3 && <>
+          <button className="pass-back" onClick={() => setStep(2)}><ArrowLeft size={15} /> Back</button>
+          <p className="fan-kicker">Your Connection</p>
+          <h2 id="pass-flow-heading" ref={headingRef} tabIndex={-1}>Choose how you want to stay connected</h2>
+          <p className="pass-intro">Your Recovery Pass protects your connection.<br />Choose what else you’d like to hear about from this creator.</p>
+          <PreferenceCards preferences={preferences} onChange={setPreferences} />
+        </>}
+        {step === 4 && <div className="pass-success">
+          <div className="pass-success-icon"><ShieldCheck size={29} /></div>
+          <p className="fan-kicker">Protected connection</p>
+          <h2 id="pass-flow-heading" ref={headingRef} tabIndex={-1}>Recovery Pass activated</h2>
+          <p>You’ll always know where to find this creator if an account is hacked, banned, removed, or moved.</p>
+          <div className="activation-summary">
+            <span><strong>Recovery alerts</strong><b>Enabled</b></span>
+            {optionalPreferenceCards.map(({ key, title }) => <span key={key}><strong>{title}</strong><b className={preferences[key] ? "enabled" : ""}>{preferences[key] ? "Enabled" : "Off"}</b></span>)}
+          </div>
+          <div className="pass-success-actions"><button className="button button-primary" onClick={onClose}>Done</button><button className="button button-secondary" onClick={onManage}>Manage Recovery Pass</button></div>
+        </div>}
+      </div>
+      {step === 3 && <div className="pass-activation-action">
+        <button className="button button-primary" onClick={finish}>Activate My Recovery Pass <ShieldCheck size={17} /></button>
+        <p>Recovery protection is always included.<br />Everything else is your choice.</p>
+      </div>}
+    </div>
+  </div>;
+}
+
+function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved }: {
+  creator: CreatorRecord;
+  initialMode: "methods" | "preferences";
+  onClose: () => void;
+  onDeactivate: () => void;
+  onSaved: () => void;
+}) {
+  const stored = readSavedRecoveryPass(creator.handle);
+  const [method, setMethod] = useState(stored?.method ?? "Email");
+  const [contact, setContact] = useState(stored?.contact ?? "");
+  const [preferences, setPreferences] = useState<RecoveryPreferences>(stored?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES });
+  const [saved, setSaved] = useState(false);
+  const dialogRef = useDialogFocusTrap(onClose);
+
+  useEffect(() => {
+    if (!saved) return;
+    const timer = window.setTimeout(onSaved, 1000);
+    return () => window.clearTimeout(timer);
+  }, [onSaved, saved]);
+
+  function persist() {
+    updateSavedRecoveryPass(creator.handle, {
+      method,
+      contact,
+      preferences: { ...preferences, recovery: true },
+    });
+    setSaved(true);
+  }
+
+  function deactivate() {
+    if (!window.confirm(`Deactivate your Recovery Pass for ${creator.displayName}?`)) return;
+    removeSavedRecoveryPass(creator.handle);
+    onDeactivate();
+  }
+
+  return <div className="pass-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div ref={dialogRef} className="pass-modal manage-pass-modal" role="dialog" aria-modal="true" aria-label="Manage Recovery Pass">
+      <div className="pass-modal-top">
+        <span className="fan-wordmark"><Settings2 size={17} /> Manage Recovery Pass</span>
+        <button onClick={onClose} aria-label="Close"><X size={20} /></button>
+      </div>
+      <div className="pass-modal-body">
+        <p className="fan-kicker">Recovery Pass Active</p>
+        <h2>{initialMode === "methods" ? "Update notification methods" : "Update what I hear about"}</h2>
+        <div className="manage-pass-section">
+          <label className="label" htmlFor="manage-method">Notification method</label>
+          <select id="manage-method" className="input" value={method} onChange={(event) => setMethod(event.target.value)}>
+            {methods.map((item) => <option key={item.name}>{item.name}</option>)}
+          </select>
+          <label className="label manage-contact-label" htmlFor="manage-contact">{method === "Email" ? "Email address" : method === "Browser notification" ? "Device" : "Mobile number"}</label>
+          <input id="manage-contact" className="input" value={contact} disabled={method === "Browser notification"} onChange={(event) => setContact(event.target.value)} placeholder={method === "Browser notification" ? "This browser" : method === "Email" ? "you@example.com" : "+1 555 000 0000"} />
+        </div>
+        <div className="manage-pass-section"><PreferenceCards preferences={preferences} onChange={setPreferences} /></div>
+        <button className={`button button-primary pass-next ${saved ? "manage-save-success" : ""}`} onClick={persist} disabled={saved}>{saved ? <><CheckCircle2 size={16} /> Changes saved</> : "Save changes"}</button>
+        <button className="manage-deactivate" onClick={deactivate}><Trash2 size={15} /> Deactivate Recovery Pass</button>
+      </div>
+    </div>
+  </div>;
+}
+
+function DeveloperTools({ creator, onReset, onResetPreferences, onClearSource, onSimulate }: {
+  creator: CreatorRecord;
+  onReset: () => void;
+  onResetPreferences: () => void;
+  onClearSource: () => void;
+  onSimulate: () => void;
+}) {
+  const [message, setMessage] = useState("");
+  function run(action: () => void, confirmation: string) {
+    action();
+    setMessage(confirmation);
+  }
+  return <section className="developer-tools" aria-label="Developer Tools">
+    <div><p className="fan-kicker">Private testing</p><h2>Developer Tools</h2><p>Local controls for @{creator.handle}. Never shown to public production visitors.</p></div>
+    <div className="developer-actions">
+      <button onClick={() => run(onReset, "Recovery Pass reset.")}><RotateCcw size={15} /> Reset Recovery Pass</button>
+      <button onClick={() => run(onResetPreferences, "Notification preferences reset.")}><BellRing size={15} /> Reset notification preferences</button>
+      <button onClick={() => run(onClearSource, "Source attribution cleared.")}><X size={15} /> Clear source attribution</button>
+      <button onClick={() => run(onSimulate, "First-time visitor simulated.")}><Users size={15} /> Simulate first-time visitor</button>
+    </div>
+    {message && <p className="developer-message" role="status">{message}</p>}
+  </section>;
+}
+
+type RecoveryPassDisplayStatus =
+  | { kind: "protected"; label: "Protected"; detail: "Everything looks normal." }
+  | { kind: "recovery"; label: "Recovery Alert"; detail: string; destination?: string };
+
+function formatActivationDate(value: string) {
+  return new Date(value).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function RecoveryPassStatusCard({ creator, pass, status }: {
+  creator: CreatorRecord;
+  pass: SavedRecoveryPass;
+  status: RecoveryPassDisplayStatus;
+}) {
+  const preferences = pass.preferences ?? DEFAULT_RECOVERY_PREFERENCES;
+  const methodLabel = pass.method === "Browser notification" ? "Browser notification" : pass.method;
+  return <section className={`recovery-status-card status-${status.kind}`}>
+    <div className="recovery-status-card-head">
+      <div><p>Protection status</p><h2><span className="status-dot" /> {status.label}</h2><small>{status.detail}</small></div>
+      <div className="status-shield"><ShieldCheck size={27} /></div>
+    </div>
+    <dl className="recovery-pass-details">
+      <div><dt>Creator</dt><dd>{creator.displayName}</dd></div>
+      <div><dt>Recovery method</dt><dd>{methodLabel}</dd></div>
+      <div><dt>Recovery alerts</dt><dd className="always-active"><CheckCircle2 size={14} /> Always active</dd></div>
+      <div><dt>Activated</dt><dd>{formatActivationDate(pass.savedAt)}</dd></div>
+    </dl>
+    <div className="status-updates">
+      <h3>Creator updates</h3>
+      <div>
+        {optionalPreferenceCards.map(({ key, title }) => <span key={key}><small>{title}</small><b className={preferences[key] ? "on" : "off"}>{preferences[key] ? <Check size={13} /> : "—"}</b></span>)}
+      </div>
+    </div>
+    <div className="status-check-time"><Activity size={15} /><span><small>Last status check</small><strong>Today</strong></span></div>
+  </section>;
+}
+
+function RecoveryPassStatusPage({ creator, pass, onManage, onDeactivate }: {
+  creator: CreatorRecord;
+  pass: SavedRecoveryPass;
+  onManage: (mode: "methods" | "preferences") => void;
+  onDeactivate: () => void;
+}) {
+  const status: RecoveryPassDisplayStatus = {
+    kind: "protected",
+    label: "Protected",
+    detail: "Everything looks normal.",
+  };
+  return <main className="recovery-status-page">
+    <section className="recovery-status-hero">
+      <div className="recovery-active-pill"><span /> Recovery Pass Active</div>
+      <Profile creator={creator} />
+      <h1>Your connection to <span>{creator.displayName}</span> is protected.</h1>
+      <p>If this creator is ever hacked, banned, suspended, deleted, or moves to another verified account, AudienceOwn will guide you to the correct destination and notify you using your selected alert methods.</p>
+    </section>
+    <RecoveryPassStatusCard creator={creator} pass={pass} status={status} />
+    <section className="normal-status-card">
+      <div className="normal-status-icon"><CheckCircle2 size={21} /></div>
+      <div><p>Recovery status</p><h2>Everything looks normal</h2><span>{creator.displayName}’s verified accounts are active.</span></div>
+      <div className="normal-status-date"><CalendarDays size={15} /> Last checked <strong>Today</strong></div>
+    </section>
+    <section className="recovery-status-actions">
+      <div><p className="fan-kicker">Your Recovery Pass</p><h2>Keep your connection current</h2></div>
+      <div>
+        <button className="button button-primary" onClick={() => onManage("methods")}><BellRing size={17} /> Update notification methods</button>
+        <button className="button button-secondary" onClick={() => onManage("preferences")}><Settings2 size={17} /> Update what I hear about</button>
+        <button className="active-pass-deactivate" onClick={onDeactivate}><Trash2 size={15} /> Deactivate Recovery Pass</button>
+      </div>
+    </section>
+  </main>;
+}
+
+function HealthyPage({ creator, pass, onSave, onManage, onDeactivate }: {
+  creator: CreatorRecord;
+  pass: SavedRecoveryPass | null;
+  onSave: () => void;
+  onManage: (mode: "methods" | "preferences") => void;
+  onDeactivate: () => void;
+}) {
+  if (pass) return <RecoveryPassStatusPage creator={creator} pass={pass} onManage={onManage} onDeactivate={onDeactivate} />;
+  return <>
+    <section className="fan-hero">
+      <div className="fan-orbit fan-orbit-one" /><div className="fan-orbit fan-orbit-two" />
+      <div className="fan-hero-inner">
+        <Profile creator={creator} />
+        <div className="fan-status fan-status-online" aria-live="polite"><i /> Verified creator</div>
+        <h1>Never lose touch with <span>{creator.displayName}.</span></h1>
+        <p className="fan-hero-promise"><span>Creators get hacked. Accounts get banned.</span><span>Profiles disappear.</span><span>Save one pass. Always find the real, verified destination.</span></p>
+        <div className="fan-actions">
+          <button className="button button-primary" onClick={onSave}><ShieldCheck size={17} /> Save My Recovery Pass</button>
+          <a className="button fan-why-button" href="#why-this-matters">Why this matters <ChevronRight size={16} /></a>
+        </div>
+        <div className="fan-trust"><span><Users size={14} /> {creator.recoveryCoreFans.toLocaleString()} fans protected</span><span><ShieldCheck size={14} /> Verified by AudienceOwn</span></div>
+      </div>
+    </section>
+    <main className="fan-content">
+      <section className="fan-how" id="why-this-matters">
+        <div><p className="fan-kicker">Always know where to go</p><h2>What happens when you save this pass?</h2></div>
+        <ol>
+          {[
+            ["Stay connected", "If they disappear from one platform, you’ll know where they went."],
+            ["One trusted page", "Always return to the same verified place."],
+            ["Only verified accounts", "No fake recovery profiles. No guessing."],
+            ["Protected forever", "Your Recovery Pass stays connected to this creator."],
+          ].map(([title, copy], index) => <li key={title}><i>0{index + 1}</i><span><strong>{title}</strong><small>{copy}</small></span></li>)}
+        </ol>
+      </section>
+      <section className="fan-bottom-cta">
+        <ShieldCheck size={25} />
+        <h2>{`Keep ${creator.displayName} within reach.`}</h2>
+        <p>One tap today.<br />Know where they are tomorrow.</p>
+        <button className="button button-primary" onClick={onSave}><ShieldCheck size={17} /> Save My Recovery Pass</button>
+      </section>
+    </main>
+  </>;
+}
+
+function EmergencyPage({ creator }: { creator: CreatorRecord }) {
+  const route = creator.recoveryRoutes[creator.affectedPlatform?.toLowerCase() ?? ""];
+  return <>
+    <section className="emergency-hero">
+      <div className="emergency-beam" />
+      <div className="fan-hero-inner">
+        <div className="fan-status fan-status-emergency"><Radio size={13} /> Official Recovery Update</div>
+        <h1><span>{creator.affectedPlatform}</span> is currently unavailable.</h1>
+        <p>This is {creator.displayName}’s verified AudienceOwn recovery page.</p>
+        <Profile creator={creator} emergency showUpdated />
+      </div>
+    </section>
+    <main className="fan-content emergency-content">
+      {creator.statusMessage && <div className="creator-note"><Radio size={18} /><p><small>Message from {creator.displayName}</small>{creator.statusMessage}</p></div>}
+      {route && <section className="recovery-route">
+        <div className="recovery-route-head"><div><p className="fan-kicker">Verified recovery route</p><h2>Where to follow next</h2></div><span>{creator.affectedPlatform} unavailable</span></div>
+        <div className="recovery-primary">
+          <div className="route-rank">01 <span>Primary route</span></div>
+          <PlatformMark id={creator.affectedPlatform?.toLowerCase() ?? "more"} />
+          <div><small>{route.primary.label}</small><strong>{route.primary.handle}</strong></div>
+          <a className="button button-primary" href={route.primary.url} target="_blank" rel="noreferrer">Follow verified account <ExternalLink size={15} /></a>
+        </div>
+        {route.fallback && <div className="recovery-fallback">
+          <div className="route-rank">02 <span>Fallback</span></div><PlatformMark id="website" />
+          <div><small>{route.fallback.label}</small><strong>{route.fallback.handle}</strong></div>
+          <a className="button button-secondary" href={route.fallback.url} target="_blank" rel="noreferrer">Visit backup website <ExternalLink size={15} /></a>
+        </div>}
+      </section>}
+      <div className="fake-warning"><ShieldCheck size={20} /><div><strong>Avoid fake accounts.</strong><p>Only use destinations shown on this verified recovery page.</p></div></div>
+      <OfficialLinks creator={creator} heading="More verified places" />
+      <div className="last-verified"><CheckCircle2 size={20} /><p>Last verified by {creator.displayName}<small>{timeLabel(creator.lastVerifiedAt)}</small></p></div>
+    </main>
+  </>;
+}
+
+export function PublicCreatorExperience({ fallback, source, canUseDevTools = false }: {
+  fallback: CreatorRecord;
+  source?: string;
+  canUseDevTools?: boolean;
+}) {
+  const [creator, setCreator] = useState(fallback);
+  const [pass, setPass] = useState<SavedRecoveryPass | null>(null);
+  const [modal, setModal] = useState(false);
+  const [manageMode, setManageMode] = useState<"methods" | "preferences" | null>(null);
+
+  useEffect(() => {
+    // Browser storage is intentionally read after hydration; the server renders
+    // the deterministic mock record and local data replaces it once available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCreator(readStoredCreator(fallback.handle) ?? fallback);
+    setPass(readSavedRecoveryPass(fallback.handle));
+  }, [fallback]);
+
+  function markSaved() {
+    setPass(readSavedRecoveryPass(creator.handle));
+    setCreator((current) => ({ ...current, recoveryCoreFans: current.recoveryCoreFans + 1 }));
+  }
+
+  function deactivatePass(requireConfirmation = true) {
+    if (requireConfirmation && !window.confirm(`Deactivate your Recovery Pass for ${creator.displayName}?`)) return;
+    removeSavedRecoveryPass(creator.handle);
+    setPass(null);
+    setManageMode(null);
+  }
+
+  return <div className={`fan-page ${creator.emergencyMode ? "fan-page-emergency" : ""}`}>
+    <Header />
+    {creator.emergencyMode ? <EmergencyPage creator={creator} /> : <HealthyPage creator={creator} pass={pass} onSave={() => setModal(true)} onManage={setManageMode} onDeactivate={() => deactivatePass()} />}
+    {canUseDevTools && <div className="developer-tools-wrap"><DeveloperTools
+      creator={creator}
+      onReset={() => deactivatePass(false)}
+      onResetPreferences={() => { updateSavedRecoveryPass(creator.handle, { preferences: { ...DEFAULT_RECOVERY_PREFERENCES } }); setPass(readSavedRecoveryPass(creator.handle)); }}
+      onClearSource={() => updateSavedRecoveryPass(creator.handle, { source: undefined })}
+      onSimulate={() => setPass(null)}
+    /></div>}
+    {creator.emergencyMode && <footer className="fan-footer"><Link href="/" className="fan-wordmark"><Radio size={16} /> AudienceOwn</Link><p>Permanent creator recovery infrastructure.</p><span>Verified • Private • Fan-first</span></footer>}
+    {modal && <SaveModal creator={creator} source={source} onClose={() => setModal(false)} onSaved={markSaved} onManage={() => { setModal(false); setManageMode("preferences"); }} />}
+    {manageMode && <ManagePassModal creator={creator} initialMode={manageMode} onClose={() => setManageMode(null)} onDeactivate={() => deactivatePass(false)} onSaved={() => { setPass(readSavedRecoveryPass(creator.handle)); setManageMode(null); }} />}
+  </div>;
+}

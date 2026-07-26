@@ -183,12 +183,15 @@ export type Database = {
           follower_contact_id: string
           id: string
           landing_path: string | null
+          management_tokens_revoked_at: string | null
+          preference_token_expires_at: string
           preference_token_hash: string
           source_campaign: string | null
           source_platform: string
           source_referrer: string | null
           status: string
           unsubscribe_token_hash: string
+          unsubscribe_token_expires_at: string
           unsubscribed_at: string | null
           updated_at: string
         }
@@ -202,12 +205,15 @@ export type Database = {
           follower_contact_id: string
           id?: string
           landing_path?: string | null
+          management_tokens_revoked_at?: string | null
+          preference_token_expires_at?: string
           preference_token_hash: string
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
           status?: string
           unsubscribe_token_hash: string
+          unsubscribe_token_expires_at?: string
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -221,12 +227,15 @@ export type Database = {
           follower_contact_id?: string
           id?: string
           landing_path?: string | null
+          management_tokens_revoked_at?: string | null
+          preference_token_expires_at?: string
           preference_token_hash?: string
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
           status?: string
           unsubscribe_token_hash?: string
+          unsubscribe_token_expires_at?: string
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -367,7 +376,35 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_connected_accounts: {
+        Row: {
+          is_primary: boolean | null
+          label: string | null
+          platform: string | null
+          position: number | null
+          public_slug: string | null
+          url: string | null
+        }
+        Relationships: []
+      }
+      public_creator_profiles: {
+        Row: {
+          announcement_body: string | null
+          announcement_cta_label: string | null
+          announcement_cta_url: string | null
+          announcement_published_at: string | null
+          announcement_title: string | null
+          banner_image_path: string | null
+          created_at: string | null
+          display_name: string | null
+          profile_image_path: string | null
+          public_bio: string | null
+          public_slug: string | null
+          recovery_pass_enabled: boolean | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
