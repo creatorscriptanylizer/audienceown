@@ -15,6 +15,9 @@ export function integrationStatus() {
   return {
     supabase: Boolean(publicEnv()),
     turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY),
-    resend: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
+    resend: Boolean(
+      process.env.RESEND_API_KEY
+      && (process.env.DELIVERY_EMAIL_FROM || process.env.RESEND_FROM_EMAIL),
+    ),
   };
 }

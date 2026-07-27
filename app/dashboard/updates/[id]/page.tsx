@@ -47,7 +47,10 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
 
   return <>
     <Link href="/dashboard/updates" className="update-back-link"><ArrowLeft size={15}/> Update history</Link>
-    <UpdateEditor update={update}/>
+    <UpdateEditor
+      update={update}
+      creatorIdentity={{ displayName: creator.display_name, publicSlug: creator.public_slug }}
+    />
     <UpdateDeliveryPanel
       updateId={id}
       counts={counts}

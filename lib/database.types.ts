@@ -448,6 +448,7 @@ export type Database = {
         Row: {
           attempt_count: number
           cancelled_at: string | null
+          claimed_at: string | null
           connection_id: string
           contact_id: string
           created_at: string
@@ -478,6 +479,7 @@ export type Database = {
         Insert: {
           attempt_count?: number
           cancelled_at?: string | null
+          claimed_at?: string | null
           connection_id: string
           contact_id: string
           created_at?: string
@@ -508,6 +510,7 @@ export type Database = {
         Update: {
           attempt_count?: number
           cancelled_at?: string | null
+          claimed_at?: string | null
           connection_id?: string
           contact_id?: string
           created_at?: string
@@ -636,9 +639,37 @@ export type Database = {
       }
     }
     Functions: {
+      claim_update_deliveries: {
+        Args: {
+          p_limit: number
+          p_max_attempts: number
+          p_stuck_timeout_seconds: number
+        }
+        Returns: {
+          attempt_count: number
+          broadcast_type: Database["public"]["Enums"]["broadcast_type"]
+          content: string
+          creator_display_name: string
+          creator_id: string
+          creator_public_slug: string
+          cta_label: string
+          cta_url: string
+          delivery_id: string
+          destination: string
+          preview_text: string
+          subject: string
+          title: string
+          transport: Database["public"]["Enums"]["delivery_transport"]
+          update_id: string
+        }[]
+      }
       create_update_delivery_queue: {
         Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
         Returns: Json
+      }
+      delivery_provider_for_transport: {
+        Args: { p_transport: Database["public"]["Enums"]["delivery_transport"] }
+        Returns: string
       }
       expected_delivery_transport: {
         Args: {
@@ -654,6 +685,25 @@ export type Database = {
       is_published_creator_media: {
         Args: { object_name: string }
         Returns: boolean
+      }
+      mark_update_delivery_failed: {
+        Args: {
+          p_code: string
+          p_delivery_id: string
+          p_max_attempts: number
+          p_provider: string
+          p_reason: string
+          p_retryable: boolean
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      mark_update_delivery_sent: {
+        Args: {
+          p_delivery_id: string
+          p_provider: string
+          p_provider_message_id: string
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
       }
     }
     Enums: {

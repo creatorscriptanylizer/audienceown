@@ -13,6 +13,7 @@ class UnsupportedDeliveryProvider implements DeliveryProvider {
       provider: "unsupported",
       code: "provider_not_configured",
       reason: `No ${this.transport} delivery provider is configured.`,
+      retryable: false,
     };
   }
 }
