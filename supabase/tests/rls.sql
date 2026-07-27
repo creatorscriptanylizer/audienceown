@@ -1,6 +1,6 @@
 begin;
 
-select plan(25);
+select plan(37);
 
 -- ---------------------------------------------------------------------------
 -- Fixed test identities
@@ -99,6 +99,32 @@ select set_config(
   ),
   true
 );
+
+insert into public.creator_updates (
+  id, creator_id, broadcast_type, status, title, subject, content, sent_at
+)
+select
+  '40000000-0000-0000-0000-000000000003',
+  id,
+  'announcement',
+  'sent',
+  'Sent update',
+  'Already sent',
+  'This update has already been sent.',
+  now()
+from public.creators
+where public_slug = 'creator-a';
+
+insert into public.creator_updates (
+  id, creator_id, broadcast_type, title
+)
+select
+  '40000000-0000-0000-0000-000000000002',
+  id,
+  'announcement',
+  'Creator B draft'
+from public.creators
+where public_slug = 'creator-b';
 
 -- ---------------------------------------------------------------------------
 -- Connected-account fixtures
@@ -437,6 +463,156 @@ select throws_ok(
   'creator cannot alter fan consent state'
 );
 
+-- 15
+select lives_ok(
+  $$
+    insert into public.creator_updates (
+      id, creator_id, broadcast_type, title
+    )
+    select
+      '40000000-0000-0000-0000-000000000001',
+      id,
+      'new_content',
+      ''
+    from public.creators
+    where public_slug = 'creator-a'
+  $$,
+  'creator can insert their own draft'
+);
+
+-- 16
+select is(
+  (
+    select count(*)::int
+    from public.creator_updates
+    where id = '40000000-0000-0000-0000-000000000001'
+  ),
+  1,
+  'creator can read their own draft'
+);
+
+-- 17
+select is(
+  (
+    select count(*)::int
+    from public.creator_updates
+    where id = '40000000-0000-0000-0000-000000000002'
+  ),
+  0,
+  'creator cannot read another creator draft'
+);
+
+-- 18
+select throws_ok(
+  $$
+    insert into public.creator_updates (creator_id, broadcast_type)
+    values (current_setting('tests.creator_b_id')::uuid, 'announcement')
+  $$,
+  '42501',
+  null,
+  'creator cannot insert for another creator'
+);
+
+-- 19
+select lives_ok(
+  $$
+    update public.creator_updates
+    set subject = 'Draft subject'
+    where id = '40000000-0000-0000-0000-000000000001'
+  $$,
+  'creator can update their own draft'
+);
+
+-- 20
+select throws_ok(
+  $$
+    update public.creator_updates
+    set creator_id = current_setting('tests.creator_b_id')::uuid
+    where id = '40000000-0000-0000-0000-000000000001'
+  $$,
+  '42501',
+  null,
+  'creator cannot change creator_id'
+);
+
+-- 21
+select results_eq(
+  $$
+    delete from public.creator_updates
+    where id = '40000000-0000-0000-0000-000000000001'
+    returning id
+  $$,
+  array['40000000-0000-0000-0000-000000000001'::uuid],
+  'creator can delete their own draft'
+);
+
+-- 22
+select results_eq(
+  $$
+    delete from public.creator_updates
+    where id = '40000000-0000-0000-0000-000000000003'
+    returning id
+  $$,
+  array[]::uuid[],
+  'creator cannot delete a sent update'
+);
+
+-- 23
+select lives_ok(
+  $$
+    insert into public.creator_updates (creator_id, broadcast_type)
+    select id, 'event'
+    from public.creators
+    where public_slug = 'creator-a'
+  $$,
+  'incomplete draft is allowed'
+);
+
+-- 24
+select throws_ok(
+  $$
+    insert into public.creator_updates (
+      creator_id, broadcast_type, status, title, subject, content, scheduled_for
+    )
+    select id, 'livestream', 'scheduled', 'Live', 'Join me', 'Going live.', now() - interval '1 minute'
+    from public.creators
+    where public_slug = 'creator-a'
+  $$,
+  '23514',
+  null,
+  'scheduled update requires a future scheduled_for'
+);
+
+-- 25
+select throws_ok(
+  $$
+    insert into public.creator_updates (
+      creator_id, broadcast_type, status, title
+    )
+    select id, 'announcement', 'queued', 'Incomplete queued update'
+    from public.creators
+    where public_slug = 'creator-a'
+  $$,
+  '23514',
+  null,
+  'queued update requires subject and content'
+);
+
+-- 26
+select throws_ok(
+  $$
+    insert into public.creator_updates (
+      creator_id, broadcast_type, cta_url
+    )
+    select id, 'product_launch', 'http://example.com'
+    from public.creators
+    where public_slug = 'creator-a'
+  $$,
+  '23514',
+  null,
+  'CTA URL must use HTTPS when present'
+);
+
 -- ---------------------------------------------------------------------------
 -- Return to the database owner for invariant tests
 -- ---------------------------------------------------------------------------
@@ -449,7 +625,7 @@ select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', '', true);
 select set_config('request.jwt.claims', '{}', true);
 
--- 15
+-- 27
 select is(
   (
     select source_platform
@@ -464,7 +640,7 @@ update public.follower_connections
 set source_platform = 'instagram'
 where id = '30000000-0000-0000-0000-000000000001';
 
--- 16
+-- 28
 select is(
   (
     select source_platform
@@ -475,7 +651,7 @@ select is(
   'ordinary updates preserve first-touch source'
 );
 
--- 17
+-- 29
 select throws_ok(
   $$
     update public.follower_category_preferences
@@ -489,7 +665,7 @@ select throws_ok(
   'active pass cannot disable recovery'
 );
 
--- 18
+-- 30
 select lives_ok(
   $$
     update public.follower_category_preferences
@@ -501,7 +677,7 @@ select lives_ok(
   'optional preference can change'
 );
 
--- 19
+-- 31
 select throws_ok(
   $$
     insert into public.follower_category_preferences (
@@ -544,7 +720,7 @@ select set_config(
   true
 );
 
--- 20
+-- 32
 select is(
   (
     select count(*)::int
@@ -554,7 +730,7 @@ select is(
   'anonymous reads only published creator profile'
 );
 
--- 21
+-- 33
 select is(
   (
     select count(*)::int
@@ -564,7 +740,7 @@ select is(
   'anonymous reads only published official public accounts'
 );
 
--- 22
+-- 34
 select throws_ok(
   $$
     select *
@@ -575,7 +751,7 @@ select throws_ok(
   'anonymous cannot query creator base table'
 );
 
--- 23
+-- 35
 select throws_ok(
   $$
     select *
@@ -586,7 +762,7 @@ select throws_ok(
   'anonymous cannot select contacts'
 );
 
--- 24
+-- 36
 select throws_ok(
   $$
     select *
@@ -597,7 +773,7 @@ select throws_ok(
   'anonymous cannot select connections'
 );
 
--- 25
+-- 37
 select throws_ok(
   $$
     select *

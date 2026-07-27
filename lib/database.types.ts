@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -82,6 +77,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "connected_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_updates: {
+        Row: {
+          broadcast_type: Database["public"]["Enums"]["broadcast_type"]
+          cancelled_at: string | null
+          content: string
+          created_at: string
+          creator_id: string
+          cta_label: string | null
+          cta_url: string | null
+          id: string
+          preview_text: string
+          queued_at: string | null
+          scheduled_for: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["broadcast_status"]
+          subject: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          broadcast_type: Database["public"]["Enums"]["broadcast_type"]
+          cancelled_at?: string | null
+          content?: string
+          created_at?: string
+          creator_id: string
+          cta_label?: string | null
+          cta_url?: string | null
+          id?: string
+          preview_text?: string
+          queued_at?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["broadcast_status"]
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          broadcast_type?: Database["public"]["Enums"]["broadcast_type"]
+          cancelled_at?: string | null
+          content?: string
+          created_at?: string
+          creator_id?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          id?: string
+          preview_text?: string
+          queued_at?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["broadcast_status"]
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_updates_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
@@ -190,8 +250,8 @@ export type Database = {
           source_platform: string
           source_referrer: string | null
           status: string
-          unsubscribe_token_hash: string
           unsubscribe_token_expires_at: string
+          unsubscribe_token_hash: string
           unsubscribed_at: string | null
           updated_at: string
         }
@@ -212,8 +272,8 @@ export type Database = {
           source_platform?: string
           source_referrer?: string | null
           status?: string
-          unsubscribe_token_hash: string
           unsubscribe_token_expires_at?: string
+          unsubscribe_token_hash: string
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -234,8 +294,8 @@ export type Database = {
           source_platform?: string
           source_referrer?: string | null
           status?: string
-          unsubscribe_token_hash?: string
           unsubscribe_token_expires_at?: string
+          unsubscribe_token_hash?: string
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -403,14 +463,61 @@ export type Database = {
           recovery_pass_enabled: boolean | null
           updated_at: string | null
         }
+        Insert: {
+          announcement_body?: string | null
+          announcement_cta_label?: string | null
+          announcement_cta_url?: string | null
+          announcement_published_at?: string | null
+          announcement_title?: string | null
+          banner_image_path?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          profile_image_path?: string | null
+          public_bio?: string | null
+          public_slug?: string | null
+          recovery_pass_enabled?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          announcement_body?: string | null
+          announcement_cta_label?: string | null
+          announcement_cta_url?: string | null
+          announcement_published_at?: string | null
+          announcement_title?: string | null
+          banner_image_path?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          profile_image_path?: string | null
+          public_bio?: string | null
+          public_slug?: string | null
+          recovery_pass_enabled?: boolean | null
+          updated_at?: string | null
+        }
         Relationships: []
       }
     }
     Functions: {
-      [_ in never]: never
+      is_published_creator_media: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      broadcast_status:
+        | "draft"
+        | "scheduled"
+        | "queued"
+        | "sending"
+        | "sent"
+        | "cancelled"
+        | "failed"
+      broadcast_type:
+        | "new_content"
+        | "announcement"
+        | "livestream"
+        | "event"
+        | "product_launch"
+        | "account_update"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -510,6 +617,101 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      iceberg_namespaces: {
+        Row: {
+          bucket_name: string
+          catalog_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_name: string
+          catalog_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_name?: string
+          catalog_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_namespaces_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iceberg_tables: {
+        Row: {
+          bucket_name: string
+          catalog_id: string
+          created_at: string
+          id: string
+          location: string
+          name: string
+          namespace_id: string
+          remote_table_id: string | null
+          shard_id: string | null
+          shard_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          bucket_name: string
+          catalog_id: string
+          created_at?: string
+          id?: string
+          location: string
+          name: string
+          namespace_id: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bucket_name?: string
+          catalog_id?: string
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          namespace_id?: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_tables_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iceberg_tables_namespace_id_fkey"
+            columns: ["namespace_id"]
+            isOneToOne: false
+            referencedRelation: "iceberg_namespaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       migrations: {
         Row: {
@@ -990,7 +1192,25 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      broadcast_status: [
+        "draft",
+        "scheduled",
+        "queued",
+        "sending",
+        "sent",
+        "cancelled",
+        "failed",
+      ],
+      broadcast_type: [
+        "new_content",
+        "announcement",
+        "livestream",
+        "event",
+        "product_launch",
+        "account_update",
+      ],
+    },
   },
   storage: {
     Enums: {
