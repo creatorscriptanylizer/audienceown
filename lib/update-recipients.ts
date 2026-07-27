@@ -3,15 +3,37 @@ import {
   type BroadcastType,
 } from "@/lib/updates";
 
+export const deliveryTransports = [
+  "email",
+  "sms",
+  "whatsapp",
+  "browser_notification",
+] as const;
+
+export type DeliveryTransport = (typeof deliveryTransports)[number];
+
 export type RecipientExclusionReason =
   | "wrong_creator"
   | "inactive_connection"
   | "unsubscribed"
-  | "missing_email"
-  | "unverified_email"
+  | "missing_recovery_method"
+  | "unsupported_transport"
+  | "missing_destination"
+  | "unverified_destination"
+  | "inactive_browser_subscription"
+  | "invalid_destination"
   | "preference_disabled"
-  | "duplicate"
-  | "invalid_email";
+  | "duplicate";
+
+export type RecoveryDestination = {
+  recoveryMethodId: string;
+  contactId: string;
+  methodType: string;
+  value: string | null;
+  destinationHash: string | null;
+  verified: boolean;
+  active: boolean;
+};
 
 export type RecipientCandidate = {
   connectionId: string;
@@ -19,16 +41,19 @@ export type RecipientCandidate = {
   creatorId: string;
   expectedCreatorId: string;
   connectionStatus: "active" | "paused" | "deactivated" | "unsubscribed";
-  email?: string | null;
-  emailVerified: boolean;
+  selectedRecoveryMethodId: string | null;
+  destinations: RecoveryDestination[];
   preferenceEnabled: boolean;
-  existingDelivery: boolean;
+  existingTransports: DeliveryTransport[];
 };
 
 export type EligibleRecipient = {
   connectionId: string;
   contactId: string;
-  recipientEmail: string;
+  recoveryMethodId: string;
+  transport: DeliveryTransport;
+  destination: string;
+  destinationHash: string | null;
   preferenceCategory: ReturnType<typeof resolvePreferenceCategory>;
 };
 
@@ -40,12 +65,49 @@ export function resolvePreferenceCategory(broadcastType: BroadcastType) {
   return broadcastPreferenceMap[broadcastType];
 }
 
-export function normaliseRecipientEmail(email: string) {
+export function recoveryMethodTypeToTransport(methodType: string): DeliveryTransport | null {
+  if (methodType === "email" || methodType === "sms" || methodType === "whatsapp") {
+    return methodType;
+  }
+  return methodType === "web_push" ? "browser_notification" : null;
+}
+
+export function resolveRecoveryTransport(
+  broadcastType: BroadcastType,
+  selectedMethod: RecoveryDestination | null,
+): DeliveryTransport | null {
+  if (broadcastType !== "account_update") return "email";
+  return selectedMethod
+    ? recoveryMethodTypeToTransport(selectedMethod.methodType)
+    : null;
+}
+
+export function normaliseEmail(email: string) {
   return email.trim().toLowerCase().normalize("NFKC");
 }
 
-export function isUsableRecipientEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+export function normalisePhoneNumber(phone: string) {
+  const compact = phone.trim().replace(/[()\s.-]/g, "");
+  return compact.startsWith("00") ? `+${compact.slice(2)}` : compact;
+}
+
+export function validateDestination(transport: DeliveryTransport, destination: string) {
+  if (transport === "email") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normaliseEmail(destination));
+  }
+  if (transport === "sms" || transport === "whatsapp") {
+    return /^\+[1-9]\d{7,14}$/.test(normalisePhoneNumber(destination));
+  }
+  return destination.trim().length > 0;
+}
+
+export function resolveDestinationForTransport(
+  destinations: RecipientCandidate["destinations"],
+  transport: DeliveryTransport,
+) {
+  const matching = destinations.filter((destination) =>
+    recoveryMethodTypeToTransport(destination.methodType) === transport);
+  return matching.find((destination) => destination.verified) ?? matching[0] ?? null;
 }
 
 export function evaluateRecipientEligibility(
@@ -61,30 +123,74 @@ export function evaluateRecipientEligibility(
   if (candidate.connectionStatus !== "active") {
     return { eligible: false, reason: "inactive_connection" };
   }
-  if (!candidate.email) {
-    return { eligible: false, reason: "missing_email" };
-  }
-  if (!candidate.emailVerified) {
-    return { eligible: false, reason: "unverified_email" };
-  }
   if (!candidate.preferenceEnabled) {
     return { eligible: false, reason: "preference_disabled" };
   }
-  if (candidate.existingDelivery) {
+  const selectedMethod = candidate.selectedRecoveryMethodId
+    ? candidate.destinations.find((destination) =>
+      destination.recoveryMethodId === candidate.selectedRecoveryMethodId) ?? null
+    : null;
+  if (broadcastType === "account_update" && !candidate.selectedRecoveryMethodId) {
+    return { eligible: false, reason: "missing_recovery_method" };
+  }
+  if (broadcastType === "account_update" && !selectedMethod) {
+    return { eligible: false, reason: "missing_recovery_method" };
+  }
+  if (selectedMethod && selectedMethod.contactId !== candidate.contactId) {
+    return { eligible: false, reason: "missing_recovery_method" };
+  }
+  if (
+    broadcastType === "account_update"
+    && selectedMethod
+    && !recoveryMethodTypeToTransport(selectedMethod.methodType)
+  ) {
+    return { eligible: false, reason: "unsupported_transport" };
+  }
+
+  const transport = resolveRecoveryTransport(broadcastType, selectedMethod);
+  if (!transport) {
+    return { eligible: false, reason: "missing_recovery_method" };
+  }
+  if (candidate.existingTransports.includes(transport)) {
     return { eligible: false, reason: "duplicate" };
   }
 
-  const recipientEmail = normaliseRecipientEmail(candidate.email);
-  if (!isUsableRecipientEmail(recipientEmail)) {
-    return { eligible: false, reason: "invalid_email" };
+  const destination = broadcastType === "account_update"
+    ? selectedMethod
+    : resolveDestinationForTransport(candidate.destinations, transport);
+  if (!destination || !destination.value) {
+    return {
+      eligible: false,
+      reason: transport === "browser_notification"
+        ? "inactive_browser_subscription"
+        : "missing_destination",
+    };
   }
+  if (!destination.verified) {
+    return { eligible: false, reason: "unverified_destination" };
+  }
+  if (transport === "browser_notification" && !destination.active) {
+    return { eligible: false, reason: "inactive_browser_subscription" };
+  }
+  if (!validateDestination(transport, destination.value)) {
+    return { eligible: false, reason: "invalid_destination" };
+  }
+
+  const normalizedDestination = transport === "email"
+    ? normaliseEmail(destination.value)
+    : transport === "sms" || transport === "whatsapp"
+      ? normalisePhoneNumber(destination.value)
+      : destination.value;
 
   return {
     eligible: true,
     recipient: {
       connectionId: candidate.connectionId,
       contactId: candidate.contactId,
-      recipientEmail,
+      recoveryMethodId: destination.recoveryMethodId,
+      transport,
+      destination: normalizedDestination,
+      destinationHash: destination.destinationHash,
       preferenceCategory: resolvePreferenceCategory(broadcastType),
     },
   };
@@ -96,11 +202,12 @@ export function deduplicateRecipients(recipients: EligibleRecipient[]) {
   let duplicates = 0;
 
   for (const recipient of recipients) {
-    if (seen.has(recipient.connectionId)) {
+    const key = `${recipient.connectionId}:${recipient.transport}`;
+    if (seen.has(key)) {
       duplicates += 1;
       continue;
     }
-    seen.add(recipient.connectionId);
+    seen.add(key);
     unique.push(recipient);
   }
 
@@ -116,13 +223,23 @@ export function aggregateExclusionReasons(evaluations: RecipientEvaluation[]) {
   return counts;
 }
 
-export function toDeliveryInsert(updateId: string, creatorId: string, recipient: EligibleRecipient) {
+export function aggregateRecipientsByTransport(recipients: EligibleRecipient[]) {
+  return Object.fromEntries(deliveryTransports.map((transport) => [
+    transport,
+    recipients.filter((recipient) => recipient.transport === transport).length,
+  ])) as Record<DeliveryTransport, number>;
+}
+
+export function createDeliveryInsert(updateId: string, creatorId: string, recipient: EligibleRecipient) {
   return {
     update_id: updateId,
     creator_id: creatorId,
     connection_id: recipient.connectionId,
     contact_id: recipient.contactId,
-    recipient_email: recipient.recipientEmail,
+    recovery_method_id: recipient.recoveryMethodId,
+    transport: recipient.transport,
+    destination: recipient.destination,
+    destination_hash: recipient.destinationHash,
     preference_category: recipient.preferenceCategory,
     status: "queued" as const,
   };

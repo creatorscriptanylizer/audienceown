@@ -1,6 +1,6 @@
 begin;
 
-select plan(19);
+select plan(26);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -11,7 +11,7 @@ values
   (
     '00000000-0000-0000-0000-000000000000',
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    'authenticated', 'authenticated', 'delivery-a@example.com',
+    'authenticated', 'authenticated', 'transport-a@example.com',
     crypt('test-password-a', gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
     now(), now(), '', '', '', ''
@@ -19,135 +19,218 @@ values
   (
     '00000000-0000-0000-0000-000000000000',
     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-    'authenticated', 'authenticated', 'delivery-b@example.com',
+    'authenticated', 'authenticated', 'transport-b@example.com',
     crypt('test-password-b', gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
     now(), now(), '', '', '', ''
   );
 
-update public.creators set public_slug = 'delivery-a', display_name = 'Delivery A'
+update public.creators set public_slug = 'transport-a', display_name = 'Transport A'
 where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-update public.creators set public_slug = 'delivery-b', display_name = 'Delivery B'
+update public.creators set public_slug = 'transport-b', display_name = 'Transport B'
 where owner_user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-select set_config('tests.delivery_creator_a', (
-  select id::text from public.creators where public_slug = 'delivery-a'
+select set_config('tests.transport_creator_a', (
+  select id::text from public.creators where public_slug = 'transport-a'
 ), true);
-select set_config('tests.delivery_creator_b', (
-  select id::text from public.creators where public_slug = 'delivery-b'
+select set_config('tests.transport_creator_b', (
+  select id::text from public.creators where public_slug = 'transport-b'
 ), true);
 
-insert into public.follower_contacts (id, email_ciphertext, email_hash, email_masked)
+insert into public.follower_contacts (
+  id, email_ciphertext, email_hash, email_masked,
+  phone_ciphertext, phone_hash, phone_masked
+)
 values
   (
-    '51000000-0000-0000-0000-000000000001', 'cipher-a',
-    encode(extensions.digest('fan-a@example.com', 'sha256'), 'hex'), 'f••••@example.com'
+    '71000000-0000-0000-0000-000000000001',
+    'cipher-email', encode(extensions.digest('email@example.com', 'sha256'), 'hex'), 'e••••@example.com',
+    null, null, null
   ),
   (
-    '51000000-0000-0000-0000-000000000002', 'cipher-b',
-    encode(extensions.digest('fan-b@example.com', 'sha256'), 'hex'), 'f••••@example.com'
+    '71000000-0000-0000-0000-000000000002',
+    null, null, null,
+    'cipher-sms', encode(extensions.digest('+447700900001', 'sha256'), 'hex'), '+44 •••• 0001'
   ),
   (
-    '51000000-0000-0000-0000-000000000003', 'cipher-inactive',
-    encode(extensions.digest('inactive@example.com', 'sha256'), 'hex'), 'i••••@example.com'
+    '71000000-0000-0000-0000-000000000003',
+    null, null, null,
+    'cipher-whatsapp', encode(extensions.digest('+447700900002', 'sha256'), 'hex'), '+44 •••• 0002'
   ),
   (
-    '51000000-0000-0000-0000-000000000004', 'cipher-unverified',
-    encode(extensions.digest('unverified@example.com', 'sha256'), 'hex'), 'u••••@example.com'
+    '71000000-0000-0000-0000-000000000004',
+    null, null, null, null, null, null
+  ),
+  (
+    '71000000-0000-0000-0000-000000000005',
+    'cipher-fallback', encode(extensions.digest('fallback@example.com', 'sha256'), 'hex'), 'f••••@example.com',
+    null, null, null
+  ),
+  (
+    '71000000-0000-0000-0000-000000000099',
+    'cipher-b', encode(extensions.digest('creator-b-fan@example.com', 'sha256'), 'hex'), 'c••••@example.com',
+    null, null, null
   );
 
 insert into public.follower_connections (
-  id, creator_id, follower_contact_id, status, preference_token_hash,
-  unsubscribe_token_hash, source_platform, consent_source
+  id, creator_id, follower_contact_id,
+  preference_token_hash, unsubscribe_token_hash, source_platform, consent_source
 )
 values
   (
-    '52000000-0000-0000-0000-000000000001',
-    current_setting('tests.delivery_creator_a')::uuid,
-    '51000000-0000-0000-0000-000000000001',
-    'active', 'delivery-pref-a', 'delivery-unsub-a', 'direct', 'creator_page'
+    '72000000-0000-0000-0000-000000000001',
+    current_setting('tests.transport_creator_a')::uuid,
+    '71000000-0000-0000-0000-000000000001',
+    'transport-pref-email', 'transport-unsub-email', 'direct', 'creator_page'
   ),
   (
-    '52000000-0000-0000-0000-000000000002',
-    current_setting('tests.delivery_creator_b')::uuid,
-    '51000000-0000-0000-0000-000000000002',
-    'active', 'delivery-pref-b', 'delivery-unsub-b', 'direct', 'creator_page'
+    '72000000-0000-0000-0000-000000000002',
+    current_setting('tests.transport_creator_a')::uuid,
+    '71000000-0000-0000-0000-000000000002',
+    'transport-pref-sms', 'transport-unsub-sms', 'direct', 'creator_page'
   ),
   (
-    '52000000-0000-0000-0000-000000000003',
-    current_setting('tests.delivery_creator_a')::uuid,
-    '51000000-0000-0000-0000-000000000003',
-    'deactivated', 'delivery-pref-inactive', 'delivery-unsub-inactive', 'direct', 'creator_page'
+    '72000000-0000-0000-0000-000000000003',
+    current_setting('tests.transport_creator_a')::uuid,
+    '71000000-0000-0000-0000-000000000003',
+    'transport-pref-whatsapp', 'transport-unsub-whatsapp', 'direct', 'creator_page'
   ),
   (
-    '52000000-0000-0000-0000-000000000004',
-    current_setting('tests.delivery_creator_a')::uuid,
-    '51000000-0000-0000-0000-000000000004',
-    'active', 'delivery-pref-unverified', 'delivery-unsub-unverified', 'direct', 'creator_page'
+    '72000000-0000-0000-0000-000000000004',
+    current_setting('tests.transport_creator_a')::uuid,
+    '71000000-0000-0000-0000-000000000004',
+    'transport-pref-browser', 'transport-unsub-browser', 'direct', 'creator_page'
+  ),
+  (
+    '72000000-0000-0000-0000-000000000005',
+    current_setting('tests.transport_creator_a')::uuid,
+    '71000000-0000-0000-0000-000000000005',
+    'transport-pref-missing', 'transport-unsub-missing', 'direct', 'creator_page'
+  ),
+  (
+    '72000000-0000-0000-0000-000000000099',
+    current_setting('tests.transport_creator_b')::uuid,
+    '71000000-0000-0000-0000-000000000099',
+    'transport-pref-b', 'transport-unsub-b', 'direct', 'creator_page'
   );
 
 insert into public.follower_recovery_methods (
-  follower_contact_id, method_type, method_status, destination_hash,
-  destination_masked, verified_at
+  id, follower_contact_id, method_type, method_status,
+  destination_hash, destination_masked, provider_identifier, verified_at
 )
 values
   (
-    '51000000-0000-0000-0000-000000000001', 'email', 'verified',
-    encode(extensions.digest('fan-a@example.com', 'sha256'), 'hex'),
-    'f••••@example.com', now()
+    '73000000-0000-0000-0000-000000000001',
+    '71000000-0000-0000-0000-000000000001', 'email', 'verified',
+    encode(extensions.digest('email@example.com', 'sha256'), 'hex'), 'e••••@example.com', null, now()
   ),
   (
-    '51000000-0000-0000-0000-000000000002', 'email', 'verified',
-    encode(extensions.digest('fan-b@example.com', 'sha256'), 'hex'),
-    'f••••@example.com', now()
+    '73000000-0000-0000-0000-000000000002',
+    '71000000-0000-0000-0000-000000000002', 'sms', 'verified',
+    encode(extensions.digest('+447700900001', 'sha256'), 'hex'), '+44 •••• 0001', null, now()
   ),
   (
-    '51000000-0000-0000-0000-000000000003', 'email', 'verified',
-    encode(extensions.digest('inactive@example.com', 'sha256'), 'hex'),
-    'i••••@example.com', now()
+    '73000000-0000-0000-0000-000000000003',
+    '71000000-0000-0000-0000-000000000003', 'whatsapp', 'verified',
+    encode(extensions.digest('+447700900002', 'sha256'), 'hex'), '+44 •••• 0002', null, now()
   ),
   (
-    '51000000-0000-0000-0000-000000000004', 'email', 'pending',
-    encode(extensions.digest('unverified@example.com', 'sha256'), 'hex'),
-    'u••••@example.com', null
+    '73000000-0000-0000-0000-000000000004',
+    '71000000-0000-0000-0000-000000000004', 'web_push', 'verified',
+    null, 'Browser subscription', 'browser-subscription-reference', now()
+  ),
+  (
+    '73000000-0000-0000-0000-000000000005',
+    '71000000-0000-0000-0000-000000000005', 'email', 'verified',
+    encode(extensions.digest('fallback@example.com', 'sha256'), 'hex'), 'f••••@example.com', null, now()
+  ),
+  (
+    '73000000-0000-0000-0000-000000000006',
+    '71000000-0000-0000-0000-000000000005', 'sms', 'pending',
+    null, null, null, null
+  ),
+  (
+    '73000000-0000-0000-0000-000000000007',
+    '71000000-0000-0000-0000-000000000002', 'sms', 'verified',
+    encode(extensions.digest('+447700900099', 'sha256'), 'hex'), '+44 •••• 0099', null, now()
+  ),
+  (
+    '73000000-0000-0000-0000-000000000008',
+    '71000000-0000-0000-0000-000000000001', 'sms', 'pending',
+    null, null, null, null
+  ),
+  (
+    '73000000-0000-0000-0000-000000000009',
+    '71000000-0000-0000-0000-000000000001', 'passkey', 'verified',
+    null, 'Passkey', 'passkey-reference', now()
+  ),
+  (
+    '73000000-0000-0000-0000-000000000099',
+    '71000000-0000-0000-0000-000000000099', 'email', 'verified',
+    encode(extensions.digest('creator-b-fan@example.com', 'sha256'), 'hex'), 'c••••@example.com', null, now()
   );
+
+update public.follower_connections connection
+set selected_recovery_method_id = case connection.id
+  when '72000000-0000-0000-0000-000000000001' then '73000000-0000-0000-0000-000000000001'::uuid
+  when '72000000-0000-0000-0000-000000000002' then '73000000-0000-0000-0000-000000000002'::uuid
+  when '72000000-0000-0000-0000-000000000003' then '73000000-0000-0000-0000-000000000003'::uuid
+  when '72000000-0000-0000-0000-000000000004' then '73000000-0000-0000-0000-000000000004'::uuid
+  when '72000000-0000-0000-0000-000000000005' then '73000000-0000-0000-0000-000000000006'::uuid
+  when '72000000-0000-0000-0000-000000000099' then '73000000-0000-0000-0000-000000000099'::uuid
+end;
 
 insert into public.creator_updates (
   id, creator_id, broadcast_type, title, subject, content
 )
 select
-  ('53000000-0000-0000-0000-' || lpad(number::text, 12, '0'))::uuid,
-  current_setting('tests.delivery_creator_a')::uuid,
-  case when number = 10 then 'new_content'::public.broadcast_type else 'account_update'::public.broadcast_type end,
-  'Complete update ' || number,
+  ('74000000-0000-0000-0000-' || lpad(number::text, 12, '0'))::uuid,
+  current_setting('tests.transport_creator_a')::uuid,
+  'account_update',
+  'Transport update ' || number,
   'Subject ' || number,
   'Message ' || number
-from generate_series(1, 12) as number;
+from generate_series(1, 15) as number;
 
 insert into public.creator_updates (
   id, creator_id, broadcast_type, title, subject, content
 )
 values (
-  '53000000-0000-0000-0000-000000000099',
-  current_setting('tests.delivery_creator_b')::uuid,
-  'account_update',
-  'Creator B update',
-  'Creator B subject',
-  'Creator B message'
+  '74000000-0000-0000-0000-000000000016',
+  current_setting('tests.transport_creator_a')::uuid,
+  'announcement', 'Regular announcement', 'Announcement subject', 'Announcement message'
+);
+
+insert into public.creator_updates (
+  id, creator_id, broadcast_type, title, subject, content
+)
+values (
+  '74000000-0000-0000-0000-000000000099',
+  current_setting('tests.transport_creator_b')::uuid,
+  'account_update', 'Other update', 'Other subject', 'Other message'
 );
 
 insert into public.update_deliveries (
-  id, update_id, creator_id, connection_id, contact_id,
-  recipient_email, preference_category
+  id, update_id, creator_id, connection_id, contact_id, recovery_method_id,
+  transport, destination, destination_hash, preference_category
 )
 values (
-  '54000000-0000-0000-0000-000000000099',
-  '53000000-0000-0000-0000-000000000099',
-  current_setting('tests.delivery_creator_b')::uuid,
-  '52000000-0000-0000-0000-000000000002',
-  '51000000-0000-0000-0000-000000000002',
-  'fan-b@example.com',
+  '75000000-0000-0000-0000-000000000099',
+  '74000000-0000-0000-0000-000000000099',
+  current_setting('tests.transport_creator_b')::uuid,
+  '72000000-0000-0000-0000-000000000099',
+  '71000000-0000-0000-0000-000000000099',
+  '73000000-0000-0000-0000-000000000099',
+  'email', 'creator-b-fan@example.com',
+  encode(extensions.digest('creator-b-fan@example.com', 'sha256'), 'hex'),
   'recovery'
+);
+
+-- 1
+select is(
+  enum_range(null::public.delivery_transport)::text,
+  '{email,sms,whatsapp,browser_notification}',
+  'delivery transport enum contains all supported methods'
 );
 
 set local role authenticated;
@@ -155,327 +238,410 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
 select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated"}', true);
 
--- 1
+-- 2
 select lives_ok(
   $$
     insert into public.update_deliveries (
-      id, update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
+      id, update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '54000000-0000-0000-0000-000000000001',
-      '53000000-0000-0000-0000-000000000001',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com',
+      '75000000-0000-0000-0000-000000000001',
+      '74000000-0000-0000-0000-000000000001',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000001',
+      '71000000-0000-0000-0000-000000000001',
+      '73000000-0000-0000-0000-000000000001',
+      'email', 'email@example.com',
+      encode(extensions.digest('email@example.com', 'sha256'), 'hex'),
       'recovery'
     )
   $$,
-  'creator can create a delivery for own update'
+  'creator can create a transport-aware delivery'
 );
 
--- 2
+-- 3
 select throws_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000099',
-      current_setting('tests.delivery_creator_b')::uuid,
-      '52000000-0000-0000-0000-000000000002',
-      '51000000-0000-0000-0000-000000000002',
-      'fan-b@example.com',
+      '74000000-0000-0000-0000-000000000099',
+      current_setting('tests.transport_creator_b')::uuid,
+      '72000000-0000-0000-0000-000000000099',
+      '71000000-0000-0000-0000-000000000099',
+      '73000000-0000-0000-0000-000000000099',
+      'email', 'creator-b-fan@example.com',
+      encode(extensions.digest('creator-b-fan@example.com', 'sha256'), 'hex'),
       'recovery'
     )
   $$,
   '42501',
   null,
-  'creator cannot create a delivery for another creator update'
-);
-
--- 3
-select is(
-  (select count(*)::int from public.update_deliveries where id = '54000000-0000-0000-0000-000000000099'),
-  0,
-  'creator cannot read another creator deliveries'
+  'creator cannot create delivery for another creator'
 );
 
 -- 4
 select throws_ok(
   $$
-    insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
-    )
-    values (
-      '53000000-0000-0000-0000-000000000002',
-      current_setting('tests.delivery_creator_b')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com',
-      'recovery'
-    )
+    update public.update_deliveries
+    set transport = 'sms'
+    where id = '75000000-0000-0000-0000-000000000001'
   $$,
-  '23514',
+  '42501',
   null,
-  'creator_id must match update owner'
+  'transport is immutable'
 );
 
 -- 5
 select throws_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000001',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com',
+      '74000000-0000-0000-0000-000000000001',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000001',
+      '71000000-0000-0000-0000-000000000001',
+      '73000000-0000-0000-0000-000000000001',
+      'email', 'email@example.com',
+      encode(extensions.digest('email@example.com', 'sha256'), 'hex'),
       'recovery'
     )
   $$,
   '23505',
   null,
-  'duplicate update and connection is rejected'
+  'duplicate update connection and transport is rejected'
 );
 
 -- 6
 select throws_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000002',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com',
-      'products'
+      '74000000-0000-0000-0000-000000000002',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000001',
+      '71000000-0000-0000-0000-000000000001',
+      '73000000-0000-0000-0000-000000000005',
+      'email', 'email@example.com',
+      encode(extensions.digest('email@example.com', 'sha256'), 'hex'),
+      'recovery'
     )
   $$,
   '23514',
   null,
-  'canonical preference category is enforced'
+  'email requires matching verified email method'
 );
 
 -- 7
 select lives_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000002',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com',
+      '74000000-0000-0000-0000-000000000003',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000002',
+      '71000000-0000-0000-0000-000000000002',
+      '73000000-0000-0000-0000-000000000002',
+      'sms', '+447700900001',
+      encode(extensions.digest('+447700900001', 'sha256'), 'hex'),
       'recovery'
     )
   $$,
-  'queued delivery may omit provider message ID'
+  'SMS requires and accepts its verified phone method'
 );
 
 -- 8
-select throws_ok(
+select lives_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category, status
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000003',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com', 'recovery', 'sent'
+      '74000000-0000-0000-0000-000000000004',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000003',
+      '71000000-0000-0000-0000-000000000003',
+      '73000000-0000-0000-0000-000000000003',
+      'whatsapp', '+447700900002',
+      encode(extensions.digest('+447700900002', 'sha256'), 'hex'),
+      'recovery'
     )
   $$,
-  '23514',
-  null,
-  'sent delivery requires sent_at'
+  'WhatsApp requires and accepts its verified phone method'
 );
 
 -- 9
-select throws_ok(
+select lives_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category, status
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000004',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com', 'recovery', 'delivered'
+      '74000000-0000-0000-0000-000000000005',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000004',
+      '71000000-0000-0000-0000-000000000004',
+      '73000000-0000-0000-0000-000000000004',
+      'browser_notification', 'browser-subscription-reference', null, 'recovery'
     )
   $$,
-  '23514',
-  null,
-  'delivered delivery requires delivered_at'
+  'browser delivery requires a verified active subscription reference'
 );
 
 -- 10
 select throws_ok(
   $$
     insert into public.update_deliveries (
-      update_id, creator_id, connection_id, contact_id,
-      recipient_email, preference_category, status
+      update_id, creator_id, connection_id, contact_id, recovery_method_id,
+      transport, destination, destination_hash, preference_category
     )
     values (
-      '53000000-0000-0000-0000-000000000005',
-      current_setting('tests.delivery_creator_a')::uuid,
-      '52000000-0000-0000-0000-000000000001',
-      '51000000-0000-0000-0000-000000000001',
-      'fan-a@example.com', 'recovery', 'failed'
+      '74000000-0000-0000-0000-000000000006',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000002',
+      '71000000-0000-0000-0000-000000000002',
+      '73000000-0000-0000-0000-000000000002',
+      'email', 'email@example.com',
+      encode(extensions.digest('email@example.com', 'sha256'), 'hex'),
+      'recovery'
     )
   $$,
   '23514',
   null,
-  'failed delivery requires failed_at'
+  'selected Recovery Pass method is respected'
 );
 
--- 11
+-- 11-13
 select throws_ok(
-  $$
-    update public.update_deliveries
-    set update_id = '53000000-0000-0000-0000-000000000006'
-    where id = '54000000-0000-0000-0000-000000000001'
-  $$,
-  '42501',
-  null,
-  'update_id is immutable'
+  $$ insert into public.update_deliveries (update_id,creator_id,connection_id,contact_id,recovery_method_id,transport,destination,destination_hash,preference_category)
+     values ('74000000-0000-0000-0000-000000000007',current_setting('tests.transport_creator_a')::uuid,'72000000-0000-0000-0000-000000000002','71000000-0000-0000-0000-000000000002','73000000-0000-0000-0000-000000000001','email','email@example.com',encode(extensions.digest('email@example.com','sha256'),'hex'),'recovery') $$,
+  '23514', null, 'SMS selection never falls back to email'
 );
-
--- 12
 select throws_ok(
-  $$
-    update public.update_deliveries
-    set creator_id = current_setting('tests.delivery_creator_b')::uuid
-    where id = '54000000-0000-0000-0000-000000000001'
-  $$,
-  '42501',
-  null,
-  'creator_id is immutable'
+  $$ insert into public.update_deliveries (update_id,creator_id,connection_id,contact_id,recovery_method_id,transport,destination,destination_hash,preference_category)
+     values ('74000000-0000-0000-0000-000000000008',current_setting('tests.transport_creator_a')::uuid,'72000000-0000-0000-0000-000000000003','71000000-0000-0000-0000-000000000003','73000000-0000-0000-0000-000000000001','email','email@example.com',encode(extensions.digest('email@example.com','sha256'),'hex'),'recovery') $$,
+  '23514', null, 'WhatsApp selection never falls back to email'
 );
-
--- 13
-select results_eq(
-  $$
-    update public.update_deliveries
-    set status = 'cancelled', cancelled_at = now()
-    where id = '54000000-0000-0000-0000-000000000099'
-    returning id
-  $$,
-  array[]::uuid[],
-  'another creator cannot update delivery status'
+select throws_ok(
+  $$ insert into public.update_deliveries (update_id,creator_id,connection_id,contact_id,recovery_method_id,transport,destination,destination_hash,preference_category)
+     values ('74000000-0000-0000-0000-000000000009',current_setting('tests.transport_creator_a')::uuid,'72000000-0000-0000-0000-000000000004','71000000-0000-0000-0000-000000000004','73000000-0000-0000-0000-000000000001','email','email@example.com',encode(extensions.digest('email@example.com','sha256'),'hex'),'recovery') $$,
+  '23514', null, 'browser notification selection never falls back'
 );
 
 -- 14
 select is(
-  public.create_update_delivery_queue(
-    '53000000-0000-0000-0000-000000000007',
-    current_setting('tests.delivery_creator_a')::uuid,
-    jsonb_build_array(
-      jsonb_build_object(
-        'connection_id', '52000000-0000-0000-0000-000000000001',
-        'contact_id', '51000000-0000-0000-0000-000000000001',
-        'recipient_email', 'fan-a@example.com'
-      ),
-      jsonb_build_object(
-        'connection_id', '52000000-0000-0000-0000-000000000003',
-        'contact_id', '51000000-0000-0000-0000-000000000003',
-        'recipient_email', 'inactive@example.com'
-      ),
-      jsonb_build_object(
-        'connection_id', '52000000-0000-0000-0000-000000000004',
-        'contact_id', '51000000-0000-0000-0000-000000000004',
-        'recipient_email', 'unverified@example.com'
-      )
-    )
-  ),
-  1,
-  'queue creation selects only active recipients with verified email'
+  (select transport from public.update_deliveries where update_id = '74000000-0000-0000-0000-000000000003'),
+  'sms'::public.delivery_transport,
+  'account update uses selected recovery transport'
 );
 
 -- 15
 select is(
-  public.create_update_delivery_queue(
-    '53000000-0000-0000-0000-000000000010',
-    current_setting('tests.delivery_creator_a')::uuid,
-    jsonb_build_array(jsonb_build_object(
-      'connection_id', '52000000-0000-0000-0000-000000000001',
-      'contact_id', '51000000-0000-0000-0000-000000000001',
-      'recipient_email', 'fan-a@example.com'
-    ))
-  ),
+  (
+    public.create_update_delivery_queue(
+      '74000000-0000-0000-0000-000000000010',
+      current_setting('tests.transport_creator_a')::uuid,
+      jsonb_build_array(jsonb_build_object(
+        'connection_id', '72000000-0000-0000-0000-000000000005',
+        'recovery_method_id', '73000000-0000-0000-0000-000000000005',
+        'destination', 'fallback@example.com',
+        'destination_hash', encode(extensions.digest('fallback@example.com', 'sha256'), 'hex')
+      ))
+    ) ->> 'created'
+  )::integer,
   0,
-  'preference-disabled recipient is excluded'
+  'missing selected-method destination is excluded without fallback'
 );
 
 -- 16
 select is(
-  (
-    select count(*)::int
-    from public.update_deliveries
-    where update_id = '53000000-0000-0000-0000-000000000007'
-      and connection_id in (
-        '52000000-0000-0000-0000-000000000003',
-        '52000000-0000-0000-0000-000000000004'
-      )
-  ),
-  0,
-  'inactive and unverified email recipients are excluded'
+  public.create_update_delivery_queue(
+    '74000000-0000-0000-0000-000000000011',
+    current_setting('tests.transport_creator_a')::uuid,
+    jsonb_build_array(
+      jsonb_build_object('connection_id','72000000-0000-0000-0000-000000000001','recovery_method_id','73000000-0000-0000-0000-000000000001','destination','email@example.com','destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')),
+      jsonb_build_object('connection_id','72000000-0000-0000-0000-000000000002','recovery_method_id','73000000-0000-0000-0000-000000000002','destination','+447700900001','destination_hash',encode(extensions.digest('+447700900001','sha256'),'hex')),
+      jsonb_build_object('connection_id','72000000-0000-0000-0000-000000000003','recovery_method_id','73000000-0000-0000-0000-000000000003','destination','+447700900002','destination_hash',encode(extensions.digest('+447700900002','sha256'),'hex')),
+      jsonb_build_object('connection_id','72000000-0000-0000-0000-000000000004','recovery_method_id','73000000-0000-0000-0000-000000000004','destination','browser-subscription-reference','destination_hash',null)
+    )
+  ) -> 'byTransport',
+  '{"email":1,"sms":1,"whatsapp":1,"browser_notification":1}'::jsonb,
+  'queue summary groups created rows by transport'
 );
 
 -- 17
 select is(
   (
-    select preference_category
-    from public.update_deliveries
-    where update_id = '53000000-0000-0000-0000-000000000007'
-  ),
-  'recovery',
-  'account update resolves to recovery preference'
+    public.create_update_delivery_queue(
+      '74000000-0000-0000-0000-000000000011',
+      current_setting('tests.transport_creator_a')::uuid,
+      jsonb_build_array(jsonb_build_object(
+        'connection_id','72000000-0000-0000-0000-000000000001',
+        'recovery_method_id','73000000-0000-0000-0000-000000000001',
+        'destination','email@example.com',
+        'destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')
+      ))
+    ) ->> 'created'
+  )::integer,
+  0,
+  'repeated queue preparation remains idempotent'
 );
 
 -- 18
-select is(
-  public.create_update_delivery_queue(
-    '53000000-0000-0000-0000-000000000007',
-    current_setting('tests.delivery_creator_a')::uuid,
-    jsonb_build_array(jsonb_build_object(
-      'connection_id', '52000000-0000-0000-0000-000000000001',
-      'contact_id', '51000000-0000-0000-0000-000000000001',
-      'recipient_email', 'fan-a@example.com'
-    ))
-  ),
-  0,
-  'repeated queue creation is idempotent'
+select results_eq(
+  $$ update public.update_deliveries set status='cancelled',cancelled_at=now()
+     where id='75000000-0000-0000-0000-000000000099' returning id $$,
+  array[]::uuid[],
+  'cross-creator delivery status changes are denied'
+);
+
+-- 19
+select throws_ok(
+  $$
+    insert into public.update_deliveries (
+      update_id,creator_id,connection_id,contact_id,recovery_method_id,
+      transport,destination,destination_hash,preference_category,status
+    )
+    values (
+      '74000000-0000-0000-0000-000000000012',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000001',
+      '71000000-0000-0000-0000-000000000001',
+      '73000000-0000-0000-0000-000000000001',
+      'email','email@example.com',
+      encode(extensions.digest('email@example.com','sha256'),'hex'),
+      'recovery','sent'
+    )
+  $$,
+  '23514',
+  null,
+  'existing sent timestamp constraint remains enforced'
 );
 
 reset role;
+
+-- 20
+select has_column(
+  'public',
+  'follower_connections',
+  'selected_recovery_method_id',
+  'relationships store the exact selected recovery method ID'
+);
+
+-- 21
+select col_is_fk(
+  'public',
+  'follower_connections',
+  'selected_recovery_method_id',
+  'selected recovery method ID is protected by a foreign key'
+);
+
+-- 22
+select throws_ok(
+  $$
+    update public.follower_connections
+    set selected_recovery_method_id = '73000000-0000-0000-0000-000000000099'
+    where id = '72000000-0000-0000-0000-000000000001'
+  $$,
+  '23514',
+  null,
+  'selected recovery method must belong to the relationship contact'
+);
+
+-- 23
+select throws_ok(
+  $$
+    insert into public.update_deliveries (
+      update_id,creator_id,connection_id,contact_id,recovery_method_id,
+      transport,destination,destination_hash,preference_category
+    )
+    values (
+      '74000000-0000-0000-0000-000000000013',
+      current_setting('tests.transport_creator_a')::uuid,
+      '72000000-0000-0000-0000-000000000002',
+      '71000000-0000-0000-0000-000000000002',
+      '73000000-0000-0000-0000-000000000007',
+      'sms','+447700900099',
+      encode(extensions.digest('+447700900099','sha256'),'hex'),
+      'recovery'
+    )
+  $$,
+  '23514',
+  null,
+  'account updates cannot substitute another method of the selected transport'
+);
+
+-- 24
+update public.follower_connections
+set selected_recovery_method_id = '73000000-0000-0000-0000-000000000009'
+where id = '72000000-0000-0000-0000-000000000001';
+select is(
+  (
+    public.create_update_delivery_queue(
+      '74000000-0000-0000-0000-000000000014',
+      current_setting('tests.transport_creator_a')::uuid,
+      jsonb_build_array(jsonb_build_object(
+        'connection_id','72000000-0000-0000-0000-000000000001',
+        'recovery_method_id','73000000-0000-0000-0000-000000000001',
+        'destination','email@example.com',
+        'destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')
+      ))
+    ) ->> 'created'
+  )::integer,
+  0,
+  'unsupported selected method types are excluded'
+);
+
+-- 25
+update public.follower_connections
+set selected_recovery_method_id = '73000000-0000-0000-0000-000000000008'
+where id = '72000000-0000-0000-0000-000000000001';
+update public.follower_category_preferences
+set enabled = true
+where follower_connection_id = '72000000-0000-0000-0000-000000000001'
+  and category_key = 'announcements';
+select is(
+  (
+    public.create_update_delivery_queue(
+      '74000000-0000-0000-0000-000000000016',
+      current_setting('tests.transport_creator_a')::uuid,
+      jsonb_build_array(jsonb_build_object(
+        'connection_id','72000000-0000-0000-0000-000000000001',
+        'recovery_method_id','73000000-0000-0000-0000-000000000001',
+        'destination','email@example.com',
+        'destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')
+      ))
+    ) ->> 'created'
+  )::integer,
+  1,
+  'regular broadcasts use verified email even when another method is selected'
+);
+
 set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', 'anon', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
--- 19
+-- 26
 select throws_ok(
   $$ select * from public.update_deliveries $$,
   '42501',
   null,
-  'anonymous cannot read delivery data'
+  'anonymous cannot read transport deliveries'
 );
 
 select * from finish();

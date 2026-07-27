@@ -4,9 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   aggregateExclusionReasons,
+  aggregateRecipientsByTransport,
   deduplicateRecipients,
   evaluateRecipientEligibility,
   resolvePreferenceCategory,
+  type DeliveryTransport,
   type EligibleRecipient,
   type RecipientCandidate,
   type RecipientExclusionReason,
@@ -30,6 +32,7 @@ type DeliveryResolution = {
   eligible: number;
   duplicates: number;
   excluded: Partial<Record<RecipientExclusionReason, number>>;
+  byTransport: Record<DeliveryTransport, number>;
 };
 
 export type DeliveryQueueSummary = {
@@ -37,6 +40,7 @@ export type DeliveryQueueSummary = {
   created: number;
   duplicates: number;
   excluded: Partial<Record<RecipientExclusionReason, number>>;
+  byTransport: Record<DeliveryTransport, number>;
 };
 
 async function decryptContact(ciphertext: string, secret: string) {
@@ -72,7 +76,7 @@ export async function getEligibleRecipientsForUpdate(
 
   const preferenceCategory = resolvePreferenceCategory(update.broadcast_type);
   const { data: connections, error: connectionsError } = await admin.from("follower_connections").select(
-    "id,creator_id,follower_contact_id,status",
+    "id,creator_id,follower_contact_id,status,selected_recovery_method_id",
   ).eq("creator_id", creatorId);
   if (connectionsError) throw new Error("Audience could not be loaded.");
 
@@ -81,12 +85,14 @@ export async function getEligibleRecipientsForUpdate(
   const contactIds = [...new Set(connectionRows.map((row) => row.follower_contact_id))];
   const [{ data: contacts }, { data: methods }, { data: preferences }, { data: existing }] = await Promise.all([
     contactIds.length
-      ? admin.from("follower_contacts").select("id,email_ciphertext,email_hash").in("id", contactIds)
+      ? admin.from("follower_contacts").select(
+        "id,email_ciphertext,email_hash,phone_ciphertext,phone_hash",
+      ).in("id", contactIds)
       : Promise.resolve({ data: [] }),
     contactIds.length
       ? admin.from("follower_recovery_methods").select(
-        "follower_contact_id,method_type,method_status,destination_hash",
-      ).in("follower_contact_id", contactIds).eq("method_type", "email")
+        "id,follower_contact_id,method_type,method_status,destination_hash,provider_identifier,created_at",
+      ).in("follower_contact_id", contactIds).order("created_at").order("id")
       : Promise.resolve({ data: [] }),
     connectionIds.length
       ? admin.from("follower_category_preferences").select(
@@ -94,7 +100,7 @@ export async function getEligibleRecipientsForUpdate(
       ).in("follower_connection_id", connectionIds).eq("category_key", preferenceCategory)
       : Promise.resolve({ data: [] }),
     connectionIds.length
-      ? admin.from("update_deliveries").select("connection_id").eq("update_id", updateId)
+      ? admin.from("update_deliveries").select("connection_id,transport").eq("update_id", updateId)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -109,28 +115,48 @@ export async function getEligibleRecipientsForUpdate(
   const preferenceByConnection = new Map(
     (preferences ?? []).map((preference) => [preference.follower_connection_id, preference.enabled]),
   );
-  const existingConnections = new Set((existing ?? []).map((delivery) => delivery.connection_id));
+  const existingByConnection = new Map<string, DeliveryTransport[]>();
+  for (const delivery of existing ?? []) {
+    existingByConnection.set(delivery.connection_id, [
+      ...(existingByConnection.get(delivery.connection_id) ?? []),
+      delivery.transport,
+    ]);
+  }
 
   const candidates: RecipientCandidate[] = await Promise.all(connectionRows.map(async (connection) => {
     const contact = contactById.get(connection.follower_contact_id);
     const email = contact?.email_ciphertext
       ? await decryptContact(contact.email_ciphertext, encryptionKey)
       : null;
-    const emailVerified = Boolean(
-      contact?.email_hash
-      && methodsByContact.get(connection.follower_contact_id)?.some((method) =>
-        method.method_status === "verified" && method.destination_hash === contact.email_hash),
-    );
+    const phone = contact?.phone_ciphertext
+      ? await decryptContact(contact.phone_ciphertext, encryptionKey)
+      : null;
+    const contactMethods = methodsByContact.get(connection.follower_contact_id) ?? [];
     return {
       connectionId: connection.id,
       contactId: connection.follower_contact_id,
       creatorId: connection.creator_id,
       expectedCreatorId: creatorId,
       connectionStatus: connection.status as RecipientCandidate["connectionStatus"],
-      email,
-      emailVerified,
+      selectedRecoveryMethodId: connection.selected_recovery_method_id,
+      destinations: contactMethods.map((method) => ({
+        recoveryMethodId: method.id,
+        contactId: method.follower_contact_id,
+        methodType: method.method_type,
+        value: method.method_type === "email"
+          ? email
+          : method.method_type === "sms" || method.method_type === "whatsapp"
+            ? phone
+            : method.method_type === "web_push"
+              ? method.provider_identifier
+              : null,
+        destinationHash: method.method_type === "web_push" ? null : method.destination_hash,
+        verified: method.method_status === "verified",
+        active: method.method_status === "verified"
+          && (method.method_type !== "web_push" || Boolean(method.provider_identifier)),
+      })),
       preferenceEnabled: preferenceByConnection.get(connection.id) === true,
-      existingDelivery: existingConnections.has(connection.id),
+      existingTransports: existingByConnection.get(connection.id) ?? [],
     };
   }));
 
@@ -151,6 +177,7 @@ export async function getEligibleRecipientsForUpdate(
     eligible: deduplicated.recipients.length,
     duplicates: duplicateExclusions,
     excluded: aggregateExclusionReasons(evaluations),
+    byTransport: aggregateRecipientsByTransport(deduplicated.recipients),
   };
 }
 
@@ -162,21 +189,32 @@ export async function createDeliveryQueue(
   const supabase = await createClient();
   if (!supabase) throw new Error("Delivery queue is unavailable.");
 
-  const { data: created, error } = await supabase.rpc("create_update_delivery_queue", {
+  const { data: rpcSummary, error } = await supabase.rpc("create_update_delivery_queue", {
     p_update_id: updateId,
     p_creator_id: creatorId,
     p_recipients: resolution.eligibleRecipients.map((recipient) => ({
       connection_id: recipient.connectionId,
-      contact_id: recipient.contactId,
-      recipient_email: recipient.recipientEmail,
+      recovery_method_id: recipient.recoveryMethodId,
+      destination: recipient.destination,
+      destination_hash: recipient.destinationHash,
     })),
   });
   if (error) throw new Error("Delivery queue could not be prepared.");
 
+  const result = rpcSummary as {
+    created?: number;
+    byTransport?: Partial<Record<DeliveryTransport, number>>;
+  } | null;
   return {
     eligible: resolution.eligible,
-    created: created ?? 0,
+    created: result?.created ?? 0,
     duplicates: resolution.duplicates,
     excluded: resolution.excluded,
+    byTransport: Object.fromEntries(
+      (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport) => [
+        transport,
+        result?.byTransport?.[transport] ?? 0,
+      ]),
+    ) as Record<DeliveryTransport, number>,
   };
 }

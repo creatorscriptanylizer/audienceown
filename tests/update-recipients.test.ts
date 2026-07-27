@@ -1,134 +1,242 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateExclusionReasons,
+  aggregateRecipientsByTransport,
+  createDeliveryInsert,
   deduplicateRecipients,
   evaluateRecipientEligibility,
-  normaliseRecipientEmail,
-  resolvePreferenceCategory,
-  toDeliveryInsert,
+  normaliseEmail,
+  normalisePhoneNumber,
+  recoveryMethodTypeToTransport,
+  resolveRecoveryTransport,
   type RecipientCandidate,
+  type RecoveryDestination,
 } from "@/lib/update-recipients";
-import { broadcastTypes } from "@/lib/updates";
 
-const candidate: RecipientCandidate = {
+function destination(
+  methodType: string,
+  value: string | null,
+  overrides: Partial<RecoveryDestination> = {},
+): RecoveryDestination {
+  return {
+    recoveryMethodId: `method-${methodType}`,
+    contactId: "contact-1",
+    methodType,
+    value,
+    destinationHash: methodType === "web_push" ? null : `hash-${methodType}`,
+    verified: true,
+    active: true,
+    ...overrides,
+  };
+}
+
+const destinations = [
+  destination("email", "Fan@Example.com"),
+  destination("sms", "+44 7700 900123"),
+  destination("whatsapp", "+44 7700 900123"),
+  destination("web_push", "subscription-reference"),
+];
+
+const base: RecipientCandidate = {
   connectionId: "connection-1",
   contactId: "contact-1",
   creatorId: "creator-1",
   expectedCreatorId: "creator-1",
   connectionStatus: "active",
-  email: "Fan@Example.com",
-  emailVerified: true,
+  selectedRecoveryMethodId: "method-email",
+  destinations,
   preferenceEnabled: true,
-  existingDelivery: false,
+  existingTransports: [],
 };
 
-describe("update recipient resolution", () => {
-  it("maps every broadcast type to the canonical preference", () => {
-    expect(broadcastTypes.map(resolvePreferenceCategory)).toEqual([
-      "videos",
-      "announcements",
-      "livestreams",
-      "announcements",
-      "products",
-      "recovery",
-    ]);
+describe("transport-aware recipient resolution", () => {
+  it.each([
+    ["email", "email"],
+    ["sms", "sms"],
+    ["whatsapp", "whatsapp"],
+    ["web_push", "browser_notification"],
+    ["passkey", null],
+  ] as const)("maps %s recovery methods to %s", (methodType, expected) => {
+    expect(recoveryMethodTypeToTransport(methodType)).toBe(expected);
   });
 
-  it("normalises recipient email", () => {
-    expect(normaliseRecipientEmail("  FAN@Example.COM ")).toBe("fan@example.com");
+  it.each([
+    ["method-email", "email"],
+    ["method-sms", "sms"],
+    ["method-whatsapp", "whatsapp"],
+    ["method-web_push", "browser_notification"],
+  ] as const)("selects the exact %s recovery method", (selectedId, expected) => {
+    const selected = destinations.find((method) => method.recoveryMethodId === selectedId) ?? null;
+    expect(resolveRecoveryTransport("account_update", selected)).toBe(expected);
   });
 
-  it("excludes an invalid email", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, email: "not-an-email" }, "announcement")).toEqual({
+  it("preserves email for regular broadcasts regardless of the selected method", () => {
+    expect(resolveRecoveryTransport("announcement", destinations[1])).toBe("email");
+  });
+
+  it("normalises email", () => {
+    expect(normaliseEmail(" FAN@Example.COM ")).toBe("fan@example.com");
+  });
+
+  it("normalises E.164 phone input", () => {
+    expect(normalisePhoneNumber("00 44 (7700) 900-123")).toBe("+447700900123");
+  });
+
+  it("rejects an invalid email", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      destinations: [destination("email", "invalid")],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "invalid_destination" });
+  });
+
+  it("rejects an invalid phone", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "method-sms",
+      destinations: [destination("sms", "555")],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "invalid_destination" });
+  });
+
+  it("excludes a missing selected method", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "missing-method",
+    }, "account_update")).toMatchObject({ eligible: false, reason: "missing_recovery_method" });
+  });
+
+  it("rejects a selected method belonging to another contact", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "other-contact-method",
+      destinations: [
+        destination("sms", "+447700900123", {
+          recoveryMethodId: "other-contact-method",
+          contactId: "contact-2",
+        }),
+      ],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "missing_recovery_method" });
+  });
+
+  it("excludes an unverified selected method", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "method-whatsapp",
+      destinations: [destination("whatsapp", "+447700900123", { verified: false })],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "unverified_destination" });
+  });
+
+  it("excludes an inactive browser subscription", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "method-web_push",
+      destinations: [destination("web_push", "subscription-reference", { active: false })],
+    }, "account_update")).toMatchObject({
       eligible: false,
-      reason: "invalid_email",
+      reason: "inactive_browser_subscription",
     });
   });
 
-  it("excludes an inactive connection", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, connectionStatus: "deactivated" }, "announcement")).toEqual({
-      eligible: false,
-      reason: "inactive_connection",
+  it("does not substitute another method of the same type", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "selected-sms",
+      destinations: [
+        destination("sms", null, { recoveryMethodId: "selected-sms" }),
+        destination("sms", "+447700900123", { recoveryMethodId: "other-sms" }),
+        destination("email", "fan@example.com"),
+      ],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "missing_destination" });
+  });
+
+  it("rejects an unsupported selected method", () => {
+    expect(evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "method-passkey",
+      destinations: [destination("passkey", null)],
+    }, "account_update")).toMatchObject({ eligible: false, reason: "unsupported_transport" });
+  });
+
+  it("uses verified email for a regular broadcast even when SMS is selected", () => {
+    const result = evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId: "method-sms",
+      destinations: [
+        destination("email", "stale@example.com", {
+          recoveryMethodId: "unverified-email",
+          verified: false,
+        }),
+        ...destinations,
+      ],
+    }, "announcement");
+    expect(result.eligible && result.recipient).toMatchObject({
+      transport: "email",
+      recoveryMethodId: "method-email",
     });
   });
 
-  it("excludes an unsubscribed connection explicitly", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, connectionStatus: "unsubscribed" }, "announcement")).toEqual({
-      eligible: false,
-      reason: "unsubscribed",
+  it("deduplicates by relationship and transport", () => {
+    const result = evaluateRecipientEligibility(base, "account_update");
+    if (!result.eligible) throw new Error("fixture must be eligible");
+    expect(deduplicateRecipients([result.recipient, result.recipient]).duplicates).toBe(1);
+  });
+
+  it("aggregates transport counts", () => {
+    const recipients = (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport, index) => ({
+      connectionId: `connection-${index}`,
+      contactId: `contact-${index}`,
+      recoveryMethodId: `method-${index}`,
+      transport,
+      destination: transport === "email" ? "fan@example.com" : transport === "browser_notification" ? "ref" : "+447700900123",
+      destinationHash: transport === "browser_notification" ? null : "hash",
+      preferenceCategory: "recovery" as const,
+    }));
+    expect(aggregateRecipientsByTransport(recipients)).toEqual({
+      email: 1,
+      sms: 1,
+      whatsapp: 1,
+      browser_notification: 1,
     });
   });
 
-  it("excludes a missing email", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, email: null }, "announcement")).toEqual({
-      eligible: false,
-      reason: "missing_email",
-    });
-  });
-
-  it("excludes an unverified email", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, emailVerified: false }, "announcement")).toEqual({
-      eligible: false,
-      reason: "unverified_email",
-    });
-  });
-
-  it("excludes a disabled preference", () => {
-    expect(evaluateRecipientEligibility({ ...candidate, preferenceEnabled: false }, "announcement")).toEqual({
-      eligible: false,
-      reason: "preference_disabled",
-    });
-  });
-
-  it("returns a normalised active eligible recipient", () => {
-    expect(evaluateRecipientEligibility(candidate, "announcement")).toEqual({
-      eligible: true,
-      recipient: {
-        connectionId: "connection-1",
-        contactId: "contact-1",
-        recipientEmail: "fan@example.com",
-        preferenceCategory: "announcements",
-      },
-    });
-  });
-
-  it("deduplicates by stable follower connection", () => {
-    const eligible = evaluateRecipientEligibility(candidate, "announcement");
-    if (!eligible.eligible) throw new Error("fixture must be eligible");
-    expect(deduplicateRecipients([eligible.recipient, eligible.recipient])).toEqual({
-      recipients: [eligible.recipient],
-      duplicates: 1,
-    });
-  });
-
-  it("uses mandatory recovery for an account update", () => {
-    const result = evaluateRecipientEligibility(candidate, "account_update");
+  it("keeps account updates on mandatory recovery preference", () => {
+    const result = evaluateRecipientEligibility(base, "account_update");
     expect(result.eligible && result.recipient.preferenceCategory).toBe("recovery");
   });
 
-  it("aggregates explicit exclusion reasons", () => {
-    const evaluations = [
-      evaluateRecipientEligibility({ ...candidate, email: null }, "announcement"),
-      evaluateRecipientEligibility({ ...candidate, emailVerified: false }, "announcement"),
-      evaluateRecipientEligibility({ ...candidate, emailVerified: false }, "announcement"),
-    ];
-    expect(aggregateExclusionReasons(evaluations)).toEqual({
-      missing_email: 1,
-      unverified_email: 2,
-    });
-  });
-
-  it("maps an eligible recipient to a durable delivery insert", () => {
-    const eligible = evaluateRecipientEligibility(candidate, "account_update");
-    if (!eligible.eligible) throw new Error("fixture must be eligible");
-    expect(toDeliveryInsert("update-1", "creator-1", eligible.recipient)).toEqual({
+  it.each([
+    ["method-email", "email"],
+    ["method-sms", "sms"],
+    ["method-whatsapp", "whatsapp"],
+    ["method-web_push", "browser_notification"],
+  ] as const)("maps the selected method to a %s insert", (selectedRecoveryMethodId, transport) => {
+    const result = evaluateRecipientEligibility({
+      ...base,
+      selectedRecoveryMethodId,
+    }, "account_update");
+    if (!result.eligible) throw new Error(`${transport} fixture must be eligible`);
+    expect(createDeliveryInsert("update-1", "creator-1", result.recipient)).toMatchObject({
       update_id: "update-1",
       creator_id: "creator-1",
       connection_id: "connection-1",
-      contact_id: "contact-1",
-      recipient_email: "fan@example.com",
+      transport,
+      recovery_method_id: selectedRecoveryMethodId,
       preference_category: "recovery",
       status: "queued",
+    });
+  });
+
+  it("aggregates exact-method exclusions", () => {
+    const evaluations = [
+      evaluateRecipientEligibility({ ...base, selectedRecoveryMethodId: null }, "account_update"),
+      evaluateRecipientEligibility({
+        ...base,
+        selectedRecoveryMethodId: "method-sms",
+        destinations: [destination("sms", null)],
+      }, "account_update"),
+    ];
+    expect(aggregateExclusionReasons(evaluations)).toEqual({
+      missing_recovery_method: 1,
+      missing_destination: 1,
     });
   });
 });

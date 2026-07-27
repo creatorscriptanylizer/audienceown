@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updatePublishSchema } from "@/lib/updates";
 
 const deliveryStatuses = ["queued", "sending", "sent", "delivered", "failed", "skipped", "cancelled"] as const;
+const deliveryTransports = ["email", "sms", "whatsapp", "browser_notification"] as const;
 
 function safeCount(value: string | string[] | undefined) {
   const candidate = Array.isArray(value) ? value[0] : value;
@@ -24,12 +25,16 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     "id,broadcast_type,status,title,subject,preview_text,content,cta_label,cta_url,scheduled_for",
   ).eq("id", id).eq("creator_id", creator.id).maybeSingle();
   if (!update) notFound();
-  const { data: deliveries } = await supabase.from("update_deliveries").select("status")
+  const { data: deliveries } = await supabase.from("update_deliveries").select("status,transport")
     .eq("update_id", id).eq("creator_id", creator.id);
   const counts = Object.fromEntries(deliveryStatuses.map((status) => [
     status,
     (deliveries ?? []).filter((delivery) => delivery.status === status).length,
   ])) as Record<(typeof deliveryStatuses)[number], number>;
+  const transportCounts = Object.fromEntries(deliveryTransports.map((transport) => [
+    transport,
+    (deliveries ?? []).filter((delivery) => delivery.transport === transport).length,
+  ])) as Record<(typeof deliveryTransports)[number], number>;
   const publishable = updatePublishSchema.safeParse({
     broadcast_type: update.broadcast_type,
     title: update.title,
@@ -46,6 +51,7 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     <UpdateDeliveryPanel
       updateId={id}
       counts={counts}
+      transportCounts={transportCounts}
       canPrepare={publishable && (update.status === "draft" || update.status === "scheduled")}
       queueState={Array.isArray(query.queue) ? query.queue[0] : query.queue}
       created={safeCount(query.created)}

@@ -3,10 +3,18 @@ import { queueUpdateDeliveries } from "@/app/dashboard/updates/actions";
 import { SubmitButton } from "@/components/submit-button";
 
 const statuses = ["queued", "sending", "sent", "delivered", "failed", "skipped", "cancelled"] as const;
+const transports = ["email", "sms", "whatsapp", "browser_notification"] as const;
+const transportLabels = {
+  email: "Email",
+  sms: "SMS",
+  whatsapp: "WhatsApp",
+  browser_notification: "Browser notification",
+} as const;
 
 export function UpdateDeliveryPanel({
   updateId,
   counts,
+  transportCounts,
   canPrepare,
   queueState,
   created,
@@ -14,6 +22,7 @@ export function UpdateDeliveryPanel({
 }: {
   updateId: string;
   counts: Record<(typeof statuses)[number], number>;
+  transportCounts: Record<(typeof transports)[number], number>;
   canPrepare: boolean;
   queueState?: string;
   created?: number;
@@ -35,7 +44,7 @@ export function UpdateDeliveryPanel({
     {queueState === "prepared" && <div className="delivery-prepared-message" role="status">
       <ShieldCheck size={17}/>
       <div>
-        <strong>Delivery queue prepared. No messages have been sent.</strong>
+        <strong>Delivery queue prepared. No notifications have been sent.</strong>
         <p>{created ?? 0} new {created === 1 ? "recipient" : "recipients"} added{duplicates ? `; ${duplicates} already prepared` : ""}.</p>
       </div>
     </div>}
@@ -50,8 +59,15 @@ export function UpdateDeliveryPanel({
         {statuses.map((status) => <article key={status}><span>{status}</span><strong>{counts[status]}</strong></article>)}
       </div>}
 
+    {total > 0 && <div className="delivery-transport-breakdown">
+      <p className="eyebrow">By transport</p>
+      <div>{transports.map((transport) => <article key={transport}>
+        <span>{transportLabels[transport]}</span><strong>{transportCounts[transport]}</strong>
+      </article>)}</div>
+    </div>}
+
     {canPrepare && <div className="delivery-prepare-action">
-      <div><strong>Prepare this update’s audience</strong><p>Eligibility and preferences are checked again every time. Existing recipients are never duplicated.</p></div>
+      <div><strong>Prepare this update’s audience</strong><p>This prepares recipients using each fan’s selected Recovery Pass method. No notifications will be sent.</p></div>
       <form action={queueAction}>
         <SubmitButton className="button button-primary" pendingText="Preparing…">Prepare audience</SubmitButton>
       </form>

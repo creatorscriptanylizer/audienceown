@@ -246,6 +246,7 @@ export type Database = {
           management_tokens_revoked_at: string | null
           preference_token_expires_at: string
           preference_token_hash: string
+          selected_recovery_method_id: string | null
           source_campaign: string | null
           source_platform: string
           source_referrer: string | null
@@ -268,6 +269,7 @@ export type Database = {
           management_tokens_revoked_at?: string | null
           preference_token_expires_at?: string
           preference_token_hash: string
+          selected_recovery_method_id?: string | null
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
@@ -290,6 +292,7 @@ export type Database = {
           management_tokens_revoked_at?: string | null
           preference_token_expires_at?: string
           preference_token_hash?: string
+          selected_recovery_method_id?: string | null
           source_campaign?: string | null
           source_platform?: string
           source_referrer?: string | null
@@ -312,6 +315,13 @@ export type Database = {
             columns: ["follower_contact_id"]
             isOneToOne: false
             referencedRelation: "follower_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_connections_selected_recovery_method_id_fkey"
+            columns: ["selected_recovery_method_id"]
+            isOneToOne: false
+            referencedRelation: "follower_recovery_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -443,6 +453,8 @@ export type Database = {
           created_at: string
           creator_id: string
           delivered_at: string | null
+          destination: string
+          destination_hash: string | null
           failed_at: string | null
           failure_code: string | null
           failure_reason: string | null
@@ -450,13 +462,16 @@ export type Database = {
           last_attempt_at: string | null
           metadata: Json
           preference_category: string
+          provider: string | null
           provider_message_id: string | null
+          provider_metadata: Json
           queued_at: string
-          recipient_email: string
+          recovery_method_id: string
           sending_at: string | null
           sent_at: string | null
           skipped_at: string | null
           status: Database["public"]["Enums"]["delivery_status"]
+          transport: Database["public"]["Enums"]["delivery_transport"]
           update_id: string
           updated_at: string
         }
@@ -468,6 +483,8 @@ export type Database = {
           created_at?: string
           creator_id: string
           delivered_at?: string | null
+          destination: string
+          destination_hash?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_reason?: string | null
@@ -475,13 +492,16 @@ export type Database = {
           last_attempt_at?: string | null
           metadata?: Json
           preference_category: string
+          provider?: string | null
           provider_message_id?: string | null
+          provider_metadata?: Json
           queued_at?: string
-          recipient_email: string
+          recovery_method_id: string
           sending_at?: string | null
           sent_at?: string | null
           skipped_at?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
+          transport: Database["public"]["Enums"]["delivery_transport"]
           update_id: string
           updated_at?: string
         }
@@ -493,6 +513,8 @@ export type Database = {
           created_at?: string
           creator_id?: string
           delivered_at?: string | null
+          destination?: string
+          destination_hash?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_reason?: string | null
@@ -500,13 +522,16 @@ export type Database = {
           last_attempt_at?: string | null
           metadata?: Json
           preference_category?: string
+          provider?: string | null
           provider_message_id?: string | null
+          provider_metadata?: Json
           queued_at?: string
-          recipient_email?: string
+          recovery_method_id?: string
           sending_at?: string | null
           sent_at?: string | null
           skipped_at?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
+          transport?: Database["public"]["Enums"]["delivery_transport"]
           update_id?: string
           updated_at?: string
         }
@@ -530,6 +555,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_deliveries_recovery_method_id_fkey"
+            columns: ["recovery_method_id"]
+            isOneToOne: false
+            referencedRelation: "follower_recovery_methods"
             referencedColumns: ["id"]
           },
           {
@@ -606,7 +638,14 @@ export type Database = {
     Functions: {
       create_update_delivery_queue: {
         Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
-        Returns: number
+        Returns: Json
+      }
+      expected_delivery_transport: {
+        Args: {
+          selected_method_type: string
+          update_type: Database["public"]["Enums"]["broadcast_type"]
+        }
+        Returns: Database["public"]["Enums"]["delivery_transport"]
       }
       expected_update_preference: {
         Args: { update_type: Database["public"]["Enums"]["broadcast_type"] }
@@ -641,6 +680,7 @@ export type Database = {
         | "failed"
         | "skipped"
         | "cancelled"
+      delivery_transport: "email" | "sms" | "whatsapp" | "browser_notification"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1342,6 +1382,7 @@ export const Constants = {
         "skipped",
         "cancelled",
       ],
+      delivery_transport: ["email", "sms", "whatsapp", "browser_notification"],
     },
   },
   storage: {
@@ -1350,3 +1391,4 @@ export const Constants = {
     },
   },
 } as const
+
