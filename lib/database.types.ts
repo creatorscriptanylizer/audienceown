@@ -434,6 +434,113 @@ export type Database = {
           },
         ]
       }
+      update_deliveries: {
+        Row: {
+          attempt_count: number
+          cancelled_at: string | null
+          connection_id: string
+          contact_id: string
+          created_at: string
+          creator_id: string
+          delivered_at: string | null
+          failed_at: string | null
+          failure_code: string | null
+          failure_reason: string | null
+          id: string
+          last_attempt_at: string | null
+          metadata: Json
+          preference_category: string
+          provider_message_id: string | null
+          queued_at: string
+          recipient_email: string
+          sending_at: string | null
+          sent_at: string | null
+          skipped_at: string | null
+          status: Database["public"]["Enums"]["delivery_status"]
+          update_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          cancelled_at?: string | null
+          connection_id: string
+          contact_id: string
+          created_at?: string
+          creator_id: string
+          delivered_at?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json
+          preference_category: string
+          provider_message_id?: string | null
+          queued_at?: string
+          recipient_email: string
+          sending_at?: string | null
+          sent_at?: string | null
+          skipped_at?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          update_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          cancelled_at?: string | null
+          connection_id?: string
+          contact_id?: string
+          created_at?: string
+          creator_id?: string
+          delivered_at?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json
+          preference_category?: string
+          provider_message_id?: string | null
+          queued_at?: string
+          recipient_email?: string
+          sending_at?: string | null
+          sent_at?: string | null
+          skipped_at?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          update_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_deliveries_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "follower_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_deliveries_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "follower_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_deliveries_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "update_deliveries_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       public_connected_accounts: {
@@ -497,6 +604,14 @@ export type Database = {
       }
     }
     Functions: {
+      create_update_delivery_queue: {
+        Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
+        Returns: number
+      }
+      expected_update_preference: {
+        Args: { update_type: Database["public"]["Enums"]["broadcast_type"] }
+        Returns: string
+      }
       is_published_creator_media: {
         Args: { object_name: string }
         Returns: boolean
@@ -518,6 +633,14 @@ export type Database = {
         | "event"
         | "product_launch"
         | "account_update"
+      delivery_status:
+        | "queued"
+        | "sending"
+        | "sent"
+        | "delivered"
+        | "failed"
+        | "skipped"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1209,6 +1332,15 @@ export const Constants = {
         "event",
         "product_launch",
         "account_update",
+      ],
+      delivery_status: [
+        "queued",
+        "sending",
+        "sent",
+        "delivered",
+        "failed",
+        "skipped",
+        "cancelled",
       ],
     },
   },
