@@ -450,6 +450,7 @@ select is(
 );
 
 -- 15
+reset role;
 select is(
   (
     public.create_update_delivery_queue(
@@ -502,6 +503,7 @@ select is(
 );
 
 -- 18
+set local role authenticated;
 select results_eq(
   $$ update public.update_deliveries set status='cancelled',cancelled_at=now()
      where id='75000000-0000-0000-0000-000000000099' returning id $$,

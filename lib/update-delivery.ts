@@ -38,13 +38,23 @@ type DeliveryResolution = {
   byTransport: Record<DeliveryTransport, number>;
 };
 
-export type DeliveryQueueSummary = {
+export type PublicationSummary = {
+  status: "published";
+  updateId: string;
   eligible: number;
-  created: number;
+  queued: number;
   duplicates: number;
-  excluded: Partial<Record<RecipientExclusionReason, number>>;
+  excluded: number;
   byTransport: Record<DeliveryTransport, number>;
 };
+
+export class PublicationError extends Error {
+  constructor(
+    public readonly code: "zero_audience" | "preparation_failed" | "publication_failed",
+  ) {
+    super(code);
+  }
+}
 
 async function decryptContact(ciphertext: string, secret: string) {
   try {
@@ -205,51 +215,21 @@ export async function getEligibleRecipientsForUpdate(
   };
 }
 
-export async function createDeliveryQueue(
-  updateId: string,
-  creatorId: string,
-): Promise<DeliveryQueueSummary> {
-  const resolution = await getEligibleRecipientsForUpdate(updateId, creatorId);
-  const supabase = await createClient();
-  if (!supabase) throw new Error("Delivery queue is unavailable.");
-
-  const { data: rpcSummary, error } = await supabase.rpc("create_update_delivery_queue", {
-    p_update_id: updateId,
-    p_creator_id: creatorId,
-    p_recipients: resolution.eligibleRecipients.map((recipient) => ({
-      connection_id: recipient.connectionId,
-      recovery_method_id: recipient.recoveryMethodId,
-      destination: recipient.destination,
-      destination_hash: recipient.destinationHash,
-    })),
-  });
-  if (error) throw new Error("Delivery queue could not be prepared.");
-
-  const result = rpcSummary as {
-    created?: number;
-    byTransport?: Partial<Record<DeliveryTransport, number>>;
-  } | null;
-  return {
-    eligible: resolution.eligible,
-    created: result?.created ?? 0,
-    duplicates: resolution.duplicates,
-    excluded: resolution.excluded,
-    byTransport: Object.fromEntries(
-      (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport) => [
-        transport,
-        result?.byTransport?.[transport] ?? 0,
-      ]),
-    ) as Record<DeliveryTransport, number>,
-  };
-}
-
 export async function publishDeliveryQueue(
   updateId: string,
   creatorId: string,
-): Promise<DeliveryQueueSummary & { published: boolean }> {
-  const resolution = await getEligibleRecipientsForUpdate(updateId, creatorId);
+): Promise<PublicationSummary> {
+  let resolution: DeliveryResolution;
+  try {
+    resolution = await getEligibleRecipientsForUpdate(updateId, creatorId);
+  } catch {
+    throw new PublicationError("preparation_failed");
+  }
+  if (resolution.update.status !== "queued" && resolution.eligible === 0) {
+    throw new PublicationError("zero_audience");
+  }
   const supabase = await createClient();
-  if (!supabase) throw new Error("Broadcast publishing is unavailable.");
+  if (!supabase) throw new PublicationError("publication_failed");
 
   const { data: rpcSummary, error } = await supabase.rpc("publish_update_delivery_queue", {
     p_update_id: updateId,
@@ -261,22 +241,25 @@ export async function publishDeliveryQueue(
       destination_hash: recipient.destinationHash,
     })),
   });
-  if (error) throw new Error("Broadcast could not be published.");
-  const result = rpcSummary as {
-    created?: number;
-    published?: boolean;
-    byTransport?: Partial<Record<DeliveryTransport, number>>;
-  } | null;
+  if (error) throw new PublicationError("publication_failed");
+  const result = rpcSummary as Partial<PublicationSummary> | null;
+  if (result?.status !== "published" || result.updateId !== updateId) {
+    throw new PublicationError("publication_failed");
+  }
   return {
-    eligible: resolution.eligible,
-    created: result?.created ?? 0,
-    duplicates: resolution.duplicates,
-    excluded: resolution.excluded,
-    published: result?.published === true,
+    status: "published",
+    updateId,
+    eligible: result.eligible ?? resolution.eligible,
+    queued: result.queued ?? 0,
+    duplicates: result.duplicates ?? resolution.duplicates,
+    excluded: Object.entries(resolution.excluded).reduce(
+      (sum, [reason, count]) => reason === "duplicate" ? sum : sum + (count ?? 0),
+      0,
+    ),
     byTransport: Object.fromEntries(
       (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport) => [
         transport,
-        result?.byTransport?.[transport] ?? 0,
+        result.byTransport?.[transport] ?? 0,
       ]),
     ) as Record<DeliveryTransport, number>,
   };

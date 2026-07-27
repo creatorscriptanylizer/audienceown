@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(40);
 
 insert into auth.users (
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
@@ -74,6 +74,144 @@ select throws_ok(
 select throws_ok(
   $$update public.creator_updates set affected_platform_connection_id=null where id='ba200000-0000-4000-8000-000000000001'$$,
   '42501', null, 'scheduled affected platform cannot change'
+);
+
+insert into public.follower_contacts(id,email_ciphertext,email_hash,email_masked)
+values(
+  'ba300000-0000-4000-8000-000000000001','ciphertext',
+  encode(extensions.digest('publish@example.com','sha256'),'hex'),'p••••@example.com'
+);
+insert into public.follower_connections(
+  id,creator_id,follower_contact_id,preference_token_hash,unsubscribe_token_hash,
+  source_platform,consent_source
+) values(
+  'ba400000-0000-4000-8000-000000000001',current_setting('tests.studio_a')::uuid,
+  'ba300000-0000-4000-8000-000000000001','publish-pref','publish-unsub',
+  'instagram','creator_page'
+);
+insert into public.follower_recovery_methods(
+  id,follower_contact_id,method_type,method_status,destination_hash,destination_masked,verified_at
+) values(
+  'ba500000-0000-4000-8000-000000000001','ba300000-0000-4000-8000-000000000001',
+  'email','verified',encode(extensions.digest('publish@example.com','sha256'),'hex'),
+  'p••••@example.com',now()
+);
+update public.follower_connections
+set selected_recovery_method_id='ba500000-0000-4000-8000-000000000001'
+where id='ba400000-0000-4000-8000-000000000001';
+update public.follower_category_preferences set enabled=true
+where follower_connection_id='ba400000-0000-4000-8000-000000000001'
+  and category_key='announcements';
+
+insert into public.creator_updates(
+  id,creator_id,broadcast_type,broadcast_intent,status,title,subject,content,
+  scheduled_for,cancelled_at
+) values(
+  'ba600000-0000-4000-8000-000000000001',current_setting('tests.studio_a')::uuid,
+  'announcement','general_announcement','cancelled','Publish','Publish subject','Publish body',
+  now()+interval '1 hour',now()
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub','ba000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claims','{"sub":"ba000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+create temporary table publish_result as
+select public.publish_update_delivery_queue(
+  'ba600000-0000-4000-8000-000000000001',
+  current_setting('tests.studio_a')::uuid,
+  jsonb_build_array(jsonb_build_object(
+    'connection_id','ba400000-0000-4000-8000-000000000001',
+    'recovery_method_id','ba500000-0000-4000-8000-000000000001',
+    'destination','publish@example.com',
+    'destination_hash',encode(extensions.digest('publish@example.com','sha256'),'hex')
+  ))
+) result;
+select is((select result->>'status' from publish_result),'published','publication returns stable published status');
+select is(((select result->>'queued' from publish_result))::integer,1,'publication reports one queued delivery');
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000001'),'queued','publication marks update queued');
+select ok((select queued_at is not null from public.creator_updates where id='ba600000-0000-4000-8000-000000000001'),'publication sets queued_at');
+select ok((select scheduled_for is null from public.creator_updates where id='ba600000-0000-4000-8000-000000000001'),'publish now clears scheduled_for');
+select ok((select cancelled_at is null from public.creator_updates where id='ba600000-0000-4000-8000-000000000001'),'publication clears cancelled_at');
+select is((select count(*)::integer from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000001'),1,'publication creates one real delivery');
+
+create temporary table repeat_result as
+select public.publish_update_delivery_queue(
+  'ba600000-0000-4000-8000-000000000001',
+  current_setting('tests.studio_a')::uuid,
+  jsonb_build_array(jsonb_build_object(
+    'connection_id','ba400000-0000-4000-8000-000000000001',
+    'recovery_method_id','ba500000-0000-4000-8000-000000000001',
+    'destination','publish@example.com',
+    'destination_hash',encode(extensions.digest('publish@example.com','sha256'),'hex')
+  ))
+) result;
+select is(((select result->>'queued' from repeat_result))::integer,0,'repeat publication queues no duplicate');
+select is(((select result->>'duplicates' from repeat_result))::integer,1,'repeat publication reports the duplicate');
+select is((select count(*)::integer from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000001'),1,'repeat publication leaves one delivery');
+
+insert into public.creator_updates(id,creator_id,broadcast_type,broadcast_intent,title,subject,content)
+values
+('ba600000-0000-4000-8000-000000000002',current_setting('tests.studio_a')::uuid,'announcement','general_announcement','Zero','Zero subject','Zero body'),
+('ba600000-0000-4000-8000-000000000003',current_setting('tests.studio_a')::uuid,'announcement','general_announcement','Payload','Payload subject','Payload body'),
+('ba600000-0000-4000-8000-000000000004',current_setting('tests.studio_a')::uuid,'announcement','general_announcement','','','');
+insert into public.creator_updates(
+  id,creator_id,broadcast_type,broadcast_intent,status,title,subject,content,sent_at
+) values(
+  'ba600000-0000-4000-8000-000000000005',current_setting('tests.studio_a')::uuid,
+  'announcement','general_announcement','sent','Sent','Sent subject','Sent body',now()
+);
+
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000003',current_setting('tests.studio_a')::uuid,
+    '[{"connection_id":"ba400000-0000-4000-8000-000000000001","recovery_method_id":"ba500000-0000-4000-8000-000000000001","destination":"publish@example.com","destination_hash":"wrong","transport":"sms"}]'::jsonb
+  )$$,
+  '22023',null,'transport cannot be supplied or overridden'
+);
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000003'),'draft','invalid payload leaves update editable');
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000002',current_setting('tests.studio_a')::uuid,'[]'::jsonb
+  )$$,
+  'P0001',null,'zero eligible audience is blocked'
+);
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000002'),'draft','zero audience remains a draft');
+select is((select count(*)::integer from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000002'),0,'zero audience creates no deliveries');
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000002',current_setting('tests.studio_b')::uuid,'[]'::jsonb
+  )$$,
+  '42501',null,'invalid creator ownership is rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000004',current_setting('tests.studio_a')::uuid,'[]'::jsonb
+  )$$,
+  '23514',null,'incomplete publication is rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000005',current_setting('tests.studio_a')::uuid,'[]'::jsonb
+  )$$,
+  '55000',null,'published status cannot be published again'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000003',current_setting('tests.studio_a')::uuid,
+    '[{"connection_id":"ba400000-0000-4000-8000-000000000099","recovery_method_id":"ba500000-0000-4000-8000-000000000001","destination":"publish@example.com","destination_hash":"bad"}]'::jsonb
+  )$$,
+  '23514',null,'arbitrary connection IDs are rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000003',current_setting('tests.studio_a')::uuid,
+    '[{"connection_id":"ba400000-0000-4000-8000-000000000001","recovery_method_id":"ba500000-0000-4000-8000-000000000099","destination":"publish@example.com","destination_hash":"bad"}]'::jsonb
+  )$$,
+  '23514',null,'arbitrary recovery method IDs are rejected'
+);
+select is(
+  (select status::text from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000001'),
+  'queued','published deliveries remain queued for the dispatcher'
 );
 
 select * from finish();

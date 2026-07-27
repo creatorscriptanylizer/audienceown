@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { isFutureSchedule, updateDraftSchema, updatePublishSchema } from "@/lib/updates";
-import { createDeliveryQueue, publishDeliveryQueue } from "@/lib/update-delivery";
+import { PublicationError, publishDeliveryQueue } from "@/lib/update-delivery";
 import { broadcastIntents, getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
 import { z } from "zod";
 
@@ -195,12 +195,23 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
   let summary;
   try {
     summary = await publishDeliveryQueue(id, creator.id);
-  } catch {
-    return mutationError("The draft was saved, but its audience could not be prepared. Nothing was sent.");
+  } catch (error) {
+    if (error instanceof PublicationError && error.code === "zero_audience") {
+      return mutationError("No eligible followers can receive this update yet. Your draft is saved and nothing was queued.");
+    }
+    if (error instanceof PublicationError && error.code === "preparation_failed") {
+      return mutationError("The draft was saved, but its recipients could not be prepared. Nothing was queued.");
+    }
+    return mutationError("The draft was saved, but publication could not be completed. Nothing was queued.");
   }
   const query = new URLSearchParams({
-    published: "1", created: String(summary.created), eligible: String(summary.eligible),
-    duplicates: String(summary.duplicates), ...Object.fromEntries(Object.entries(summary.byTransport).map(([key, value]) => [key, String(value)])),
+    status: summary.status,
+    updateId: summary.updateId,
+    queued: String(summary.queued),
+    eligible: String(summary.eligible),
+    duplicates: String(summary.duplicates),
+    excluded: String(summary.excluded),
+    ...Object.fromEntries(Object.entries(summary.byTransport).map(([key, value]) => [key, String(value)])),
   });
   revalidatePath("/dashboard/updates");
   revalidatePath(`/dashboard/updates/${id}`);
@@ -222,46 +233,4 @@ export async function cancelScheduledUpdate(id: string, previousState: UpdateAct
   revalidatePath("/dashboard/updates");
   revalidatePath(`/dashboard/updates/${id}`);
   redirect(`/dashboard/updates/${id}`);
-}
-
-export async function queueUpdateDeliveries(id: string, data: FormData) {
-  void data;
-  const parsedId = z.string().uuid().safeParse(id);
-  if (!parsedId.success) redirect("/dashboard/updates");
-
-  const creator = await requireCreator();
-  const supabase = await createClient();
-  if (!supabase) redirect(`/dashboard/updates/${id}?queue=error`);
-  const { data: update } = await supabase.from("creator_updates").select(
-    "id,creator_id,broadcast_type,status,title,subject,preview_text,content,cta_label,cta_url",
-  ).eq("id", id).eq("creator_id", creator.id).maybeSingle();
-
-  if (!update || !["draft", "scheduled"].includes(update.status)) {
-    redirect(`/dashboard/updates/${id}?queue=unavailable`);
-  }
-  const publishable = updatePublishSchema.safeParse({
-    broadcast_type: update.broadcast_type,
-    title: update.title,
-    subject: update.subject,
-    preview_text: update.preview_text,
-    content: update.content,
-    cta_label: update.cta_label ?? "",
-    cta_url: update.cta_url ?? "",
-  });
-  if (!publishable.success) redirect(`/dashboard/updates/${id}?queue=incomplete`);
-
-  let summary;
-  try {
-    summary = await createDeliveryQueue(id, creator.id);
-  } catch {
-    redirect(`/dashboard/updates/${id}?queue=error`);
-  }
-  const query = new URLSearchParams({
-    queue: "prepared",
-    created: String(summary.created),
-    eligible: String(summary.eligible),
-    duplicates: String(summary.duplicates),
-  });
-  revalidatePath(`/dashboard/updates/${id}`);
-  redirect(`/dashboard/updates/${id}?${query}`);
 }

@@ -5,7 +5,6 @@ import { BroadcastStudio } from "@/components/broadcast-studio/broadcast-studio"
 import { UpdateDeliveryPanel } from "@/components/update-delivery-panel";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { updatePublishSchema } from "@/lib/updates";
 import { getEligibleRecipientsForUpdate } from "@/lib/update-delivery";
 
 const deliveryStatuses = ["queued", "sending", "sent", "delivered", "failed", "skipped", "cancelled"] as const;
@@ -51,22 +50,12 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     transport,
     (deliveries ?? []).filter((delivery) => delivery.transport === transport).length,
   ])) as Record<(typeof deliveryTransports)[number], number>;
-  const publishable = updatePublishSchema.safeParse({
-    broadcast_type: update.broadcast_type,
-    title: update.title,
-    subject: update.subject,
-    preview_text: update.preview_text,
-    content: update.content,
-    cta_label: update.cta_label ?? "",
-    cta_url: update.cta_url ?? "",
-  }).success;
-
   return <>
     <Link href="/dashboard/updates" className="update-back-link"><ArrowLeft size={15}/> Update history</Link>
-    {query.published === "1" && <section className="studio-publish-result" role="status">
-      <p className="eyebrow">Audience prepared</p>
+    {query.status === "published" && query.updateId === id && <section className="studio-publish-result" role="status">
+      <p className="eyebrow">Published</p>
       <h2>{update.broadcast_type === "account_update" ? "Recovery alert published" : "Broadcast published"}</h2>
-      <p>{safeCount(query.created) ?? 0} deliveries queued from {safeCount(query.eligible) ?? 0} eligible followers. Nothing is marked sent until the delivery worker confirms it.</p>
+      <p>{safeCount(query.queued) ?? 0} notifications were queued from {safeCount(query.eligible) ?? 0} eligible followers. AudienceOwn will begin delivery automatically.</p>
       <div><span>Email {safeCount(query.email) ?? 0}</span><span>SMS {safeCount(query.sms) ?? 0}</span><span>WhatsApp {safeCount(query.whatsapp) ?? 0}</span><span>Browser {safeCount(query.browser_notification) ?? 0}</span></div>
     </section>}
     <BroadcastStudio
@@ -76,13 +65,8 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
       estimate={estimate}
     />
     <UpdateDeliveryPanel
-      updateId={id}
       counts={counts}
       transportCounts={transportCounts}
-      canPrepare={publishable && (update.status === "draft" || update.status === "scheduled")}
-      queueState={Array.isArray(query.queue) ? query.queue[0] : query.queue}
-      created={safeCount(query.created)}
-      duplicates={safeCount(query.duplicates)}
     />
   </>;
 }

@@ -170,27 +170,147 @@ security definer
 set search_path = ''
 as $$
 declare
+  update_row public.creator_updates%rowtype;
+  recipient record;
+  recipient_count integer;
+  existing_count integer;
+  queued_count integer;
+  derived_rule text;
+  affected_platform text;
   summary jsonb;
 begin
-  if not exists (
-    select 1
-    from public.creator_updates update_row
-    join public.creators creator on creator.id = update_row.creator_id
-    where update_row.id = p_update_id
-      and update_row.creator_id = p_creator_id
-      and update_row.status in ('draft', 'queued')
-      and btrim(update_row.title) <> ''
-      and btrim(update_row.subject) <> ''
-      and btrim(update_row.content) <> ''
-      and (
-        auth.role() <> 'authenticated'
-        or creator.owner_user_id = auth.uid()
-      )
-  ) then
+  select candidate.*
+  into update_row
+  from public.creator_updates candidate
+  join public.creators creator on creator.id = candidate.creator_id
+  where candidate.id = p_update_id
+    and candidate.creator_id = p_creator_id
+    and (
+      auth.role() <> 'authenticated'
+      or creator.owner_user_id = auth.uid()
+    )
+  for update of candidate;
+
+  if not found then
     raise exception 'broadcast is not publishable or not owned' using errcode = '42501';
   end if;
+  if update_row.status not in ('draft', 'cancelled', 'queued') then
+    raise exception 'broadcast status does not permit publication' using errcode = '55000';
+  end if;
+  if btrim(update_row.title) = ''
+    or btrim(update_row.subject) = ''
+    or btrim(update_row.content) = '' then
+    raise exception 'broadcast content is incomplete' using errcode = '23514';
+  end if;
+  if update_row.broadcast_intent is null
+    or update_row.broadcast_type <> public.broadcast_type_for_intent(update_row.broadcast_intent) then
+    raise exception 'broadcast intent is invalid' using errcode = '23514';
+  end if;
+
+  derived_rule := public.broadcast_audience_rule_for_target(
+    update_row.broadcast_intent,
+    update_row.affected_platform_connection_id
+  );
+  if derived_rule = 'affected_platform'
+    and update_row.affected_platform_connection_id is null then
+    raise exception 'platform emergencies require an affected platform' using errcode = '23514';
+  end if;
+  if update_row.affected_platform_connection_id is not null then
+    select account.platform
+    into affected_platform
+    from public.connected_accounts account
+    where account.id = update_row.affected_platform_connection_id
+      and account.creator_id = p_creator_id
+      and account.account_type = 'official';
+    if affected_platform is null then
+      raise exception 'affected platform is invalid' using errcode = '23514';
+    end if;
+  end if;
+
+  if jsonb_typeof(coalesce(p_recipients, '[]'::jsonb)) <> 'array' then
+    raise exception 'recipient payload must be an array' using errcode = '22023';
+  end if;
+  recipient_count := jsonb_array_length(coalesce(p_recipients, '[]'::jsonb));
+  if update_row.status <> 'queued' and recipient_count = 0 then
+    raise exception 'no eligible recipients' using errcode = 'P0001';
+  end if;
+
+  -- Plaintext destinations are decrypted in the application. The database still
+  -- authoritatively validates every relationship, selected method, stored hash,
+  -- preference, platform scope, and derived transport before accepting the value.
+  for recipient in
+    select value as payload
+    from jsonb_array_elements(coalesce(p_recipients, '[]'::jsonb))
+  loop
+    if recipient.payload ? 'transport' then
+      raise exception 'recipient transport must not be supplied' using errcode = '22023';
+    end if;
+    if not exists (
+      select 1
+      from public.follower_connections connection
+      join public.follower_category_preferences preference
+        on preference.follower_connection_id = connection.id
+        and preference.category_key = public.expected_update_preference(update_row.broadcast_type)
+        and preference.enabled is true
+      join public.follower_recovery_methods method
+        on method.id = (recipient.payload ->> 'recovery_method_id')::uuid
+        and method.follower_contact_id = connection.follower_contact_id
+        and method.method_status = 'verified'
+      join public.follower_contacts contact
+        on contact.id = connection.follower_contact_id
+      where connection.id = (recipient.payload ->> 'connection_id')::uuid
+        and connection.creator_id = p_creator_id
+        and connection.status = 'active'
+        and (
+          derived_rule = 'category_followers'
+          or connection.source_platform = affected_platform
+        )
+        and (
+          update_row.broadcast_type <> 'account_update'
+          or method.id = connection.selected_recovery_method_id
+        )
+        and (
+          (
+            public.expected_delivery_transport(update_row.broadcast_type, method.method_type) = 'email'
+            and method.method_type = 'email'
+            and recipient.payload ->> 'destination_hash' = method.destination_hash
+            and recipient.payload ->> 'destination_hash' = contact.email_hash
+            and recipient.payload ->> 'destination_hash' = encode(
+              extensions.digest(lower(btrim(recipient.payload ->> 'destination')), 'sha256'),
+              'hex'
+            )
+          )
+          or (
+            public.expected_delivery_transport(update_row.broadcast_type, method.method_type) in ('sms', 'whatsapp')
+            and method.method_type = public.expected_delivery_transport(
+              update_row.broadcast_type, method.method_type
+            )::text
+            and recipient.payload ->> 'destination_hash' = method.destination_hash
+            and recipient.payload ->> 'destination_hash' = contact.phone_hash
+            and recipient.payload ->> 'destination_hash' = encode(
+              extensions.digest(recipient.payload ->> 'destination', 'sha256'),
+              'hex'
+            )
+          )
+          or (
+            public.expected_delivery_transport(update_row.broadcast_type, method.method_type) = 'browser_notification'
+            and method.method_type = 'web_push'
+            and method.provider_identifier is not null
+            and btrim(method.provider_identifier) <> ''
+            and recipient.payload ->> 'destination' = method.provider_identifier
+            and recipient.payload -> 'destination_hash' = 'null'::jsonb
+          )
+        )
+    ) then
+      raise exception 'recipient payload is not authoritative' using errcode = '23514';
+    end if;
+  end loop;
 
   summary := public.create_update_delivery_queue(p_update_id, p_creator_id, p_recipients);
+  queued_count := coalesce((summary ->> 'created')::integer, 0);
+  select count(*)::integer into existing_count
+  from public.update_deliveries delivery
+  where delivery.update_id = p_update_id;
 
   update public.creator_updates
   set status = 'queued',
@@ -199,9 +319,20 @@ begin
       cancelled_at = null
   where id = p_update_id
     and creator_id = p_creator_id
-    and status = 'draft';
+    and status in ('draft', 'cancelled', 'queued');
 
-  return summary || jsonb_build_object('published', true);
+  return jsonb_build_object(
+    'status', 'published',
+    'updateId', p_update_id,
+    'eligible', recipient_count,
+    'queued', queued_count,
+    'duplicates', case
+      when recipient_count = 0 and update_row.status = 'queued' then existing_count
+      else recipient_count - queued_count
+    end,
+    'excluded', 0,
+    'byTransport', summary -> 'byTransport'
+  );
 end
 $$;
 
@@ -209,6 +340,10 @@ revoke all on function public.broadcast_type_for_intent(public.broadcast_intent)
   from public, anon, authenticated;
 revoke all on function public.broadcast_audience_rule_for_target(public.broadcast_intent, uuid)
   from public, anon, authenticated;
+revoke all on function public.create_update_delivery_queue(uuid, uuid, jsonb)
+  from authenticated;
+grant execute on function public.create_update_delivery_queue(uuid, uuid, jsonb)
+  to service_role;
 revoke all on function public.publish_update_delivery_queue(uuid, uuid, jsonb)
   from public, anon;
 grant execute on function public.publish_update_delivery_queue(uuid, uuid, jsonb)
