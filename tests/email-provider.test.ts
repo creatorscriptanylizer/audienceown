@@ -18,9 +18,20 @@ describe("email provider", () => {
     const provider = createEmailProvider(async () => ({ id: "resend-message-1" }), "Creator <updates@example.com>");
     await expect(provider.send(message)).resolves.toEqual({
       ok: true,
+      status: "accepted",
       provider: "resend",
       providerMessageId: "resend-message-1",
     });
+  });
+
+  it("attaches the internal delivery ID as provider metadata", async () => {
+    let tags: Array<{ name: string; value: string }> = [];
+    const provider = createEmailProvider(async (input) => {
+      tags = input.tags;
+      return { id: "resend-message-2" };
+    }, "Creator <updates@example.com>");
+    await provider.send(message);
+    expect(tags).toEqual([{ name: "delivery_id", value: "delivery-1" }]);
   });
 
   it("classifies rate limits as temporary", async () => {

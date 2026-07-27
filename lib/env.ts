@@ -19,5 +19,6 @@ export function integrationStatus() {
       process.env.RESEND_API_KEY
       && (process.env.DELIVERY_EMAIL_FROM || process.env.RESEND_FROM_EMAIL),
     ),
+    resendWebhooks: Boolean(process.env.RESEND_WEBHOOK_SECRET),
   };
 }

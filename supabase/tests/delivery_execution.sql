@@ -1,6 +1,6 @@
 begin;
 
-select plan(21);
+select plan(33);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -122,7 +122,7 @@ select throws_ok(
   '42501', null, 'authenticated creators cannot claim deliveries'
 );
 select throws_ok(
-  $$ select public.mark_update_delivery_sent(
+  $$ select public.mark_update_delivery_accepted(
     'cf000000-0000-4000-8000-000000000001','resend','creator-forged'
   ) $$,
   '42501', null, 'authenticated creators cannot forge provider results'
@@ -165,33 +165,134 @@ select is_empty(
 
 -- 9
 select throws_ok(
-  $$ select public.mark_update_delivery_sent(
+  $$ select public.mark_update_delivery_accepted(
     'cf000000-0000-4000-8000-000000000002','resend','message-invalid'
   ) $$,
-  '23514', null, 'mark sent requires sending status'
+  '23514', null, 'mark accepted requires sending status'
 );
 -- 10
 select is(
-  public.mark_update_delivery_sent(
+  public.mark_update_delivery_accepted(
     'cf000000-0000-4000-8000-000000000001','resend','message-accepted'
   ),
-  'sent'::public.delivery_status,
-  'mark sent accepts a sending delivery'
+  'accepted'::public.delivery_status,
+  'mark accepted accepts a sending delivery'
 );
 -- 11
 select ok(
   (select provider = 'resend' and provider_message_id = 'message-accepted'
-      and sent_at is not null
+      and accepted_at is not null
    from public.update_deliveries where id = 'cf000000-0000-4000-8000-000000000001'),
-  'mark sent records provider acceptance'
+  'mark accepted records provider acceptance'
 );
 -- 12
 select is_empty(
   $$ select delivery_id from public.claim_update_deliveries(10, 3, 900)
      where delivery_id = 'cf000000-0000-4000-8000-000000000001' $$,
-  'sent deliveries are never claimed again'
+  'accepted deliveries are never claimed again'
 );
+
 -- 13
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-delivered','message-accepted','email.delivered','delivered',
+    '2026-07-27T12:00:00Z','{"raw_type":"email.delivered"}',true
+  ) ->> 'processingStatus',
+  'applied',
+  'a delivered webhook is applied'
+);
+-- 14
+select ok(
+  (select status = 'delivered' and delivered_at = '2026-07-27T12:00:00Z'
+   from public.update_deliveries where id = 'cf000000-0000-4000-8000-000000000001'),
+  'provider delivery becomes the honest delivered state'
+);
+-- 15
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-delivered','message-accepted','email.delivered','delivered',
+    '2026-07-27T12:00:00Z','{"raw_type":"email.delivered"}',true
+  ) ->> 'processingStatus',
+  'duplicate',
+  'duplicate provider events are acknowledged idempotently'
+);
+-- 16
+select is(
+  (select count(*)::integer from public.update_delivery_events
+   where provider = 'resend' and provider_event_id = 'event-delivered'),
+  1,
+  'duplicate provider events keep one audit record'
+);
+-- 17
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-bounced','message-accepted','email.bounced','bounced',
+    '2026-07-27T12:05:00Z',
+    '{"raw_type":"email.bounced","error_code":"Permanent","error_message":"Mailbox unavailable"}',
+    true
+  ) ->> 'deliveryStatus',
+  'bounced',
+  'a later bounce takes precedence over delivered'
+);
+-- 18
+select ok(
+  (select status = 'bounced' and bounced_at = '2026-07-27T12:05:00Z'
+      and provider_error_code = 'Permanent'
+   from public.update_deliveries where id = 'cf000000-0000-4000-8000-000000000001'),
+  'bounce state and safe provider failure metadata are recorded'
+);
+-- 19
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-delivered-late','message-accepted','email.delivered','delivered',
+    '2026-07-27T12:10:00Z','{"raw_type":"email.delivered"}',true
+  ) ->> 'processingStatus',
+  'ignored',
+  'a late delivered event cannot regress a bounce'
+);
+-- 20
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-complained','message-accepted','email.complained','complained',
+    '2026-07-27T12:15:00Z','{"raw_type":"email.complained"}',true
+  ) ->> 'deliveryStatus',
+  'complained',
+  'complaint takes final precedence'
+);
+-- 21
+select ok(
+  (select status = 'complained' and complained_at = '2026-07-27T12:15:00Z'
+   from public.update_deliveries where id = 'cf000000-0000-4000-8000-000000000001'),
+  'complaint state and timestamp are recorded'
+);
+-- 22
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-unknown-message','unknown-message','email.delivered','delivered',
+    now(),'{"raw_type":"email.delivered"}',true
+  ) ->> 'processingStatus',
+  'pending',
+  'an early webhook remains pending until provider correlation exists'
+);
+-- 23
+select is(
+  public.apply_update_delivery_event(
+    'resend','event-opened','message-accepted','email.opened',null,
+    now(),'{"raw_type":"email.opened"}',true
+  ) ->> 'processingStatus',
+  'ignored',
+  'unsupported provider events are audited and acknowledged'
+);
+-- 24
+select throws_ok(
+  $$ select public.apply_update_delivery_event(
+    'resend','event-unverified','message-accepted','email.delivered','delivered',
+    now(),'{}',false
+  ) $$,
+  '42501', null, 'unverified events cannot enter the audit trail'
+);
+
+-- 25
 select throws_ok(
   $$ select public.mark_update_delivery_failed(
     'cf000000-0000-4000-8000-000000000002',
@@ -261,7 +362,7 @@ select is_empty(
 );
 -- 18
 select throws_ok(
-  $$ select public.mark_update_delivery_sent(
+  $$ select public.mark_update_delivery_accepted(
     'cf000000-0000-4000-8000-000000000006','unsupported','forged'
   ) $$,
   '23514', null, 'provider result must match the delivery transport'

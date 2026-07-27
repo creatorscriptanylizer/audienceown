@@ -4,10 +4,11 @@ import type { ClaimedDelivery } from "@/lib/delivery-message";
 
 describe("delivery execution integration", () => {
   it("claims, accepts, records, and never dispatches the same delivery twice", async () => {
-    let status: "queued" | "sending" | "sent" = "queued";
+    let status: "queued" | "sending" | "accepted" = "queued";
     let providerMessageId: string | null = null;
     const send = vi.fn().mockResolvedValue({
       ok: true,
+      status: "accepted",
       provider: "resend",
       providerMessageId: "resend-integration-1",
     });
@@ -39,8 +40,8 @@ describe("delivery execution integration", () => {
       appUrl: "https://audienceown.example",
       maxAttempts: 3,
       resolveProvider: () => ({ transport: "email", send }),
-      async markSent(_deliveryId, _provider, messageId) {
-        status = "sent";
+      async markAccepted(_deliveryId, _provider, messageId) {
+        status = "accepted";
         providerMessageId = messageId;
       },
       async markFailed() {
@@ -48,7 +49,7 @@ describe("delivery execution integration", () => {
       },
     });
 
-    expect(status).toBe("sent");
+    expect(status).toBe("accepted");
     expect(providerMessageId).toBe("resend-integration-1");
     expect(claim()).toBeNull();
     expect(send).toHaveBeenCalledTimes(1);

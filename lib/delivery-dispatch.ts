@@ -48,8 +48,8 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
         maxAttempts: DELIVERY_MAX_ATTEMPTS,
         resolveProvider: getDeliveryProvider,
-        async markSent(deliveryId, provider, providerMessageId) {
-          const { error: markError } = await admin.rpc("mark_update_delivery_sent", {
+        async markAccepted(deliveryId, provider, providerMessageId) {
+          const { error: markError } = await admin.rpc("mark_update_delivery_accepted", {
             p_delivery_id: deliveryId,
             p_provider: provider,
             p_provider_message_id: providerMessageId,
@@ -72,7 +72,7 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
         },
       });
       logDelivery(
-        result.status === "sent"
+        result.status === "accepted"
           ? "provider_accepted"
           : result.status === "queued"
             ? "delivery_retry_scheduled"

@@ -7,7 +7,7 @@ describe("delivery provider resolver", () => {
   const emailProvider: DeliveryProvider = {
     transport: "email",
     async send() {
-      return { ok: true, provider: "resend", providerMessageId: "message-1" };
+      return { ok: true, status: "accepted", provider: "resend", providerMessageId: "message-1" };
     },
   };
 
@@ -23,7 +23,12 @@ describe("delivery provider resolver", () => {
       metadata: { updateId: "update-1", creatorId: "creator-1" },
     });
     if (transport === "email") {
-      expect(result).toEqual({ ok: true, provider: "resend", providerMessageId: "message-1" });
+      expect(result).toEqual({
+        ok: true,
+        status: "accepted",
+        provider: "resend",
+        providerMessageId: "message-1",
+      });
       return;
     }
     expect(result).toEqual({

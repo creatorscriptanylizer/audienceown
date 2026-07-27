@@ -526,12 +526,12 @@ select throws_ok(
       '73000000-0000-0000-0000-000000000001',
       'email','email@example.com',
       encode(extensions.digest('email@example.com','sha256'),'hex'),
-      'recovery','sent'
+      'recovery','accepted'
     )
   $$,
   '23514',
   null,
-  'existing sent timestamp constraint remains enforced'
+  'accepted deliveries require an acceptance timestamp'
 );
 
 reset role;

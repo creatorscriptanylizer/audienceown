@@ -14,8 +14,15 @@ export type DeliveryMessage = {
   };
 };
 
+export type ProviderAcceptedResult = {
+  ok: true;
+  status: "accepted";
+  provider: string;
+  providerMessageId: string;
+};
+
 export type DeliveryProviderResult =
-  | { ok: true; provider: string; providerMessageId: string }
+  | ProviderAcceptedResult
   | { ok: false; provider: string; code: string; reason: string; retryable: boolean };
 
 export interface DeliveryProvider {

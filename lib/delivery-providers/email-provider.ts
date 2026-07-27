@@ -14,6 +14,7 @@ export type EmailSender = (input: {
   subject: string;
   text: string;
   html?: string;
+  tags: Array<{ name: string; value: string }>;
 }) => Promise<EmailSendResult>;
 
 function isRetryableEmailError(error: { name?: string; statusCode?: number }) {
@@ -43,9 +44,15 @@ export function createEmailProvider(sender: EmailSender | null, from: string | n
         subject: message.subject ?? message.title,
         text: message.text,
         html: message.html,
+        tags: [{ name: "delivery_id", value: message.deliveryId }],
       });
       if ("id" in result) {
-        return { ok: true, provider: "resend", providerMessageId: result.id };
+        return {
+          ok: true,
+          status: "accepted",
+          provider: "resend",
+          providerMessageId: result.id,
+        };
       }
       return {
         ok: false,

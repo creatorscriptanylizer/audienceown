@@ -459,9 +459,12 @@ export type Database = {
       }
       update_deliveries: {
         Row: {
+          accepted_at: string | null
           attempt_count: number
+          bounced_at: string | null
           cancelled_at: string | null
           claimed_at: string | null
+          complained_at: string | null
           connection_id: string
           contact_id: string
           created_at: string
@@ -477,12 +480,14 @@ export type Database = {
           metadata: Json
           preference_category: string
           provider: string | null
+          provider_error_code: string | null
+          provider_error_message: string | null
           provider_message_id: string | null
           provider_metadata: Json
+          provider_status: string | null
           queued_at: string
           recovery_method_id: string
           sending_at: string | null
-          sent_at: string | null
           skipped_at: string | null
           status: Database["public"]["Enums"]["delivery_status"]
           transport: Database["public"]["Enums"]["delivery_transport"]
@@ -490,9 +495,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accepted_at?: string | null
           attempt_count?: number
+          bounced_at?: string | null
           cancelled_at?: string | null
           claimed_at?: string | null
+          complained_at?: string | null
           connection_id: string
           contact_id: string
           created_at?: string
@@ -508,12 +516,14 @@ export type Database = {
           metadata?: Json
           preference_category: string
           provider?: string | null
+          provider_error_code?: string | null
+          provider_error_message?: string | null
           provider_message_id?: string | null
           provider_metadata?: Json
+          provider_status?: string | null
           queued_at?: string
           recovery_method_id: string
           sending_at?: string | null
-          sent_at?: string | null
           skipped_at?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           transport: Database["public"]["Enums"]["delivery_transport"]
@@ -521,9 +531,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accepted_at?: string | null
           attempt_count?: number
+          bounced_at?: string | null
           cancelled_at?: string | null
           claimed_at?: string | null
+          complained_at?: string | null
           connection_id?: string
           contact_id?: string
           created_at?: string
@@ -539,12 +552,14 @@ export type Database = {
           metadata?: Json
           preference_category?: string
           provider?: string | null
+          provider_error_code?: string | null
+          provider_error_message?: string | null
           provider_message_id?: string | null
           provider_metadata?: Json
+          provider_status?: string | null
           queued_at?: string
           recovery_method_id?: string
           sending_at?: string | null
-          sent_at?: string | null
           skipped_at?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           transport?: Database["public"]["Enums"]["delivery_transport"]
@@ -585,6 +600,71 @@ export type Database = {
             columns: ["update_id"]
             isOneToOne: false
             referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      update_delivery_events: {
+        Row: {
+          created_at: string
+          event_timestamp: string | null
+          event_type: string
+          id: string
+          normalized_status:
+            | Database["public"]["Enums"]["delivery_status"]
+            | null
+          payload: Json
+          processing_error: string | null
+          processing_status: string
+          provider: string
+          provider_event_id: string
+          provider_message_id: string | null
+          received_at: string
+          signature_verified: boolean
+          update_delivery_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_timestamp?: string | null
+          event_type: string
+          id?: string
+          normalized_status?:
+            | Database["public"]["Enums"]["delivery_status"]
+            | null
+          payload?: Json
+          processing_error?: string | null
+          processing_status?: string
+          provider: string
+          provider_event_id: string
+          provider_message_id?: string | null
+          received_at?: string
+          signature_verified: boolean
+          update_delivery_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_timestamp?: string | null
+          event_type?: string
+          id?: string
+          normalized_status?:
+            | Database["public"]["Enums"]["delivery_status"]
+            | null
+          payload?: Json
+          processing_error?: string | null
+          processing_status?: string
+          provider?: string
+          provider_event_id?: string
+          provider_message_id?: string | null
+          received_at?: string
+          signature_verified?: boolean
+          update_delivery_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_delivery_events_update_delivery_id_fkey"
+            columns: ["update_delivery_id"]
+            isOneToOne: false
+            referencedRelation: "update_deliveries"
             referencedColumns: ["id"]
           },
         ]
@@ -652,6 +732,19 @@ export type Database = {
       }
     }
     Functions: {
+      apply_update_delivery_event: {
+        Args: {
+          p_event_timestamp: string
+          p_event_type: string
+          p_normalized_status: string
+          p_payload: Json
+          p_provider: string
+          p_provider_event_id: string
+          p_provider_message_id: string
+          p_signature_verified: boolean
+        }
+        Returns: Json
+      }
       broadcast_audience_rule_for_target: {
         Args: {
           affected_platform_connection_id: string
@@ -714,6 +807,14 @@ export type Database = {
         Args: { object_name: string }
         Returns: boolean
       }
+      mark_update_delivery_accepted: {
+        Args: {
+          p_delivery_id: string
+          p_provider: string
+          p_provider_message_id: string
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
+      }
       mark_update_delivery_failed: {
         Args: {
           p_code: string
@@ -725,12 +826,8 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["delivery_status"]
       }
-      mark_update_delivery_sent: {
-        Args: {
-          p_delivery_id: string
-          p_provider: string
-          p_provider_message_id: string
-        }
+      process_update_delivery_event: {
+        Args: { p_event_id: string }
         Returns: Database["public"]["Enums"]["delivery_status"]
       }
       publish_update_delivery_queue: {
@@ -741,6 +838,10 @@ export type Database = {
           p_update_id: string
         }
         Returns: Json
+      }
+      reconcile_update_delivery_events: {
+        Args: { p_provider: string; p_provider_message_id: string }
+        Returns: number
       }
     }
     Enums: {
@@ -775,8 +876,10 @@ export type Database = {
       delivery_status:
         | "queued"
         | "sending"
-        | "sent"
+        | "accepted"
         | "delivered"
+        | "bounced"
+        | "complained"
         | "failed"
         | "skipped"
         | "cancelled"
@@ -1490,8 +1593,10 @@ export const Constants = {
       delivery_status: [
         "queued",
         "sending",
-        "sent",
+        "accepted",
         "delivered",
+        "bounced",
+        "complained",
         "failed",
         "skipped",
         "cancelled",

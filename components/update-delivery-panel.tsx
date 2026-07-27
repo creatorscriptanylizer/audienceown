@@ -1,6 +1,17 @@
 import { Inbox } from "lucide-react";
 
-const statuses = ["queued", "sending", "sent", "delivered", "failed", "skipped", "cancelled"] as const;
+const statuses = ["queued", "sending", "accepted", "delivered", "bounced", "complained", "failed", "skipped", "cancelled"] as const;
+const statusLabels: Record<(typeof statuses)[number], string> = {
+  queued: "Waiting to send",
+  sending: "Sending",
+  accepted: "Accepted by email provider",
+  delivered: "Delivered",
+  bounced: "Bounced",
+  complained: "Spam complaint",
+  failed: "Failed",
+  skipped: "Skipped",
+  cancelled: "Cancelled",
+};
 const transports = ["email", "sms", "whatsapp", "browser_notification"] as const;
 const transportLabels = {
   email: "Email",
@@ -24,7 +35,7 @@ export function UpdateDeliveryPanel({
       <div>
         <p className="eyebrow">Delivery foundation</p>
         <h2>Audience delivery</h2>
-        <p>Published notifications are queued here for automatic delivery.</p>
+        <p>Provider acceptance and final delivery outcomes are tracked separately.</p>
       </div>
     </div>
 
@@ -32,7 +43,7 @@ export function UpdateDeliveryPanel({
       ? <div className="delivery-empty"><p>Nothing has been queued yet.</p><span>Publish this draft when its real audience is ready.</span></div>
       : <div className="delivery-summary-grid">
         <article><span>Total</span><strong>{total}</strong></article>
-        {statuses.map((status) => <article key={status}><span>{status}</span><strong>{counts[status]}</strong></article>)}
+        {statuses.map((status) => <article key={status}><span>{statusLabels[status]}</span><strong>{counts[status]}</strong></article>)}
       </div>}
 
     {total > 0 && <div className="delivery-transport-breakdown">

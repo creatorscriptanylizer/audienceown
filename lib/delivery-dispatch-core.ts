@@ -8,7 +8,7 @@ import type { DeliveryTransport } from "@/lib/update-recipients";
 export type DispatchResult = {
   deliveryId: string;
   transport: DeliveryTransport;
-  status: "sending" | "sent" | "queued" | "failed";
+  status: "sending" | "accepted" | "queued" | "failed";
   provider: string;
   retryable: boolean;
   code: string;
@@ -18,7 +18,7 @@ type DispatchDependencies = {
   appUrl: string;
   maxAttempts: number;
   resolveProvider(transport: DeliveryTransport): DeliveryProvider;
-  markSent(deliveryId: string, provider: string, providerMessageId: string): Promise<void>;
+  markAccepted(deliveryId: string, provider: string, providerMessageId: string): Promise<void>;
   markFailed(input: {
     deliveryId: string;
     provider: string;
@@ -52,7 +52,7 @@ export async function dispatchClaimedDelivery(
   }
 
   if (providerResult.ok) {
-    await dependencies.markSent(
+    await dependencies.markAccepted(
       delivery.delivery_id,
       providerResult.provider,
       providerResult.providerMessageId,
@@ -60,7 +60,7 @@ export async function dispatchClaimedDelivery(
     return {
       deliveryId: delivery.delivery_id,
       transport: delivery.transport,
-      status: "sent",
+      status: "accepted",
       provider: providerResult.provider,
       retryable: false,
       code: "accepted",
@@ -89,7 +89,7 @@ export function aggregateDispatchResults(results: DispatchResult[]) {
   const transports: DeliveryTransport[] = ["email", "sms", "whatsapp", "browser_notification"];
   return {
     claimed: results.length,
-    sent: results.filter((result) => result.status === "sent").length,
+    accepted: results.filter((result) => result.status === "accepted").length,
     retried: results.filter((result) => result.status === "queued").length,
     failed: results.filter((result) => result.status === "failed").length,
     unresolved: results.filter((result) => result.status === "sending").length,

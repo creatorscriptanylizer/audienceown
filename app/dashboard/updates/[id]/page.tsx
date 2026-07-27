@@ -9,7 +9,7 @@ import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { getEligibleRecipientsForUpdate } from "@/lib/update-delivery";
 
-const deliveryStatuses = ["queued", "sending", "sent", "delivered", "failed", "skipped", "cancelled"] as const;
+const deliveryStatuses = ["queued", "sending", "accepted", "delivered", "bounced", "complained", "failed", "skipped", "cancelled"] as const;
 const deliveryTransports = ["email", "sms", "whatsapp", "browser_notification"] as const;
 
 function safeCount(value: string | string[] | undefined) {
