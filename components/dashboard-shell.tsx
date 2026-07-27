@@ -1,24 +1,16 @@
 import Link from "next/link";
-import { House, ExternalLink, FileUser, Link2, LockKeyhole, Settings, Users } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Logo } from "./logo";
 import { logout } from "@/app/(auth)/actions";
 import type { Creator } from "@/lib/database.helpers";
-
-const links = [
-  ["/dashboard", "Home", House],
-  ["/dashboard/creator-page", "Creator Page", FileUser],
-  ["/dashboard/platforms", "Platforms", Link2],
-  ["/dashboard/audience", "Audience", Users],
-  ["/dashboard/security", "Security", LockKeyhole],
-  ["/dashboard/settings", "Settings", Settings],
-] as const;
+import { dashboardLinks } from "@/lib/dashboard-navigation";
 
 export function DashboardShell({ creator, children }: { creator: Creator; children: React.ReactNode }) {
   return <div className="min-h-screen bg-[#08080a] lg:grid lg:grid-cols-[248px_1fr]">
     <aside className="border-b bg-[#0d0d10] px-4 py-4 lg:fixed lg:inset-y-0 lg:w-[248px] lg:border-b-0 lg:border-r">
       <div className="px-2 py-2"><Logo/></div>
       <nav aria-label="Dashboard" className="mt-5 flex gap-1 overflow-x-auto lg:flex-col">
-        {links.map(([href,label,Icon])=><Link key={href} href={href} className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/70 hover:text-white"><Icon size={17}/>{label}</Link>)}
+        {dashboardLinks.map(({href,label,icon:Icon})=><Link key={href} href={href} className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/70 hover:text-white"><Icon size={17}/>{label}</Link>)}
       </nav>
       <div className="mt-auto hidden pt-5 lg:block"><form action={logout}><button className="w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-500 hover:text-white">Log out</button></form></div>
     </aside>
