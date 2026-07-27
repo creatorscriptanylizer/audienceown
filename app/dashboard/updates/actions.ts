@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { isFutureSchedule, updateDraftSchema, updatePublishSchema } from "@/lib/updates";
-import { createDeliveryQueue } from "@/lib/update-delivery";
+import { createDeliveryQueue, publishDeliveryQueue } from "@/lib/update-delivery";
+import { broadcastIntents, getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
 import { z } from "zod";
 
 export type UpdateActionState = {
@@ -14,8 +15,14 @@ export type UpdateActionState = {
 };
 
 function valuesFrom(data: FormData) {
+  const intentCandidate = String(data.get("broadcast_intent") ?? "");
+  const intent = broadcastIntents.includes(intentCandidate as BroadcastIntent)
+    ? intentCandidate as BroadcastIntent
+    : "new_video";
   return {
-    broadcast_type: data.get("broadcast_type"),
+    broadcast_intent: intent,
+    affected_platform_connection_id: String(data.get("affected_platform_connection_id") ?? "") || null,
+    broadcast_type: getIntentDefinition(intent).broadcastType,
     title: data.get("title"),
     subject: data.get("subject"),
     preview_text: data.get("preview_text"),
@@ -23,6 +30,27 @@ function valuesFrom(data: FormData) {
     cta_label: data.get("cta_label"),
     cta_url: data.get("cta_url"),
   };
+}
+
+async function validateTarget(
+  creatorId: string,
+  values: ReturnType<typeof valuesFrom>,
+): Promise<UpdateActionState | null> {
+  const definition = getIntentDefinition(values.broadcast_intent);
+  if (definition.platform === "required" && !values.affected_platform_connection_id) {
+    return { error: "Select the affected platform.", errors: { affected_platform_connection_id: ["Select the affected platform."] } };
+  }
+  if (definition.platform === "none" && values.affected_platform_connection_id) {
+    return { error: "This broadcast intent cannot target a platform." };
+  }
+  if (!values.affected_platform_connection_id) return null;
+  if (!z.string().uuid().safeParse(values.affected_platform_connection_id).success) return { error: "Select a valid connected platform." };
+  const supabase = await createClient();
+  const { data: account } = supabase
+    ? await supabase.from("connected_accounts").select("id").eq("id", values.affected_platform_connection_id)
+      .eq("creator_id", creatorId).eq("account_type", "official").maybeSingle()
+    : { data: null };
+  return account ? null : { error: "That platform is not one of your connected official accounts." };
 }
 
 function validationState(error: { flatten(): { fieldErrors: Record<string, string[]> } }): UpdateActionState {
@@ -35,7 +63,10 @@ function mutationError(message: string): UpdateActionState {
 
 export async function createDraft(_: UpdateActionState, data: FormData): Promise<UpdateActionState> {
   const creator = await requireCreator();
-  const parsed = updateDraftSchema.safeParse(valuesFrom(data));
+  const values = valuesFrom(data);
+  const targetError = await validateTarget(creator.id, values);
+  if (targetError) return targetError;
+  const parsed = updateDraftSchema.safeParse(values);
   if (!parsed.success) return validationState(parsed.error);
 
   const supabase = await createClient();
@@ -43,6 +74,8 @@ export async function createDraft(_: UpdateActionState, data: FormData): Promise
   const { data: update, error } = await supabase.from("creator_updates").insert({
     creator_id: creator.id,
     ...parsed.data,
+    broadcast_intent: values.broadcast_intent,
+    affected_platform_connection_id: values.affected_platform_connection_id,
     cta_label: parsed.data.cta_label || null,
     cta_url: parsed.data.cta_url || null,
   }).select("id").single();
@@ -54,13 +87,18 @@ export async function createDraft(_: UpdateActionState, data: FormData): Promise
 
 export async function updateDraft(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
   const creator = await requireCreator();
-  const parsed = updateDraftSchema.safeParse(valuesFrom(data));
+  const values = valuesFrom(data);
+  const targetError = await validateTarget(creator.id, values);
+  if (targetError) return targetError;
+  const parsed = updateDraftSchema.safeParse(values);
   if (!parsed.success) return validationState(parsed.error);
 
   const supabase = await createClient();
   if (!supabase) return mutationError("Updates are unavailable until Supabase is configured.");
   const { data: update, error } = await supabase.from("creator_updates").update({
     broadcast_type: parsed.data.broadcast_type,
+    broadcast_intent: values.broadcast_intent,
+    affected_platform_connection_id: values.affected_platform_connection_id,
     title: parsed.data.title,
     subject: parsed.data.subject,
     preview_text: parsed.data.preview_text,
@@ -91,7 +129,10 @@ export async function deleteDraft(id: string, previousState: UpdateActionState, 
 
 export async function scheduleUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
   const creator = await requireCreator();
-  const parsed = updatePublishSchema.safeParse(valuesFrom(data));
+  const values = valuesFrom(data);
+  const targetError = await validateTarget(creator.id, values);
+  if (targetError) return targetError;
+  const parsed = updatePublishSchema.safeParse(values);
   if (!parsed.success) return validationState(parsed.error);
 
   const scheduledValue = String(data.get("scheduled_for") ?? "");
@@ -104,6 +145,8 @@ export async function scheduleUpdate(id: string, _: UpdateActionState, data: For
   if (!supabase) return mutationError("Updates are unavailable until Supabase is configured.");
   const { data: update, error } = await supabase.from("creator_updates").update({
     broadcast_type: parsed.data.broadcast_type,
+    broadcast_intent: values.broadcast_intent,
+    affected_platform_connection_id: values.affected_platform_connection_id,
     title: parsed.data.title,
     subject: parsed.data.subject,
     preview_text: parsed.data.preview_text,
@@ -119,6 +162,49 @@ export async function scheduleUpdate(id: string, _: UpdateActionState, data: For
   revalidatePath("/dashboard/updates");
   revalidatePath(`/dashboard/updates/${id}`);
   redirect(`/dashboard/updates/${id}`);
+}
+
+export async function publishUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
+  const parsedId = z.string().uuid().safeParse(id);
+  if (!parsedId.success) return mutationError("This broadcast is unavailable.");
+  const creator = await requireCreator();
+  const values = valuesFrom(data);
+  const targetError = await validateTarget(creator.id, values);
+  if (targetError) return targetError;
+  const parsed = updatePublishSchema.safeParse(values);
+  if (!parsed.success) return validationState(parsed.error);
+
+  const supabase = await createClient();
+  if (!supabase) return mutationError("Broadcast publishing is unavailable.");
+  const { data: current } = await supabase.from("creator_updates").select("status")
+    .eq("id", id).eq("creator_id", creator.id).maybeSingle();
+  if (!current || !["draft", "cancelled", "queued"].includes(current.status)) {
+    return mutationError("Only an editable or already queued broadcast can be published.");
+  }
+  if (current.status !== "queued") {
+    const { data: saved, error } = await supabase.from("creator_updates").update({
+      ...parsed.data,
+      broadcast_intent: values.broadcast_intent,
+      affected_platform_connection_id: values.affected_platform_connection_id,
+      cta_label: parsed.data.cta_label || null,
+      cta_url: parsed.data.cta_url || null,
+    }).eq("id", id).eq("creator_id", creator.id).in("status", ["draft", "cancelled"]).select("id").maybeSingle();
+    if (error || !saved) return mutationError("Only an editable draft can be published.");
+  }
+
+  let summary;
+  try {
+    summary = await publishDeliveryQueue(id, creator.id);
+  } catch {
+    return mutationError("The draft was saved, but its audience could not be prepared. Nothing was sent.");
+  }
+  const query = new URLSearchParams({
+    published: "1", created: String(summary.created), eligible: String(summary.eligible),
+    duplicates: String(summary.duplicates), ...Object.fromEntries(Object.entries(summary.byTransport).map(([key, value]) => [key, String(value)])),
+  });
+  revalidatePath("/dashboard/updates");
+  revalidatePath(`/dashboard/updates/${id}`);
+  redirect(`/dashboard/updates/${id}?${query}`);
 }
 
 export async function cancelScheduledUpdate(id: string, previousState: UpdateActionState, data: FormData): Promise<UpdateActionState> {

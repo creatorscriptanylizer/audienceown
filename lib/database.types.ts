@@ -86,6 +86,8 @@ export type Database = {
       }
       creator_updates: {
         Row: {
+          affected_platform_connection_id: string | null
+          broadcast_intent: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at: string | null
           content: string
@@ -104,6 +106,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          affected_platform_connection_id?: string | null
+          broadcast_intent: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at?: string | null
           content?: string
@@ -122,6 +126,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          affected_platform_connection_id?: string | null
+          broadcast_intent?: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type?: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at?: string | null
           content?: string
@@ -140,6 +146,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "creator_updates_affected_platform_connection_id_fkey"
+            columns: ["affected_platform_connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "creator_updates_creator_id_fkey"
             columns: ["creator_id"]
@@ -639,6 +652,17 @@ export type Database = {
       }
     }
     Functions: {
+      broadcast_audience_rule_for_target: {
+        Args: {
+          affected_platform_connection_id: string
+          intent: Database["public"]["Enums"]["broadcast_intent"]
+        }
+        Returns: string
+      }
+      broadcast_type_for_intent: {
+        Args: { intent: Database["public"]["Enums"]["broadcast_intent"] }
+        Returns: Database["public"]["Enums"]["broadcast_type"]
+      }
       claim_update_deliveries: {
         Args: {
           p_limit: number
@@ -705,8 +729,25 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["delivery_status"]
       }
+      publish_update_delivery_queue: {
+        Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
+        Returns: Json
+      }
     }
     Enums: {
+      broadcast_intent:
+        | "account_hacked"
+        | "account_banned"
+        | "account_inaccessible"
+        | "impersonation_warning"
+        | "platform_migration"
+        | "new_video"
+        | "livestream"
+        | "podcast_episode"
+        | "product_release"
+        | "event"
+        | "general_announcement"
+        | "community_update"
       broadcast_status:
         | "draft"
         | "scheduled"
@@ -1406,6 +1447,20 @@ export const Constants = {
   },
   public: {
     Enums: {
+      broadcast_intent: [
+        "account_hacked",
+        "account_banned",
+        "account_inaccessible",
+        "impersonation_warning",
+        "platform_migration",
+        "new_video",
+        "livestream",
+        "podcast_episode",
+        "product_release",
+        "event",
+        "general_announcement",
+        "community_update",
+      ],
       broadcast_status: [
         "draft",
         "scheduled",

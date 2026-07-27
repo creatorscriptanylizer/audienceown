@@ -59,7 +59,7 @@ insert into public.creator_updates (
 select
   ('ce000000-0000-4000-8000-' || lpad(number::text, 12, '0'))::uuid,
   current_setting('tests.execution_creator')::uuid,
-  'account_update', 'draft',
+  'account_update', 'queued',
   'Execution update ' || number, 'Execution subject ' || number, 'Execution body ' || number
 from generate_series(1, 10) number;
 

@@ -14,12 +14,15 @@ import {
   type RecipientExclusionReason,
 } from "@/lib/update-recipients";
 import type { BroadcastType } from "@/lib/updates";
+import { getAudienceRule, type BroadcastIntent } from "@/lib/broadcast-studio";
 
 type DeliveryResolution = {
   update: {
     id: string;
     creator_id: string;
     broadcast_type: BroadcastType;
+    broadcast_intent: BroadcastIntent;
+    affected_platform_connection_id: string | null;
     status: string;
     title: string;
     subject: string;
@@ -70,14 +73,35 @@ export async function getEligibleRecipientsForUpdate(
   if (!encryptionKey) throw new Error("Contact decryption is not configured.");
 
   const { data: update, error: updateError } = await admin.from("creator_updates").select(
-    "id,creator_id,broadcast_type,status,title,subject,content,preview_text,cta_label,cta_url",
+    "id,creator_id,broadcast_type,broadcast_intent,affected_platform_connection_id,status,title,subject,content,preview_text,cta_label,cta_url",
   ).eq("id", updateId).eq("creator_id", creatorId).maybeSingle();
   if (updateError || !update) throw new Error("Update not found.");
 
   const preferenceCategory = resolvePreferenceCategory(update.broadcast_type);
-  const { data: connections, error: connectionsError } = await admin.from("follower_connections").select(
+  let platform: string | null = null;
+  if (update.affected_platform_connection_id) {
+    const { data: account, error: accountError } = await admin.from("connected_accounts")
+      .select("platform")
+      .eq("id", update.affected_platform_connection_id)
+      .eq("creator_id", creatorId)
+      .eq("account_type", "official")
+      .maybeSingle();
+    if (accountError || !account) throw new Error("Affected platform is unavailable.");
+    platform = account.platform;
+  }
+
+  let connectionsQuery = admin.from("follower_connections").select(
     "id,creator_id,follower_contact_id,status,selected_recovery_method_id",
   ).eq("creator_id", creatorId);
+  const audienceRule = getAudienceRule({
+    intent: update.broadcast_intent,
+    affectedPlatformConnectionId: update.affected_platform_connection_id,
+  });
+  if (audienceRule === "affected_platform" || audienceRule === "platform_followers") {
+    if (!platform) throw new Error("A platform is required to resolve this audience.");
+    connectionsQuery = connectionsQuery.eq("source_platform", platform);
+  }
+  const { data: connections, error: connectionsError } = await connectionsQuery;
   if (connectionsError) throw new Error("Audience could not be loaded.");
 
   const connectionRows = connections ?? [];
@@ -210,6 +234,45 @@ export async function createDeliveryQueue(
     created: result?.created ?? 0,
     duplicates: resolution.duplicates,
     excluded: resolution.excluded,
+    byTransport: Object.fromEntries(
+      (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport) => [
+        transport,
+        result?.byTransport?.[transport] ?? 0,
+      ]),
+    ) as Record<DeliveryTransport, number>,
+  };
+}
+
+export async function publishDeliveryQueue(
+  updateId: string,
+  creatorId: string,
+): Promise<DeliveryQueueSummary & { published: boolean }> {
+  const resolution = await getEligibleRecipientsForUpdate(updateId, creatorId);
+  const supabase = await createClient();
+  if (!supabase) throw new Error("Broadcast publishing is unavailable.");
+
+  const { data: rpcSummary, error } = await supabase.rpc("publish_update_delivery_queue", {
+    p_update_id: updateId,
+    p_creator_id: creatorId,
+    p_recipients: resolution.eligibleRecipients.map((recipient) => ({
+      connection_id: recipient.connectionId,
+      recovery_method_id: recipient.recoveryMethodId,
+      destination: recipient.destination,
+      destination_hash: recipient.destinationHash,
+    })),
+  });
+  if (error) throw new Error("Broadcast could not be published.");
+  const result = rpcSummary as {
+    created?: number;
+    published?: boolean;
+    byTransport?: Partial<Record<DeliveryTransport, number>>;
+  } | null;
+  return {
+    eligible: resolution.eligible,
+    created: result?.created ?? 0,
+    duplicates: resolution.duplicates,
+    excluded: resolution.excluded,
+    published: result?.published === true,
     byTransport: Object.fromEntries(
       (["email", "sms", "whatsapp", "browser_notification"] as const).map((transport) => [
         transport,
