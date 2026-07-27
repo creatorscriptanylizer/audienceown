@@ -96,8 +96,3 @@ export function parseBroadcastTypeQuery(value: string | string[] | undefined): B
   const candidate = Array.isArray(value) ? value[0] : value;
   return broadcastTypes.includes(candidate as BroadcastType) ? candidate as BroadcastType : "new_content";
 }
-
-export function isFutureSchedule(value: string | Date, now = new Date()) {
-  const date = value instanceof Date ? value : new Date(value);
-  return !Number.isNaN(date.getTime()) && date.getTime() > now.getTime();
-}

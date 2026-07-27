@@ -18,8 +18,16 @@ describe("creator publishing workflow", () => {
   it("uses Publish now as the single final action with a pending state", () => {
     expect(studioSource).toContain('"Publish now"');
     expect(studioSource).toContain('"Publishing…"');
-    expect(studioSource).toContain("disabled={publishPending}");
-    expect(studioSource).toContain("closeDisabled={publishPending}");
+    expect(studioSource).toContain("disabled={committing}");
+    expect(studioSource).toContain("closeDisabled={committing}");
+  });
+
+  it("offers scheduling with explicit local time, zone, and pending protection", () => {
+    expect(studioSource).toContain("<strong>Schedule</strong>");
+    expect(studioSource).toContain('name="scheduled_for_local"');
+    expect(studioSource).toContain('name="time_zone"');
+    expect(studioSource).toContain('"Scheduling…"');
+    expect(studioSource).toContain("closeDisabled={committing}");
   });
 
   it("shows real routing and never embeds a fake audience count", () => {

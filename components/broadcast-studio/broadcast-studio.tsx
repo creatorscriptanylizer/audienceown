@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowUpRight, CheckCircle2, Eye, Link2, Megaphone,
+  AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, Eye, Link2, Megaphone,
   Save, Send, ShieldCheck, Users,
 } from "lucide-react";
-import { createDraft, publishUpdate, updateDraft, type UpdateActionState } from "@/app/dashboard/updates/actions";
+import { createDraft, publishUpdate, scheduleUpdate, updateDraft, type UpdateActionState } from "@/app/dashboard/updates/actions";
 import { getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
+import { formatScheduledDate } from "@/lib/scheduling";
 import type { BroadcastType } from "@/lib/updates";
 import { FocusedEditor } from "./focused-editor";
 import { broadcastChoices, emergencySubtypes, isAccountEmergency } from "./broadcast-choices";
@@ -33,13 +34,22 @@ export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcas
   const [ctaUrl, setCtaUrl] = useState(update?.cta_url ?? "");
   const [dirty, setDirty] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<"publish" | "schedule">("publish");
+  const [scheduledLocal, setScheduledLocal] = useState("");
+  const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const definition = getIntentDefinition(intent);
   const saveFn = update ? updateDraft.bind(null, update.id) : createDraft;
   const publishFn = update ? publishUpdate.bind(null, update.id) : createDraft;
+  const scheduleFn = update ? scheduleUpdate.bind(null, update.id) : createDraft;
   const [saveState, saveAction, savePending] = useActionState(saveFn, initialState);
   const [publishState, publishAction, publishPending] = useActionState(publishFn, initialState);
-  const state = publishState.error ? publishState : saveState;
+  const [scheduleState, scheduleAction, schedulePending] = useActionState(scheduleFn, initialState);
+  const state = scheduleState.error ? scheduleState : publishState.error ? publishState : saveState;
+  const committing = publishPending || schedulePending;
+  const scheduledIso = scheduledLocal && !Number.isNaN(new Date(scheduledLocal).getTime())
+    ? new Date(scheduledLocal).toISOString()
+    : "";
   const officialAccounts = accounts.filter((account) => account.account_type === "official");
   const selected = accounts.find((account) => account.id === platformId);
   const backup = selected && accounts.find((account) => account.account_type === "backup" && account.platform === selected.platform);
@@ -94,6 +104,7 @@ export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcas
       <input type="hidden" name="broadcast_intent" value={intent}/><input type="hidden" name="affected_platform_connection_id" value={platformId}/>
       <input type="hidden" name="title" value={title}/><input type="hidden" name="subject" value={subject}/><input type="hidden" name="preview_text" value={previewText}/>
       <input type="hidden" name="content" value={body}/><input type="hidden" name="cta_label" value={ctaLabel}/><input type="hidden" name="cta_url" value={ctaUrl}/>
+      <input type="hidden" name="scheduled_for_iso" value={scheduledIso}/><input type="hidden" name="time_zone" value={timeZone}/>
 
       {formOpen && !confirmOpen && <FocusedEditor step="Create update" title={isEmergencyFamily ? "Account inaccessible" : definition.title} description={definition.description} onClose={closeForm} onContinue={() => {}} footer={<>
         <button type="button" className="button button-secondary" onClick={closeForm}>Cancel</button>
@@ -142,8 +153,18 @@ export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcas
         </div>
       </FocusedEditor>}
 
-      {confirmOpen && <FocusedEditor step="Review and send" title={definition.mandatory ? "Send recovery alert?" : definition.action} description="Check the real audience and delivery behavior before publishing." onClose={() => setConfirmOpen(false)} closeDisabled={publishPending} onContinue={() => {}} footer={<><button type="button" className="button button-secondary" disabled={publishPending} onClick={() => setConfirmOpen(false)}>Back</button><button type="submit" formAction={publishAction} className="button button-primary" disabled={publishPending}><Send/>{publishPending ? "Publishing…" : "Publish now"}</button></>}>
+      {confirmOpen && <FocusedEditor step="Review and send" title={definition.mandatory ? "Send recovery alert?" : definition.action} description="Check the real audience and choose when this update becomes eligible for delivery." onClose={() => setConfirmOpen(false)} closeDisabled={committing} onContinue={() => {}} footer={<><button type="button" className="button button-secondary" disabled={committing} onClick={() => setConfirmOpen(false)}>Back</button>{deliveryMode === "publish" ? <button type="submit" formAction={publishAction} className="button button-primary" disabled={committing}><Send/>{publishPending ? "Publishing…" : "Publish now"}</button> : <button type="submit" formAction={scheduleAction} className="button button-primary" disabled={committing || !scheduledIso}><CalendarClock/>{schedulePending ? "Scheduling…" : "Schedule update"}</button>}</>}>
         <div className="broadcast-confirmation"><dl className="studio-review-list"><div><dt>Update</dt><dd>{definition.title}</dd></div>{definition.platform !== "none" && <div><dt>Affected account</dt><dd>{selected ? `${titleCase(selected.platform)} · ${selected.label}` : "Not selected"}</dd></div>}<div><dt>Audience</dt><dd>{realEstimate?.eligible.toLocaleString()} eligible followers</dd></div><div><dt>Delivery</dt><dd>{definition.mandatory ? "Mandatory Recovery Pass" : "Preference-based email"}</dd></div><div><dt>Route</dt><dd>{definition.mandatory ? "Each follower’s exact selected Recovery Pass" : "Verified email only"}</dd></div>{definition.mandatory && <div><dt>Backup destination</dt><dd>{backup?.label || "Not configured"}</dd></div>}</dl>
+          <div className="studio-publish-mode" role="group" aria-label="Delivery time">
+            <button type="button" className={deliveryMode === "publish" ? "is-selected" : ""} disabled={committing} onClick={() => setDeliveryMode("publish")}><Send/><span><strong>Publish now</strong><small>Queue delivery immediately</small></span></button>
+            <button type="button" className={deliveryMode === "schedule" ? "is-selected" : ""} disabled={committing} onClick={() => setDeliveryMode("schedule")}><CalendarClock/><span><strong>Schedule</strong><small>Choose a future local time</small></span></button>
+          </div>
+          {deliveryMode === "schedule" && <section className="studio-schedule-fields">
+            <label><span>Date and time</span><input name="scheduled_for_local" type="datetime-local" value={scheduledLocal} onChange={(event) => setScheduledLocal(event.target.value)}/></label>
+            <div><small>Time zone</small><strong>{timeZone}</strong></div>
+            {scheduledIso && <p>This update will become eligible on <strong>{formatScheduledDate(scheduledIso, timeZone)}</strong>.</p>}
+            {scheduleState.errors?.scheduled_for_local?.[0] && <p className="update-field-error">{scheduleState.errors.scheduled_for_local[0]}</p>}
+          </section>}
           <p className="studio-focus-note">{definition.mandatory ? "Each eligible follower will receive this alert through their exact selected Recovery Pass." : "Eligible followers will receive this through verified email according to their category preferences."}</p>
           <article className="studio-email-preview"><p className="eyebrow">Message preview</p><h3>{subject}</h3><p>{previewText || "No preview text"}</p><div>{body}</div>{ctaLabel && ctaUrl && <span>{ctaLabel}</span>}<footer>{definition.mandatory ? "Mandatory Recovery Alert" : "Preference-based Update"} · Delivered by AudienceOwn</footer></article>
         </div>

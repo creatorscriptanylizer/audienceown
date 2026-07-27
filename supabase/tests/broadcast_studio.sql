@@ -1,5 +1,5 @@
 begin;
-select plan(40);
+select plan(63);
 
 insert into auth.users (
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
@@ -212,6 +212,142 @@ select throws_ok(
 select is(
   (select status::text from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000001'),
   'queued','published deliveries remain queued for the dispatcher'
+);
+
+insert into public.creator_updates(id,creator_id,broadcast_type,broadcast_intent,title,subject,content)
+select
+  ('ba600000-0000-4000-8000-' || lpad(number::text,12,'0'))::uuid,
+  current_setting('tests.studio_a')::uuid,
+  'announcement','general_announcement',
+  'Scheduled ' || number,'Scheduled subject ' || number,'Scheduled body ' || number
+from generate_series(6,12) number;
+
+create temporary table schedule_result as
+select public.publish_update_delivery_queue(
+  'ba600000-0000-4000-8000-000000000006',
+  current_setting('tests.studio_a')::uuid,
+  jsonb_build_array(jsonb_build_object(
+    'connection_id','ba400000-0000-4000-8000-000000000001',
+    'recovery_method_id','ba500000-0000-4000-8000-000000000001',
+    'destination','publish@example.com',
+    'destination_hash',encode(extensions.digest('publish@example.com','sha256'),'hex')
+  )),
+  now()+interval '10 minutes'
+) result;
+select is((select result->>'status' from schedule_result),'scheduled','valid future scheduling returns scheduled status');
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000006'),'scheduled','scheduled update status is persisted');
+select ok((select scheduled_for = (select (result->>'scheduledFor')::timestamptz from schedule_result) from public.creator_updates where id='ba600000-0000-4000-8000-000000000006'),'scheduled_for is persisted exactly');
+select ok((select queued_at is not null from public.creator_updates where id='ba600000-0000-4000-8000-000000000006'),'scheduling sets queued_at');
+select ok((select cancelled_at is null from public.creator_updates where id='ba600000-0000-4000-8000-000000000006'),'scheduling clears cancelled_at');
+select is((select count(*)::integer from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000006'),1,'scheduling atomically snapshots recipients');
+select is((select status::text from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000006'),'queued','scheduled delivery remains queued');
+
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+select is_empty(
+  $$select delivery_id from public.claim_update_deliveries(10,3,900)
+    where update_id='ba600000-0000-4000-8000-000000000006'$$,
+  'future scheduled delivery cannot be claimed'
+);
+alter table public.creator_updates disable trigger user;
+update public.creator_updates set scheduled_for=now()-interval '1 minute'
+where id='ba600000-0000-4000-8000-000000000006';
+alter table public.creator_updates enable trigger user;
+select is(
+  (select delivery_id from public.claim_update_deliveries(10,3,900)
+    where update_id='ba600000-0000-4000-8000-000000000006'),
+  (select id from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000006'),
+  'due scheduled delivery can be claimed'
+);
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000006'),'queued','first due claim promotes scheduled update to queued');
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','ba000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claims','{"sub":"ba000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+do $$ begin
+  perform public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000007',current_setting('tests.studio_a')::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'connection_id','ba400000-0000-4000-8000-000000000001',
+      'recovery_method_id','ba500000-0000-4000-8000-000000000001',
+      'destination','publish@example.com',
+      'destination_hash',encode(extensions.digest('publish@example.com','sha256'),'hex')
+    )),now()+interval '20 minutes'
+  );
+end $$;
+select is(public.cancel_scheduled_update(
+  'ba600000-0000-4000-8000-000000000007',current_setting('tests.studio_a')::uuid
+)->>'status','cancelled','future scheduled update can be cancelled');
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000007'),'cancelled','cancellation marks update cancelled');
+select is((select status::text from public.update_deliveries where update_id='ba600000-0000-4000-8000-000000000007'),'cancelled','cancellation marks queued delivery cancelled');
+select is(public.cancel_scheduled_update(
+  'ba600000-0000-4000-8000-000000000007',current_setting('tests.studio_a')::uuid
+)->>'status','cancelled','repeated cancellation is idempotent');
+
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000008',current_setting('tests.studio_a')::uuid,'[]'::jsonb,now()
+  )$$,'22007',null,'exact-now schedule is rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000008',current_setting('tests.studio_a')::uuid,'[]'::jsonb,now()-interval '1 hour'
+  )$$,'22007',null,'past schedule is rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000008',current_setting('tests.studio_a')::uuid,'[]'::jsonb,now()+interval '30 seconds'
+  )$$,'22007',null,'schedule inside minimum buffer is rejected'
+);
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000008',current_setting('tests.studio_a')::uuid,'[]'::jsonb,now()+interval '5 minutes'
+  )$$,'P0001',null,'zero audience blocks scheduling'
+);
+select is((select status::text from public.creator_updates where id='ba600000-0000-4000-8000-000000000008'),'draft','zero audience scheduling leaves draft unchanged');
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000001',current_setting('tests.studio_a')::uuid,'[]'::jsonb,now()+interval '5 minutes'
+  )$$,'55000',null,'scheduling after immediate publication is rejected'
+);
+
+do $$ begin
+  perform public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000009',current_setting('tests.studio_a')::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'connection_id','ba400000-0000-4000-8000-000000000001',
+      'recovery_method_id','ba500000-0000-4000-8000-000000000001',
+      'destination','publish@example.com',
+      'destination_hash',encode(extensions.digest('publish@example.com','sha256'),'hex')
+    )),now()+interval '15 minutes'
+  );
+end $$;
+select throws_ok(
+  $$select public.publish_update_delivery_queue(
+    'ba600000-0000-4000-8000-000000000009',current_setting('tests.studio_a')::uuid,'[]'::jsonb,null
+  )$$,'55000',null,'publish now after scheduling is rejected'
+);
+select throws_ok(
+  $$update public.creator_updates set content='Changed after snapshot'
+    where id='ba600000-0000-4000-8000-000000000009'$$,
+  '42501',null,'scheduled content is immutable'
+);
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+update public.update_deliveries
+set status='sending',sending_at=now(),claimed_at=now()
+where update_id='ba600000-0000-4000-8000-000000000009';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','ba000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claims','{"sub":"ba000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select throws_ok(
+  $$select public.cancel_scheduled_update(
+    'ba600000-0000-4000-8000-000000000009',current_setting('tests.studio_a')::uuid
+  )$$,'55000',null,'cancellation fails after dispatch begins'
 );
 
 select * from finish();

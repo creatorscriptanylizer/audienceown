@@ -2,7 +2,9 @@ import Link from "next/link";
 import { ArrowRight, CalendarClock, MailPlus } from "lucide-react";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
 import { formatBroadcastStatus, formatBroadcastType, type BroadcastStatus, type BroadcastType } from "@/lib/updates";
+import { LocalDateTime } from "@/components/local-date-time";
 
 const filters = [
   ["all", "All"],
@@ -21,11 +23,16 @@ export default async function UpdatesPage({ searchParams }: PageProps<"/dashboar
   const { filter = "all" } = await searchParams;
   const activeFilter = filters.some(([key]) => key === filter) ? filter : "all";
   const supabase = await createClient();
-  const { data } = supabase
-    ? await supabase.from("creator_updates").select(
-      "id,broadcast_type,status,title,subject,scheduled_for,updated_at",
-    ).eq("creator_id", creator.id).order("updated_at", { ascending: false })
-    : { data: [] };
+  const [{ data }, { data: deliveries }] = supabase ? await Promise.all([
+    supabase.from("creator_updates").select(
+      "id,broadcast_type,broadcast_intent,status,title,subject,scheduled_for,updated_at",
+    ).eq("creator_id", creator.id).order("updated_at", { ascending: false }),
+    supabase.from("update_deliveries").select("update_id").eq("creator_id", creator.id),
+  ]) : [{ data: [] }, { data: [] }];
+  const recipientCounts = new Map<string, number>();
+  for (const delivery of deliveries ?? []) {
+    recipientCounts.set(delivery.update_id, (recipientCounts.get(delivery.update_id) ?? 0) + 1);
+  }
   const updates = (data ?? []).filter((update) => activeFilter === "all" || update.status === activeFilter);
 
   return <div className="updates-page">
@@ -51,14 +58,15 @@ export default async function UpdatesPage({ searchParams }: PageProps<"/dashboar
       {updates.map((update) => <Link href={`/dashboard/updates/${update.id}`} key={update.id} className="update-history-card">
         <div className="update-history-copy">
           <div className="update-history-meta">
-            <span>{formatBroadcastType(update.broadcast_type as BroadcastType)}</span>
+            <span>{getIntentDefinition(update.broadcast_intent as BroadcastIntent).title} · {formatBroadcastType(update.broadcast_type as BroadcastType)}</span>
             <i className={`update-status status-${update.status}`}>{formatBroadcastStatus(update.status as BroadcastStatus)}</i>
           </div>
           <h2>{update.title || "Untitled update"}</h2>
           <p>{update.subject || "No subject yet"}</p>
         </div>
         <div className="update-history-time">
-          {update.status === "scheduled" && update.scheduled_for && <strong><CalendarClock size={14}/> {formatDate(update.scheduled_for)}</strong>}
+          {update.status === "scheduled" && update.scheduled_for && <strong><CalendarClock size={14}/><LocalDateTime value={update.scheduled_for}/></strong>}
+          {recipientCounts.has(update.id) && <span>{recipientCounts.get(update.id)} prepared recipients</span>}
           <span>Updated {formatDate(update.updated_at)}</span>
           <ArrowRight size={17}/>
         </div>

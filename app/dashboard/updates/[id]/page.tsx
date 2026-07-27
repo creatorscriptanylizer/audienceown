@@ -3,6 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BroadcastStudio } from "@/components/broadcast-studio/broadcast-studio";
 import { UpdateDeliveryPanel } from "@/components/update-delivery-panel";
+import { LocalDateTime } from "@/components/local-date-time";
+import { CancelScheduledButton } from "@/components/cancel-scheduled-button";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { getEligibleRecipientsForUpdate } from "@/lib/update-delivery";
@@ -58,12 +60,25 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
       <p>{safeCount(query.queued) ?? 0} notifications were queued from {safeCount(query.eligible) ?? 0} eligible followers. AudienceOwn will begin delivery automatically.</p>
       <div><span>Email {safeCount(query.email) ?? 0}</span><span>SMS {safeCount(query.sms) ?? 0}</span><span>WhatsApp {safeCount(query.whatsapp) ?? 0}</span><span>Browser {safeCount(query.browser_notification) ?? 0}</span></div>
     </section>}
-    <BroadcastStudio
+    {query.status === "scheduled" && query.updateId === id && query.scheduledFor && <section className="studio-publish-result" role="status">
+      <p className="eyebrow">Scheduled</p>
+      <h2>{safeCount(query.queued) ?? 0} notifications were prepared.</h2>
+      <p>This update will become eligible for delivery on:</p>
+      <p className="local-scheduled-time"><strong><LocalDateTime value={Array.isArray(query.scheduledFor) ? query.scheduledFor[0] : query.scheduledFor} timeZone={Array.isArray(query.timeZone) ? query.timeZone[0] : query.timeZone}/></strong></p>
+      <div><span>Email {safeCount(query.email) ?? 0}</span><span>SMS {safeCount(query.sms) ?? 0}</span><span>WhatsApp {safeCount(query.whatsapp) ?? 0}</span><span>Browser {safeCount(query.browser_notification) ?? 0}</span></div>
+    </section>}
+    {update.status === "scheduled" && update.scheduled_for ? <section className="studio-publish-result">
+      <p className="eyebrow">Scheduled broadcast</p>
+      <h2>{update.title}</h2>
+      <p className="local-scheduled-time"><LocalDateTime value={update.scheduled_for}/></p>
+      <p>{deliveries?.length ?? 0} recipient notifications are prepared as a fixed audience snapshot. Content and targeting are locked.</p>
+      <CancelScheduledButton updateId={id}/>
+    </section> : <BroadcastStudio
       update={update}
       creator={{ displayName: creator.display_name, publicSlug: creator.public_slug }}
       accounts={accounts ?? []}
       estimate={estimate}
-    />
+    />}
     <UpdateDeliveryPanel
       counts={counts}
       transportCounts={transportCounts}

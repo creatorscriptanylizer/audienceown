@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { isFutureSchedule, updateDraftSchema, updatePublishSchema } from "@/lib/updates";
+import { updateDraftSchema, updatePublishSchema } from "@/lib/updates";
 import { PublicationError, publishDeliveryQueue } from "@/lib/update-delivery";
 import { broadcastIntents, getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
+import { validateScheduleInput } from "@/lib/scheduling";
 import { z } from "zod";
 
 export type UpdateActionState = {
@@ -127,44 +128,12 @@ export async function deleteDraft(id: string, previousState: UpdateActionState, 
   redirect("/dashboard/updates");
 }
 
-export async function scheduleUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
-  const creator = await requireCreator();
-  const values = valuesFrom(data);
-  const targetError = await validateTarget(creator.id, values);
-  if (targetError) return targetError;
-  const parsed = updatePublishSchema.safeParse(values);
-  if (!parsed.success) return validationState(parsed.error);
-
-  const scheduledValue = String(data.get("scheduled_for") ?? "");
-  if (!isFutureSchedule(scheduledValue)) {
-    return { error: "Choose a date and time in the future.", errors: { scheduled_for: ["Choose a date and time in the future."] } };
-  }
-  const scheduledFor = new Date(scheduledValue).toISOString();
-
-  const supabase = await createClient();
-  if (!supabase) return mutationError("Updates are unavailable until Supabase is configured.");
-  const { data: update, error } = await supabase.from("creator_updates").update({
-    broadcast_type: parsed.data.broadcast_type,
-    broadcast_intent: values.broadcast_intent,
-    affected_platform_connection_id: values.affected_platform_connection_id,
-    title: parsed.data.title,
-    subject: parsed.data.subject,
-    preview_text: parsed.data.preview_text,
-    content: parsed.data.content,
-    cta_label: parsed.data.cta_label || null,
-    cta_url: parsed.data.cta_url || null,
-    status: "scheduled",
-    scheduled_for: scheduledFor,
-    cancelled_at: null,
-  }).eq("id", id).eq("creator_id", creator.id).in("status", ["draft", "cancelled"]).select("id").maybeSingle();
-
-  if (error || !update) return mutationError("This update could not be scheduled.");
-  revalidatePath("/dashboard/updates");
-  revalidatePath(`/dashboard/updates/${id}`);
-  redirect(`/dashboard/updates/${id}`);
-}
-
-export async function publishUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
+async function commitPublication(
+  id: string,
+  data: FormData,
+  scheduledFor: string | null,
+  timeZone?: string,
+): Promise<UpdateActionState> {
   const parsedId = z.string().uuid().safeParse(id);
   if (!parsedId.success) return mutationError("This broadcast is unavailable.");
   const creator = await requireCreator();
@@ -178,8 +147,11 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
   if (!supabase) return mutationError("Broadcast publishing is unavailable.");
   const { data: current } = await supabase.from("creator_updates").select("status")
     .eq("id", id).eq("creator_id", creator.id).maybeSingle();
-  if (!current || !["draft", "cancelled", "queued"].includes(current.status)) {
-    return mutationError("Only an editable or already queued broadcast can be published.");
+  const allowedStatus = scheduledFor ? ["draft", "cancelled"] : ["draft", "cancelled", "queued"];
+  if (!current || !allowedStatus.includes(current.status)) {
+    return mutationError(scheduledFor
+      ? "Only an editable draft can be scheduled."
+      : "Only an editable or already queued broadcast can be published.");
   }
   if (current.status !== "queued") {
     const { data: saved, error } = await supabase.from("creator_updates").update({
@@ -194,7 +166,7 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
 
   let summary;
   try {
-    summary = await publishDeliveryQueue(id, creator.id);
+    summary = await publishDeliveryQueue(id, creator.id, scheduledFor);
   } catch (error) {
     if (error instanceof PublicationError && error.code === "zero_audience") {
       return mutationError("No eligible followers can receive this update yet. Your draft is saved and nothing was queued.");
@@ -202,7 +174,15 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
     if (error instanceof PublicationError && error.code === "preparation_failed") {
       return mutationError("The draft was saved, but its recipients could not be prepared. Nothing was queued.");
     }
-    return mutationError("The draft was saved, but publication could not be completed. Nothing was queued.");
+    if (error instanceof PublicationError && error.code === "schedule_too_soon") {
+      return {
+        error: "Choose a time at least one minute from now.",
+        errors: { scheduled_for_local: ["Choose a time at least one minute from now."] },
+      };
+    }
+    return mutationError(scheduledFor
+      ? "The draft was saved, but scheduling could not be completed. Nothing was queued."
+      : "The draft was saved, but publication could not be completed. Nothing was queued.");
   }
   const query = new URLSearchParams({
     status: summary.status,
@@ -211,6 +191,8 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
     eligible: String(summary.eligible),
     duplicates: String(summary.duplicates),
     excluded: String(summary.excluded),
+    ...(summary.scheduledFor ? { scheduledFor: summary.scheduledFor } : {}),
+    ...(timeZone ? { timeZone } : {}),
     ...Object.fromEntries(Object.entries(summary.byTransport).map(([key, value]) => [key, String(value)])),
   });
   revalidatePath("/dashboard/updates");
@@ -218,18 +200,42 @@ export async function publishUpdate(id: string, _: UpdateActionState, data: Form
   redirect(`/dashboard/updates/${id}?${query}`);
 }
 
+export async function publishUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
+  return commitPublication(id, data, null);
+}
+
+export async function scheduleUpdate(id: string, _: UpdateActionState, data: FormData): Promise<UpdateActionState> {
+  const localValue = String(data.get("scheduled_for_local") ?? "");
+  const timeZone = String(data.get("time_zone") ?? "");
+  const isoValue = String(data.get("scheduled_for_iso") ?? "");
+  const scheduledFor = validateScheduleInput({ localValue, timeZone, isoValue });
+  if (!scheduledFor) {
+    return {
+      error: "Choose a valid date and time in your displayed time zone.",
+      errors: { scheduled_for_local: ["This local date and time is invalid. Check daylight-saving changes and try again."] },
+    };
+  }
+  if (new Date(scheduledFor).getTime() < Date.now() + 60_000) {
+    return {
+      error: "Choose a time at least one minute from now.",
+      errors: { scheduled_for_local: ["Choose a time at least one minute from now."] },
+    };
+  }
+  return commitPublication(id, data, scheduledFor, timeZone);
+}
+
 export async function cancelScheduledUpdate(id: string, previousState: UpdateActionState, data: FormData): Promise<UpdateActionState> {
   void previousState;
   void data;
+  if (!z.string().uuid().safeParse(id).success) return mutationError("This scheduled update is unavailable.");
   const creator = await requireCreator();
   const supabase = await createClient();
   if (!supabase) return mutationError("Updates are unavailable until Supabase is configured.");
-  const { data: update, error } = await supabase.from("creator_updates").update({
-    status: "cancelled",
-    cancelled_at: new Date().toISOString(),
-  }).eq("id", id).eq("creator_id", creator.id).eq("status", "scheduled").select("id").maybeSingle();
-
-  if (error || !update) return mutationError("Only a scheduled update can be cancelled.");
+  const { data: result, error } = await supabase.rpc("cancel_scheduled_update", {
+    p_update_id: id,
+    p_creator_id: creator.id,
+  });
+  if (error || !result) return mutationError("This scheduled update can no longer be cancelled.");
   revalidatePath("/dashboard/updates");
   revalidatePath(`/dashboard/updates/${id}`);
   redirect(`/dashboard/updates/${id}`);

@@ -39,8 +39,9 @@ type DeliveryResolution = {
 };
 
 export type PublicationSummary = {
-  status: "published";
+  status: "published" | "scheduled";
   updateId: string;
+  scheduledFor: string | null;
   eligible: number;
   queued: number;
   duplicates: number;
@@ -50,7 +51,7 @@ export type PublicationSummary = {
 
 export class PublicationError extends Error {
   constructor(
-    public readonly code: "zero_audience" | "preparation_failed" | "publication_failed",
+    public readonly code: "zero_audience" | "preparation_failed" | "publication_failed" | "schedule_too_soon",
   ) {
     super(code);
   }
@@ -218,6 +219,7 @@ export async function getEligibleRecipientsForUpdate(
 export async function publishDeliveryQueue(
   updateId: string,
   creatorId: string,
+  scheduledFor: string | null = null,
 ): Promise<PublicationSummary> {
   let resolution: DeliveryResolution;
   try {
@@ -240,15 +242,18 @@ export async function publishDeliveryQueue(
       destination: recipient.destination,
       destination_hash: recipient.destinationHash,
     })),
+    ...(scheduledFor ? { p_scheduled_for: scheduledFor } : {}),
   });
+  if (error?.code === "22007") throw new PublicationError("schedule_too_soon");
   if (error) throw new PublicationError("publication_failed");
   const result = rpcSummary as Partial<PublicationSummary> | null;
-  if (result?.status !== "published" || result.updateId !== updateId) {
+  if (!["published", "scheduled"].includes(result?.status ?? "") || result?.updateId !== updateId) {
     throw new PublicationError("publication_failed");
   }
   return {
-    status: "published",
+    status: result.status!,
     updateId,
+    scheduledFor: result.scheduledFor ?? null,
     eligible: result.eligible ?? resolution.eligible,
     queued: result.queued ?? 0,
     duplicates: result.duplicates ?? resolution.duplicates,

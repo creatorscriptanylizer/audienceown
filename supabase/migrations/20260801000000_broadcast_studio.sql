@@ -162,7 +162,8 @@ for each row execute function public.validate_broadcast_studio_target();
 create or replace function public.publish_update_delivery_queue(
   p_update_id uuid,
   p_creator_id uuid,
-  p_recipients jsonb
+  p_recipients jsonb,
+  p_scheduled_for timestamptz default null
 )
 returns jsonb
 language plpgsql
@@ -177,6 +178,7 @@ declare
   queued_count integer;
   derived_rule text;
   affected_platform text;
+  target_status public.broadcast_status;
   summary jsonb;
 begin
   select candidate.*
@@ -194,8 +196,22 @@ begin
   if not found then
     raise exception 'broadcast is not publishable or not owned' using errcode = '42501';
   end if;
-  if update_row.status not in ('draft', 'cancelled', 'queued') then
+  target_status := case
+    when p_scheduled_for is null then 'queued'::public.broadcast_status
+    else 'scheduled'::public.broadcast_status
+  end;
+  if update_row.status not in ('draft', 'cancelled')
+    and not (update_row.status = 'queued' and target_status = 'queued')
+    and not (
+      update_row.status = 'scheduled'
+      and target_status = 'scheduled'
+      and update_row.scheduled_for = p_scheduled_for
+    ) then
     raise exception 'broadcast status does not permit publication' using errcode = '55000';
+  end if;
+  if p_scheduled_for is not null
+    and p_scheduled_for < now() + interval '1 minute' then
+    raise exception 'scheduled time must be at least one minute from now' using errcode = '22007';
   end if;
   if btrim(update_row.title) = ''
     or btrim(update_row.subject) = ''
@@ -231,7 +247,7 @@ begin
     raise exception 'recipient payload must be an array' using errcode = '22023';
   end if;
   recipient_count := jsonb_array_length(coalesce(p_recipients, '[]'::jsonb));
-  if update_row.status <> 'queued' and recipient_count = 0 then
+  if update_row.status not in ('queued', 'scheduled') and recipient_count = 0 then
     raise exception 'no eligible recipients' using errcode = 'P0001';
   end if;
 
@@ -306,6 +322,8 @@ begin
     end if;
   end loop;
 
+  -- Deliveries are the immutable audience snapshot for both immediate and
+  -- scheduled publication; later preference changes do not rewrite this set.
   summary := public.create_update_delivery_queue(p_update_id, p_creator_id, p_recipients);
   queued_count := coalesce((summary ->> 'created')::integer, 0);
   select count(*)::integer into existing_count
@@ -313,21 +331,22 @@ begin
   where delivery.update_id = p_update_id;
 
   update public.creator_updates
-  set status = 'queued',
+  set status = target_status,
       queued_at = coalesce(queued_at, now()),
-      scheduled_for = null,
+      scheduled_for = p_scheduled_for,
       cancelled_at = null
   where id = p_update_id
     and creator_id = p_creator_id
-    and status in ('draft', 'cancelled', 'queued');
+    and status in ('draft', 'cancelled', 'queued', 'scheduled');
 
   return jsonb_build_object(
-    'status', 'published',
+    'status', case when target_status = 'scheduled' then 'scheduled' else 'published' end,
     'updateId', p_update_id,
+    'scheduledFor', p_scheduled_for,
     'eligible', recipient_count,
     'queued', queued_count,
     'duplicates', case
-      when recipient_count = 0 and update_row.status = 'queued' then existing_count
+      when recipient_count = 0 and update_row.status in ('queued', 'scheduled') then existing_count
       else recipient_count - queued_count
     end,
     'excluded', 0,
@@ -344,9 +363,74 @@ revoke all on function public.create_update_delivery_queue(uuid, uuid, jsonb)
   from authenticated;
 grant execute on function public.create_update_delivery_queue(uuid, uuid, jsonb)
   to service_role;
-revoke all on function public.publish_update_delivery_queue(uuid, uuid, jsonb)
+revoke all on function public.publish_update_delivery_queue(uuid, uuid, jsonb, timestamptz)
   from public, anon;
-grant execute on function public.publish_update_delivery_queue(uuid, uuid, jsonb)
+grant execute on function public.publish_update_delivery_queue(uuid, uuid, jsonb, timestamptz)
+  to authenticated, service_role;
+
+create or replace function public.cancel_scheduled_update(
+  p_update_id uuid,
+  p_creator_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  update_row public.creator_updates%rowtype;
+  cancelled_count integer;
+begin
+  select candidate.*
+  into update_row
+  from public.creator_updates candidate
+  join public.creators creator on creator.id = candidate.creator_id
+  where candidate.id = p_update_id
+    and candidate.creator_id = p_creator_id
+    and (
+      auth.role() <> 'authenticated'
+      or creator.owner_user_id = auth.uid()
+    )
+  for update of candidate;
+
+  if not found then
+    raise exception 'scheduled update not found or not owned' using errcode = '42501';
+  end if;
+  if update_row.status = 'cancelled' then
+    return jsonb_build_object('status', 'cancelled', 'updateId', p_update_id, 'cancelled', 0);
+  end if;
+  if update_row.status <> 'scheduled' or update_row.scheduled_for <= now() then
+    raise exception 'scheduled update can no longer be cancelled' using errcode = '55000';
+  end if;
+  if exists (
+    select 1 from public.update_deliveries delivery
+    where delivery.update_id = p_update_id and delivery.status <> 'queued'
+  ) then
+    raise exception 'scheduled delivery has already started' using errcode = '55000';
+  end if;
+
+  update public.update_deliveries
+  set status = 'cancelled',
+      cancelled_at = now()
+  where update_id = p_update_id
+    and status = 'queued';
+  get diagnostics cancelled_count = row_count;
+
+  update public.creator_updates
+  set status = 'cancelled',
+      cancelled_at = now()
+  where id = p_update_id;
+
+  return jsonb_build_object(
+    'status', 'cancelled',
+    'updateId', p_update_id,
+    'cancelled', cancelled_count
+  );
+end
+$$;
+
+revoke all on function public.cancel_scheduled_update(uuid, uuid) from public, anon;
+grant execute on function public.cancel_scheduled_update(uuid, uuid)
   to authenticated, service_role;
 
 -- Published broadcasts are ready for the trusted execution worker.
@@ -421,6 +505,13 @@ begin
     from claimable
     where delivery.id = claimable.id
     returning delivery.*
+  ),
+  promoted as (
+    update public.creator_updates update_row
+    set status = 'queued'
+    where update_row.status = 'scheduled'
+      and update_row.id in (select claimed.update_id from claimed)
+    returning update_row.id
   )
   select claimed.id, claimed.update_id, claimed.creator_id, claimed.transport,
          claimed.destination, claimed.attempt_count, update_row.broadcast_type,

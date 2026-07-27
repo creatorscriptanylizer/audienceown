@@ -663,6 +663,10 @@ export type Database = {
         Args: { intent: Database["public"]["Enums"]["broadcast_intent"] }
         Returns: Database["public"]["Enums"]["broadcast_type"]
       }
+      cancel_scheduled_update: {
+        Args: { p_creator_id: string; p_update_id: string }
+        Returns: Json
+      }
       claim_update_deliveries: {
         Args: {
           p_limit: number
@@ -730,7 +734,12 @@ export type Database = {
         Returns: Database["public"]["Enums"]["delivery_status"]
       }
       publish_update_delivery_queue: {
-        Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
+        Args: {
+          p_creator_id: string
+          p_recipients: Json
+          p_scheduled_for?: string
+          p_update_id: string
+        }
         Returns: Json
       }
     }

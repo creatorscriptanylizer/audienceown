@@ -3,7 +3,6 @@ import {
   broadcastPreferenceMap,
   broadcastTypeLabels,
   broadcastTypes,
-  isFutureSchedule,
   parseBroadcastTypeQuery,
   updateDraftSchema,
   updatePublishSchema,
@@ -69,13 +68,6 @@ describe("update domain", () => {
 
   it("rejects a publishable update without content", () => {
     expect(updatePublishSchema.safeParse({ ...incompleteDraft, title: "Weekly note", subject: "This week" }).success).toBe(false);
-  });
-
-  it("recognizes only valid future schedule dates", () => {
-    const now = new Date("2026-07-27T12:00:00Z");
-    expect(isFutureSchedule("2026-07-27T12:01:00Z", now)).toBe(true);
-    expect(isFutureSchedule("2026-07-27T11:59:00Z", now)).toBe(false);
-    expect(isFutureSchedule("not-a-date", now)).toBe(false);
   });
 
   it("preselects a valid account update query", () => {
