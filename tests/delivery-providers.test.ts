@@ -14,6 +14,10 @@ describe("delivery provider resolver", () => {
     transport: "browser_notification",
     send: vi.fn(),
   };
+  const smsProvider: DeliveryProvider = {
+    transport: "sms",
+    send: vi.fn(),
+  };
 
   it.each(deliveryTransports)("resolves %s without cross-transport fallback", async (transport) => {
     const provider = resolveDeliveryProvider(transport, emailProvider);
@@ -50,5 +54,14 @@ describe("delivery provider resolver", () => {
       emailProvider,
       browserPushProvider,
     )).toBe(browserPushProvider);
+  });
+
+  it("resolves sms to SMSProvider when configured", () => {
+    expect(resolveDeliveryProvider(
+      "sms",
+      emailProvider,
+      browserPushProvider,
+      smsProvider,
+    )).toBe(smsProvider);
   });
 });

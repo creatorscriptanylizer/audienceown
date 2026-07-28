@@ -57,10 +57,12 @@ export function buildDeliveryMessage(
     text,
     html,
     notificationUrl: creatorUrl,
+    statusCallbackUrl: `${appUrl.replace(/\/$/, "")}/api/webhooks/sms/twilio`,
     metadata: {
       updateId: delivery.update_id,
       creatorId: delivery.creator_id,
       creatorHandle: delivery.creator_public_slug,
+      creatorName: delivery.creator_display_name,
     },
   };
 }

@@ -6,8 +6,12 @@ export function resolveDeliveryProvider(
   transport: DeliveryTransport,
   emailProvider: DeliveryProvider,
   browserPushProvider?: DeliveryProvider,
+  smsProvider?: DeliveryProvider,
 ) {
-  if (transport === "email") return emailProvider;
-  if (transport === "browser_notification" && browserPushProvider) return browserPushProvider;
-  return getUnsupportedProvider(transport);
+  const registry = new Map(
+    [emailProvider, browserPushProvider, smsProvider]
+      .filter((provider): provider is DeliveryProvider => Boolean(provider))
+      .map((provider) => [provider.transport, provider]),
+  );
+  return registry.get(transport) ?? getUnsupportedProvider(transport);
 }

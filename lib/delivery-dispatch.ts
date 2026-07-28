@@ -68,6 +68,18 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
           if (markError || (status !== "queued" && status !== "failed")) {
             throw new Error("Failed delivery could not be recorded.");
           }
+          if (delivery.transport === "sms"
+            && ["invalid_destination", "opted_out"].includes(input.code)) {
+            const { data: failedDelivery } = await admin.from("update_deliveries")
+              .select("destination_hash").eq("id", delivery.delivery_id).maybeSingle();
+            if (failedDelivery?.destination_hash) {
+              const { error: revokeError } = await admin.rpc("opt_out_sms_recovery_method", {
+                p_destination_hash: failedDelivery.destination_hash,
+                p_reason: input.code,
+              });
+              if (revokeError) throw new Error("Invalid SMS destination could not be revoked.");
+            }
+          }
           return status;
         },
       });
@@ -86,6 +98,8 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
         ? "resend"
         : delivery.transport === "browser_notification"
           ? "web-push"
+          : delivery.transport === "sms"
+            ? "twilio"
           : "unsupported";
       logDelivery("delivery_state_update_failed", delivery, {
         provider,

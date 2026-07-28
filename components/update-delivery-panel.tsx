@@ -57,6 +57,8 @@ export function UpdateDeliveryPanel({
             ? `${acceptedByTransport[transport]} accepted by browser push service`
             : transport === "email"
               ? `${acceptedByTransport[transport]} accepted by email provider`
+              : transport === "sms"
+                ? `${acceptedByTransport[transport]} accepted by SMS provider`
               : `${acceptedByTransport[transport]} accepted by provider`}
         </small>}
       </article>)}</div>

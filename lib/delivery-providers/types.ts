@@ -9,10 +9,12 @@ export type DeliveryMessage = {
   text: string;
   html?: string;
   notificationUrl?: string;
+  statusCallbackUrl?: string;
   metadata: {
     updateId: string;
     creatorId: string;
     creatorHandle?: string;
+    creatorName?: string;
   };
 };
 

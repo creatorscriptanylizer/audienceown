@@ -468,40 +468,64 @@ export type Database = {
       }
       follower_recovery_methods: {
         Row: {
+          consent_purpose: string | null
+          consent_revoked_at: string | null
+          consent_source: string | null
+          consent_version: string | null
           consented_at: string
           created_at: string
           destination_hash: string | null
           destination_masked: string | null
+          failure_code: string | null
           follower_contact_id: string
           id: string
+          last_failure_at: string | null
           method_status: string
           method_type: string
+          opt_out_reason: string | null
+          opted_out_at: string | null
           provider_identifier: string | null
           updated_at: string
           verified_at: string | null
         }
         Insert: {
+          consent_purpose?: string | null
+          consent_revoked_at?: string | null
+          consent_source?: string | null
+          consent_version?: string | null
           consented_at?: string
           created_at?: string
           destination_hash?: string | null
           destination_masked?: string | null
+          failure_code?: string | null
           follower_contact_id: string
           id?: string
+          last_failure_at?: string | null
           method_status?: string
           method_type: string
+          opt_out_reason?: string | null
+          opted_out_at?: string | null
           provider_identifier?: string | null
           updated_at?: string
           verified_at?: string | null
         }
         Update: {
+          consent_purpose?: string | null
+          consent_revoked_at?: string | null
+          consent_source?: string | null
+          consent_version?: string | null
           consented_at?: string
           created_at?: string
           destination_hash?: string | null
           destination_masked?: string | null
+          failure_code?: string | null
           follower_contact_id?: string
           id?: string
+          last_failure_at?: string | null
           method_status?: string
           method_type?: string
+          opt_out_reason?: string | null
+          opted_out_at?: string | null
           provider_identifier?: string | null
           updated_at?: string
           verified_at?: string | null
@@ -512,6 +536,84 @@ export type Database = {
             columns: ["follower_contact_id"]
             isOneToOne: false
             referencedRelation: "follower_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_verification_sessions: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          expires_at: string
+          id: string
+          landing_path: string | null
+          preferences: Json
+          provider_verification_id: string | null
+          recovery_method_id: string
+          replaced_at: string | null
+          resend_available_at: string
+          resend_count: number
+          session_token_hash: string
+          source_ip_hash: string | null
+          source_platform: string
+          source_referrer: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          expires_at: string
+          id?: string
+          landing_path?: string | null
+          preferences: Json
+          provider_verification_id?: string | null
+          recovery_method_id: string
+          replaced_at?: string | null
+          resend_available_at: string
+          resend_count?: number
+          session_token_hash: string
+          source_ip_hash?: string | null
+          source_platform: string
+          source_referrer?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          expires_at?: string
+          id?: string
+          landing_path?: string | null
+          preferences?: Json
+          provider_verification_id?: string | null
+          recovery_method_id?: string
+          replaced_at?: string | null
+          resend_available_at?: string
+          resend_count?: number
+          session_token_hash?: string
+          source_ip_hash?: string | null
+          source_platform?: string
+          source_referrer?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_verification_sessions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_verification_sessions_recovery_method_id_fkey"
+            columns: ["recovery_method_id"]
+            isOneToOne: false
+            referencedRelation: "follower_recovery_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -791,6 +893,15 @@ export type Database = {
       }
     }
     Functions: {
+      activate_sms_recovery_pass: {
+        Args: {
+          p_preference_token_hash: string
+          p_session_id: string
+          p_token_expires_at: string
+          p_unsubscribe_token_hash: string
+        }
+        Returns: string
+      }
       apply_update_delivery_event: {
         Args: {
           p_event_timestamp: string
@@ -884,6 +995,10 @@ export type Database = {
           p_retryable: boolean
         }
         Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      opt_out_sms_recovery_method: {
+        Args: { p_destination_hash: string; p_reason: string }
+        Returns: number
       }
       process_update_delivery_event: {
         Args: { p_event_id: string }

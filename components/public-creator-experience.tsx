@@ -175,6 +175,14 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
   const [pushError, setPushError] = useState<BrowserPushErrorCode | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [smsCountry, setSmsCountry] = useState("US");
+  const [smsSessionToken, setSmsSessionToken] = useState<string | null>(null);
+  const [smsCode, setSmsCode] = useState("");
+  const [smsMasked, setSmsMasked] = useState("");
+  const [smsStatus, setSmsStatus] = useState("");
+  const [smsBusy, setSmsBusy] = useState(false);
+  const [smsResendSeconds, setSmsResendSeconds] = useState(0);
+  const [smsTokens, setSmsTokens] = useState<{ preferenceToken: string; unsubscribeToken: string } | null>(null);
   const [preferences, setPreferences] = useState<RecoveryPreferences>(() =>
     readSavedRecoveryPass(creator.handle)?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES },
   );
@@ -192,6 +200,84 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
     const timer = window.setTimeout(onClose, 1400);
     return () => window.clearTimeout(timer);
   }, [onClose, step]);
+
+  useEffect(() => {
+    if (smsResendSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setSmsResendSeconds((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [smsResendSeconds]);
+
+  async function smsRequest(action: "start" | "verify" | "resend" | "cancel") {
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) {
+      setSmsStatus("SMS verification is currently unavailable.");
+      return null;
+    }
+    setSmsBusy(true);
+    setSmsStatus("");
+    try {
+      const body = action === "start"
+        ? {
+          action,
+          slug: creator.handle,
+          phone: contact,
+          country: smsCountry,
+          consent: true,
+          consentVersion: "sms-recovery-v1",
+          source_platform: normaliseSource(source),
+          source_referrer: document.referrer || null,
+          landing_path: window.location.pathname,
+          preferences,
+        }
+        : { action, sessionToken: smsSessionToken, ...(action === "verify" ? { code: smsCode } : {}) };
+      const response = await fetch(`${base}/functions/v1/sms-verification`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json() as {
+        status: string;
+        sessionToken?: string;
+        maskedPhone?: string;
+        resendAfterSeconds?: number;
+        preferenceToken?: string;
+        unsubscribeToken?: string;
+      };
+      if (result.status === "code_sent") {
+        setSmsSessionToken(result.sessionToken ?? smsSessionToken);
+        setSmsMasked(result.maskedPhone ?? smsMasked);
+        setSmsResendSeconds(result.resendAfterSeconds ?? 30);
+        setSmsStatus(`Verification code sent to ${result.maskedPhone ?? smsMasked}.`);
+      } else if (result.status === "verified"
+        && result.preferenceToken && result.unsubscribeToken) {
+        setSmsTokens({
+          preferenceToken: result.preferenceToken,
+          unsubscribeToken: result.unsubscribeToken,
+        });
+        setSmsMasked(result.maskedPhone ?? smsMasked);
+        setSmsStatus("Phone number verified.");
+        setStep(3);
+      } else {
+        const messages: Record<string, string> = {
+          invalid_phone: "Enter a valid phone number and confirm its country.",
+          invalid_code: "That verification code is not valid.",
+          expired_code: "That code expired. Change the number and start again.",
+          too_many_attempts: "Too many attempts. Please wait before trying again.",
+          rate_limited: "Please wait before requesting another code.",
+          provider_unavailable: "SMS verification is temporarily unavailable.",
+        };
+        setSmsStatus(messages[result.status] ?? "SMS verification could not be completed.");
+      }
+      return result;
+    } catch {
+      setSmsStatus("SMS verification is temporarily unavailable.");
+      return null;
+    } finally {
+      setSmsBusy(false);
+    }
+  }
 
   async function enableNotifications() {
     setPushBusy(true);
@@ -239,8 +325,31 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
         return;
       }
     }
+    if (method === "SMS") {
+      if (!smsTokens) {
+        setStep(2);
+        setSmsStatus("Verify your phone number before activating SMS.");
+        return;
+      }
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (base) {
+        await fetch(`${base}/functions/v1/preferences`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            token: smsTokens.preferenceToken,
+            preferences: { ...preferences, recovery: true },
+          }),
+        }).catch(() => null);
+      }
+      preferenceToken = smsTokens.preferenceToken;
+    }
     saveRecoveryPass(creator.handle, {
-      method, contact: method === "Browser notification" ? "This browser" : contact,
+      method, contact: method === "Browser notification"
+        ? "This browser"
+        : method === "SMS"
+          ? smsMasked
+          : contact,
       consent: true, memberNumber, savedAt: new Date().toISOString(), source,
       preferences: { ...preferences, recovery: true },
       preferenceToken,
@@ -283,9 +392,41 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
               {pushError && pushError !== "permission_denied" && <p className="pass-validation" role="status">Browser notifications could not be enabled. Please try reconnecting.</p>}
               <p className="pass-privacy">Clearing browser data, changing browsers, or revoking permission disables this Recovery Pass on this device.</p>
             </div>
+            : method === "SMS"
+              ? <div>
+                {!smsSessionToken && <>
+                  <label className="label" htmlFor="sms-country">Country context</label>
+                  <select id="sms-country" className="input pass-contact" value={smsCountry} onChange={(event) => setSmsCountry(event.target.value)}>
+                    <option value="US">United States (+1)</option>
+                    <option value="CA">Canada (+1)</option>
+                    <option value="GB">United Kingdom (+44)</option>
+                    <option value="DE">Germany (+49)</option>
+                    <option value="GH">Ghana (+233)</option>
+                    <option value="NG">Nigeria (+234)</option>
+                  </select>
+                  <label className="label manage-contact-label" htmlFor="fan-contact">Mobile number</label>
+                  <input id="fan-contact" className="input pass-contact" type="tel" inputMode="tel" autoComplete="tel" value={contact} onChange={(event) => setContact(event.target.value)} placeholder="+1 555 000 0000" />
+                  <div className="mt-4 rounded-xl border border-zinc-700 p-4 text-xs leading-5 text-zinc-400">
+                    We’ll text a verification code to confirm you control this number. It will be used only for recovery alerts you select. Message and data rates may apply. Availability depends on your mobile network. You can remove SMS at any time; replying STOP disables future messages.
+                  </div>
+                  <button type="button" className="button button-primary pass-next" disabled={smsBusy || !contact.trim()} onClick={() => smsRequest("start")}>Send verification code</button>
+                </>}
+                {smsSessionToken && !smsTokens && <>
+                  <p className="pass-privacy">Code sent to {smsMasked}. Enter it below.</p>
+                  <label className="label" htmlFor="sms-code">Verification code</label>
+                  <input id="sms-code" className="input pass-contact" type="text" inputMode="numeric" autoComplete="one-time-code" value={smsCode} onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 10))} />
+                  <button type="button" className="button button-primary pass-next" disabled={smsBusy || smsCode.length < 4} onClick={() => smsRequest("verify")}>Verify</button>
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" className="button button-secondary" disabled={smsBusy || smsResendSeconds > 0} onClick={() => smsRequest("resend")}>{smsResendSeconds > 0 ? `Resend in ${smsResendSeconds}s` : "Resend code"}</button>
+                    <button type="button" className="button button-secondary" onClick={() => { void smsRequest("cancel"); setSmsSessionToken(null); setSmsCode(""); setSmsStatus(""); }}>Change number</button>
+                    <button type="button" className="button button-secondary" onClick={() => { void smsRequest("cancel"); onClose(); }}>Cancel</button>
+                  </div>
+                </>}
+                {smsStatus && <p className="pass-validation" role="status">{smsStatus}</p>}
+              </div>
             : <input id="fan-contact" className="input pass-contact" type={method === "Email" ? "email" : "tel"} inputMode={method === "Email" ? "email" : "tel"} autoComplete={method === "Email" ? "email" : "tel"} autoCapitalize="none" spellCheck={false} aria-invalid={contactTouched && !contactValid} aria-describedby={contactTouched && !contactValid ? "contact-error" : undefined} placeholder={method === "Email" ? "you@example.com" : "+1 555 000 0000"} value={contact} onBlur={() => setContactTouched(true)} onChange={(e) => setContact(e.target.value)} />}
           {contactTouched && !contactValid && <p id="contact-error" className="pass-validation" role="alert">{method === "Email" ? "Enter a valid email address." : "Enter a valid mobile number."}</p>}
-          <button className="button button-primary pass-next" disabled={method === "Browser notification" ? !pushSubscription : !contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>
+          {method !== "SMS" && <button className="button button-primary pass-next" disabled={method === "Browser notification" ? !pushSubscription : !contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>}
           <p className="pass-privacy">No password. No newsletter. You control every alert.</p>
         </>}
         {step === 3 && <>
@@ -394,6 +535,16 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
       }
       await unsubscribeBrowserPush();
     }
+    if (stored?.method === "SMS" && stored.preferenceToken) {
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (base) {
+        await fetch(`${base}/functions/v1/sms-verification`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "remove", preferenceToken: stored.preferenceToken }),
+        }).catch(() => null);
+      }
+    }
     removeSavedRecoveryPass(creator.handle);
     onDeactivate();
   }
@@ -410,8 +561,9 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
         <div className="manage-pass-section">
           <label className="label" htmlFor="manage-method">Notification method</label>
           <select id="manage-method" className="input" value={method} onChange={(event) => setMethod(event.target.value)}>
-            {methods.map((item) => <option key={item.name}>{item.name}</option>)}
+            {methods.map((item) => <option key={item.name} disabled={item.name !== stored?.method}>{item.name}</option>)}
           </select>
+          <p className="pass-privacy">To replace this Recovery Pass with a different method, remove it and complete that method’s verification flow.</p>
           <label className="label manage-contact-label" htmlFor="manage-contact">{method === "Email" ? "Email address" : method === "Browser notification" ? "Device" : "Mobile number"}</label>
           <input id="manage-contact" className="input" value={contact} disabled={method === "Browser notification"} onChange={(event) => setContact(event.target.value)} placeholder={method === "Browser notification" ? "This browser" : method === "Email" ? "you@example.com" : "+1 555 000 0000"} />
           {method === "Browser notification" && <div>
