@@ -5,6 +5,13 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
 });
 
+const vapidSchema = z.object({
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(80),
+  VAPID_PRIVATE_KEY: z.string().min(20),
+  VAPID_SUBJECT: z.string().refine((value) =>
+    value.startsWith("mailto:") || value.startsWith("https:")),
+});
+
 export function publicEnv() {
   const parsed = publicSchema.safeParse(process.env);
   if (!parsed.success) return null;
@@ -20,5 +27,7 @@ export function integrationStatus() {
       && (process.env.DELIVERY_EMAIL_FROM || process.env.RESEND_FROM_EMAIL),
     ),
     resendWebhooks: Boolean(process.env.RESEND_WEBHOOK_SECRET),
+    browserPush: vapidSchema.safeParse(process.env).success
+      && Boolean(process.env.CONTACT_ENCRYPTION_KEY),
   };
 }

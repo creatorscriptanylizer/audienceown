@@ -34,6 +34,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      browser_push_subscriptions: {
+        Row: {
+          auth_ciphertext: string
+          created_at: string
+          endpoint_ciphertext: string
+          endpoint_hash: string
+          expiration_time: string | null
+          failure_count: number
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          p256dh_ciphertext: string
+          recovery_method_id: string
+          revoked_at: string | null
+          updated_at: string
+          user_agent_summary: string | null
+        }
+        Insert: {
+          auth_ciphertext: string
+          created_at?: string
+          endpoint_ciphertext: string
+          endpoint_hash: string
+          expiration_time?: string | null
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          p256dh_ciphertext: string
+          recovery_method_id: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_agent_summary?: string | null
+        }
+        Update: {
+          auth_ciphertext?: string
+          created_at?: string
+          endpoint_ciphertext?: string
+          endpoint_hash?: string
+          expiration_time?: string | null
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          p256dh_ciphertext?: string
+          recovery_method_id?: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_agent_summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_push_subscriptions_recovery_method_id_fkey"
+            columns: ["recovery_method_id"]
+            isOneToOne: true
+            referencedRelation: "follower_recovery_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connected_accounts: {
         Row: {
           account_type: string

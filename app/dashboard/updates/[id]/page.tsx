@@ -52,6 +52,11 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     transport,
     (deliveries ?? []).filter((delivery) => delivery.transport === transport).length,
   ])) as Record<(typeof deliveryTransports)[number], number>;
+  const acceptedByTransport = Object.fromEntries(deliveryTransports.map((transport) => [
+    transport,
+    (deliveries ?? []).filter((delivery) =>
+      delivery.transport === transport && delivery.status === "accepted").length,
+  ])) as Record<(typeof deliveryTransports)[number], number>;
   return <>
     <Link href="/dashboard/updates" className="update-back-link"><ArrowLeft size={15}/> Update history</Link>
     {query.status === "published" && query.updateId === id && <section className="studio-publish-result" role="status">
@@ -82,6 +87,7 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     <UpdateDeliveryPanel
       counts={counts}
       transportCounts={transportCounts}
+      acceptedByTransport={acceptedByTransport}
     />
   </>;
 }

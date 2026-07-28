@@ -82,7 +82,11 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
       );
       results.push(result);
     } catch {
-      const provider = delivery.transport === "email" ? "resend" : "unsupported";
+      const provider = delivery.transport === "email"
+        ? "resend"
+        : delivery.transport === "browser_notification"
+          ? "web-push"
+          : "unsupported";
       logDelivery("delivery_state_update_failed", delivery, {
         provider,
         code: "state_update_failed",

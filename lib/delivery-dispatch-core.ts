@@ -30,7 +30,8 @@ type DispatchDependencies = {
 };
 
 function expectedProvider(transport: DeliveryTransport) {
-  return transport === "email" ? "resend" : "unsupported";
+  if (transport === "email") return "resend";
+  return transport === "browser_notification" ? "web-push" : "unsupported";
 }
 
 export async function dispatchClaimedDelivery(

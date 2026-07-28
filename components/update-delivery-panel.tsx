@@ -4,7 +4,7 @@ const statuses = ["queued", "sending", "accepted", "delivered", "bounced", "comp
 const statusLabels: Record<(typeof statuses)[number], string> = {
   queued: "Waiting to send",
   sending: "Sending",
-  accepted: "Accepted by email provider",
+  accepted: "Accepted by provider",
   delivered: "Delivered",
   bounced: "Bounced",
   complained: "Spam complaint",
@@ -23,9 +23,11 @@ const transportLabels = {
 export function UpdateDeliveryPanel({
   counts,
   transportCounts,
+  acceptedByTransport,
 }: {
   counts: Record<(typeof statuses)[number], number>;
   transportCounts: Record<(typeof transports)[number], number>;
+  acceptedByTransport: Record<(typeof transports)[number], number>;
 }) {
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
@@ -50,6 +52,13 @@ export function UpdateDeliveryPanel({
       <p className="eyebrow">By transport</p>
       <div>{transports.map((transport) => <article key={transport}>
         <span>{transportLabels[transport]}</span><strong>{transportCounts[transport]}</strong>
+        {acceptedByTransport[transport] > 0 && <small>
+          {transport === "browser_notification"
+            ? `${acceptedByTransport[transport]} accepted by browser push service`
+            : transport === "email"
+              ? `${acceptedByTransport[transport]} accepted by email provider`
+              : `${acceptedByTransport[transport]} accepted by provider`}
+        </small>}
       </article>)}</div>
     </div>}
   </section>;

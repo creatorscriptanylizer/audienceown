@@ -19,6 +19,13 @@ import {
   type RecoveryCategory,
   type RecoveryPreferences,
 } from "@/lib/recovery-preferences";
+import {
+  browserPushSupport,
+  enableBrowserPush,
+  type BrowserPushErrorCode,
+  unsubscribeBrowserPush,
+} from "@/lib/browser-push-client";
+import { normaliseSource } from "@/lib/recovery-pass";
 
 type AlertMethod = "Email" | "SMS" | "WhatsApp" | "Browser notification";
 const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
@@ -165,6 +172,9 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   const [method, setMethod] = useState<AlertMethod>("Email");
   const [contact, setContact] = useState("");
   const [contactTouched, setContactTouched] = useState(false);
+  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+  const [pushError, setPushError] = useState<BrowserPushErrorCode | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
   const [preferences, setPreferences] = useState<RecoveryPreferences>(() =>
     readSavedRecoveryPass(creator.handle)?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES },
   );
@@ -183,10 +193,57 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
     return () => window.clearTimeout(timer);
   }, [onClose, step]);
 
-  function finish() {
+  async function enableNotifications() {
+    setPushBusy(true);
+    setPushError(null);
+    const result = await enableBrowserPush(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "");
+    setPushBusy(false);
+    if (!result.ok) {
+      setPushError(result.code);
+      return;
+    }
+    setPushSubscription(result.subscription);
+    setContact("This browser");
+  }
+
+  async function finish() {
+    let preferenceToken: string | undefined;
+    if (method === "Browser notification") {
+      if (!pushSubscription) {
+        setStep(2);
+        setPushError("subscription_failed");
+        return;
+      }
+      try {
+        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!base) throw new Error("missing_server");
+        const response = await fetch(`${base}/functions/v1/subscribe`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            slug: creator.handle,
+            subscription: pushSubscription.toJSON(),
+            consent: true,
+            source_platform: normaliseSource(source),
+            landing_path: window.location.pathname,
+            source_referrer: document.referrer || null,
+            preferences,
+          }),
+        });
+        if (!response.ok) throw new Error("registration_failed");
+        const registration = await response.json() as { preferenceToken?: string };
+        preferenceToken = registration.preferenceToken;
+      } catch {
+        setStep(2);
+        setPushError("server_registration_failed");
+        return;
+      }
+    }
     saveRecoveryPass(creator.handle, {
-      method, contact, consent: true, memberNumber, savedAt: new Date().toISOString(), source,
+      method, contact: method === "Browser notification" ? "This browser" : contact,
+      consent: true, memberNumber, savedAt: new Date().toISOString(), source,
       preferences: { ...preferences, recovery: true },
+      preferenceToken,
     });
     setStep(4);
     onSaved(memberNumber);
@@ -217,10 +274,18 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
           <p className="pass-intro">We’ll use this only for your Recovery Pass and the updates you choose.</p>
           <label className="label" htmlFor="fan-contact">{method === "Email" ? "Email address" : method === "Browser notification" ? "Device" : "Mobile number"}</label>
           {method === "Browser notification"
-            ? <button className="pass-device"><BellRing size={18} /><span><strong>This browser</strong><small>Notifications will be enabled after consent</small></span><CheckCircle2 size={18} /></button>
+            ? <div>
+              <button type="button" className="pass-device" disabled={pushBusy || Boolean(pushSubscription)} onClick={enableNotifications}>
+                <BellRing size={18} /><span><strong>{pushSubscription ? "Browser notifications enabled" : "Enable browser notifications"}</strong><small>Browser notifications work on this browser and device.</small></span>{pushSubscription && <CheckCircle2 size={18} />}
+              </button>
+              {!browserPushSupport().supported && <p className="pass-validation" role="status">This browser does not support browser notifications.</p>}
+              {pushError === "permission_denied" && <p className="pass-validation" role="status">Notifications are blocked. Allow them in this browser’s site settings, then reconnect.</p>}
+              {pushError && pushError !== "permission_denied" && <p className="pass-validation" role="status">Browser notifications could not be enabled. Please try reconnecting.</p>}
+              <p className="pass-privacy">Clearing browser data, changing browsers, or revoking permission disables this Recovery Pass on this device.</p>
+            </div>
             : <input id="fan-contact" className="input pass-contact" type={method === "Email" ? "email" : "tel"} inputMode={method === "Email" ? "email" : "tel"} autoComplete={method === "Email" ? "email" : "tel"} autoCapitalize="none" spellCheck={false} aria-invalid={contactTouched && !contactValid} aria-describedby={contactTouched && !contactValid ? "contact-error" : undefined} placeholder={method === "Email" ? "you@example.com" : "+1 555 000 0000"} value={contact} onBlur={() => setContactTouched(true)} onChange={(e) => setContact(e.target.value)} />}
           {contactTouched && !contactValid && <p id="contact-error" className="pass-validation" role="alert">{method === "Email" ? "Enter a valid email address." : "Enter a valid mobile number."}</p>}
-          <button className="button button-primary pass-next" disabled={!contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>
+          <button className="button button-primary pass-next" disabled={method === "Browser notification" ? !pushSubscription : !contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>
           <p className="pass-privacy">No password. No newsletter. You control every alert.</p>
         </>}
         {step === 3 && <>
@@ -262,6 +327,7 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
   const [contact, setContact] = useState(stored?.contact ?? "");
   const [preferences, setPreferences] = useState<RecoveryPreferences>(stored?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES });
   const [saved, setSaved] = useState(false);
+  const [reconnectState, setReconnectState] = useState<"idle" | "working" | "done" | "error">("idle");
   const dialogRef = useDialogFocusTrap(onClose);
 
   useEffect(() => {
@@ -279,8 +345,55 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
     setSaved(true);
   }
 
-  function deactivate() {
+  async function reconnect() {
+    setReconnectState("working");
+    const enabled = await enableBrowserPush(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "");
+    if (!enabled.ok || !stored?.preferenceToken) {
+      setReconnectState("error");
+      return;
+    }
+    try {
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!base) throw new Error("missing_server");
+      const response = await fetch(`${base}/functions/v1/subscribe`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          slug: creator.handle,
+          subscription: enabled.subscription.toJSON(),
+          preferenceToken: stored.preferenceToken,
+          consent: true,
+          source_platform: normaliseSource(stored.source),
+          landing_path: window.location.pathname,
+          source_referrer: null,
+          preferences,
+        }),
+      });
+      if (!response.ok) throw new Error("registration_failed");
+      const result = await response.json() as { preferenceToken?: string };
+      updateSavedRecoveryPass(creator.handle, {
+        contact: "This browser",
+        preferenceToken: result.preferenceToken ?? stored.preferenceToken,
+      });
+      setReconnectState("done");
+    } catch {
+      setReconnectState("error");
+    }
+  }
+
+  async function deactivate() {
     if (!window.confirm(`Deactivate your Recovery Pass for ${creator.displayName}?`)) return;
+    if (stored?.method === "Browser notification" && stored.preferenceToken) {
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (base) {
+        await fetch(`${base}/functions/v1/browser-push`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "revoke", preferenceToken: stored.preferenceToken }),
+        }).catch(() => null);
+      }
+      await unsubscribeBrowserPush();
+    }
     removeSavedRecoveryPass(creator.handle);
     onDeactivate();
   }
@@ -301,6 +414,13 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
           </select>
           <label className="label manage-contact-label" htmlFor="manage-contact">{method === "Email" ? "Email address" : method === "Browser notification" ? "Device" : "Mobile number"}</label>
           <input id="manage-contact" className="input" value={contact} disabled={method === "Browser notification"} onChange={(event) => setContact(event.target.value)} placeholder={method === "Browser notification" ? "This browser" : method === "Email" ? "you@example.com" : "+1 555 000 0000"} />
+          {method === "Browser notification" && <div>
+            <button type="button" className="button button-secondary mt-3" disabled={reconnectState === "working"} onClick={reconnect}>
+              <RotateCcw size={15} /> {reconnectState === "done" ? "Reconnected" : "Reconnect this browser"}
+            </button>
+            {reconnectState === "error" && <p className="pass-validation" role="status">Reconnect failed. Check this browser’s notification permission and try again.</p>}
+            <p className="pass-privacy">This Recovery Pass is active only on this browser and device.</p>
+          </div>}
         </div>
         <div className="manage-pass-section"><PreferenceCards preferences={preferences} onChange={setPreferences} /></div>
         <button className={`button button-primary pass-next ${saved ? "manage-save-success" : ""}`} onClick={persist} disabled={saved}>{saved ? <><CheckCircle2 size={16} /> Changes saved</> : "Save changes"}</button>

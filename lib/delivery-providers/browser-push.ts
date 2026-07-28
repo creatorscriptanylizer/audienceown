@@ -1,0 +1,82 @@
+import "server-only";
+
+import webpush from "web-push";
+import { createBrowserPushProvider } from "@/lib/delivery-providers/browser-push-provider";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+function decrypt(ciphertext: string, secret: string) {
+  return import("node:crypto").then(({ createDecipheriv, createHash }) => {
+    const packed = Buffer.from(ciphertext, "base64");
+    const key = createHash("sha256").update(secret).digest();
+    const iv = packed.subarray(0, 12);
+    const body = packed.subarray(12);
+    const tag = body.subarray(body.length - 16);
+    const encrypted = body.subarray(0, body.length - 16);
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+  });
+}
+
+export function createConfiguredBrowserPushProvider() {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT;
+  const encryptionKey = process.env.CONTACT_ENCRYPTION_KEY;
+  const admin = createAdminClient();
+  if (!publicKey || !privateKey || !subject || !encryptionKey || !admin) {
+    return createBrowserPushProvider(null);
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+
+  return createBrowserPushProvider({
+    async loadSubscription(reference) {
+      const { data } = await admin.from("browser_push_subscriptions")
+        .select("endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,expiration_time")
+        .eq("id", reference)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (!data) return null;
+      return {
+        endpoint: await decrypt(data.endpoint_ciphertext, encryptionKey),
+        keys: {
+          p256dh: await decrypt(data.p256dh_ciphertext, encryptionKey),
+          auth: await decrypt(data.auth_ciphertext, encryptionKey),
+        },
+        expirationTime: data.expiration_time ? new Date(data.expiration_time).getTime() : null,
+      };
+    },
+    async send(subscription, payload) {
+      const response = await webpush.sendNotification(subscription, payload, { TTL: 300 });
+      return { statusCode: response.statusCode };
+    },
+    async markSuccess(reference) {
+      await admin.from("browser_push_subscriptions").update({
+        last_success_at: new Date().toISOString(),
+        failure_count: 0,
+      }).eq("id", reference);
+    },
+    async markFailure(reference) {
+      const { data } = await admin.from("browser_push_subscriptions")
+        .select("failure_count").eq("id", reference).maybeSingle();
+      await admin.from("browser_push_subscriptions").update({
+        last_failure_at: new Date().toISOString(),
+        failure_count: (data?.failure_count ?? 0) + 1,
+      }).eq("id", reference);
+    },
+    async markPermanentFailure(reference) {
+      const now = new Date().toISOString();
+      const { data } = await admin.from("browser_push_subscriptions")
+        .update({ revoked_at: now, last_failure_at: now })
+        .eq("id", reference)
+        .select("recovery_method_id")
+        .maybeSingle();
+      if (data) {
+        await admin.from("follower_recovery_methods").update({
+          method_status: "revoked",
+          provider_identifier: null,
+        }).eq("id", data.recovery_method_id);
+      }
+    },
+  });
+}

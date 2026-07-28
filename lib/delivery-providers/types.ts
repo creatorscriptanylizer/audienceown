@@ -8,9 +8,11 @@ export type DeliveryMessage = {
   title: string;
   text: string;
   html?: string;
+  notificationUrl?: string;
   metadata: {
     updateId: string;
     creatorId: string;
+    creatorHandle?: string;
   };
 };
 

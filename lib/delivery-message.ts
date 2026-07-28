@@ -56,9 +56,11 @@ export function buildDeliveryMessage(
     title: delivery.title,
     text,
     html,
+    notificationUrl: creatorUrl,
     metadata: {
       updateId: delivery.update_id,
       creatorId: delivery.creator_id,
+      creatorHandle: delivery.creator_public_slug,
     },
   };
 }

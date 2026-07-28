@@ -47,6 +47,7 @@ export type SavedRecoveryPass = {
   savedAt: string;
   source?: string;
   preferences?: RecoveryPreferences;
+  preferenceToken?: string;
 };
 
 export const DEMO_CREATORS: Record<string, CreatorRecord> = {

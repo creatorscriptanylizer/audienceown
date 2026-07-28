@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveDeliveryProvider } from "@/lib/delivery-providers/resolver";
 import type { DeliveryProvider } from "@/lib/delivery-providers/types";
 import { deliveryTransports } from "@/lib/update-recipients";
@@ -9,6 +9,10 @@ describe("delivery provider resolver", () => {
     async send() {
       return { ok: true, status: "accepted", provider: "resend", providerMessageId: "message-1" };
     },
+  };
+  const browserPushProvider: DeliveryProvider = {
+    transport: "browser_notification",
+    send: vi.fn(),
   };
 
   it.each(deliveryTransports)("resolves %s without cross-transport fallback", async (transport) => {
@@ -38,5 +42,13 @@ describe("delivery provider resolver", () => {
       reason: `No ${transport} delivery provider is configured.`,
       retryable: false,
     });
+  });
+
+  it("resolves browser_notification to BrowserPushProvider when configured", () => {
+    expect(resolveDeliveryProvider(
+      "browser_notification",
+      emailProvider,
+      browserPushProvider,
+    )).toBe(browserPushProvider);
   });
 });
