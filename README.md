@@ -51,9 +51,33 @@ provider acceptance as `sent`. Provider callbacks and `delivered` confirmation
 are deferred.
 
 Email uses Resend when `RESEND_API_KEY` and `DELIVERY_EMAIL_FROM` are configured.
-`RESEND_FROM_EMAIL` remains accepted for compatibility. SMS, WhatsApp, and
-browser notifications return a permanent `provider_not_configured` failure and
-never fall back to email.
+`RESEND_FROM_EMAIL` remains accepted for compatibility. Every transport fails
+closed when its own configuration is unavailable and never falls back.
+
+## Twilio WhatsApp Recovery Pass
+
+For local development, join a consenting test handset to the Twilio WhatsApp
+Sandbox and configure its `whatsapp:+…` sender. Production requires a registered
+WhatsApp sender, Meta business verification, and an approved Content Template.
+Set `TWILIO_WHATSAPP_SENDER` and the approved template's
+`TWILIO_WHATSAPP_RECOVERY_CONTENT_SID` (`HX` followed by 32 hexadecimal
+characters). The template must use variables 1–3 for creator name, summary, and
+the AudienceOwn recovery URL.
+
+Configure Twilio's status callback as:
+
+`https://YOUR-CANONICAL-ORIGIN/api/webhooks/whatsapp/twilio`
+
+Configure inbound messages as:
+
+`https://YOUR-CANONICAL-ORIGIN/api/webhooks/whatsapp/twilio/inbound`
+
+Twilio signs the exact externally visible URL, so `NEXT_PUBLIC_APP_URL` must be
+the same HTTPS origin and proxies must not rewrite these paths. Sandbox delivery
+is limited to joined numbers and is not production proof. Before production,
+verify sender approval, Meta verification, template approval, Content SID,
+Verify's WhatsApp channel, callbacks, inbound opt-out, secrets, and a controlled
+end-to-end delivery with a consenting test handset.
 
 Temporary failures return to `queued` while fewer than three attempts have been
 made. Permanent failures, and temporary failures on the third attempt, become

@@ -7,9 +7,10 @@ export function resolveDeliveryProvider(
   emailProvider: DeliveryProvider,
   browserPushProvider?: DeliveryProvider,
   smsProvider?: DeliveryProvider,
+  whatsappProvider?: DeliveryProvider,
 ) {
   const registry = new Map(
-    [emailProvider, browserPushProvider, smsProvider]
+    [emailProvider, browserPushProvider, smsProvider, whatsappProvider]
       .filter((provider): provider is DeliveryProvider => Boolean(provider))
       .map((provider) => [provider.transport, provider]),
   );

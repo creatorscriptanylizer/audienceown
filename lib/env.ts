@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { smsReadiness } from "@/lib/sms-readiness";
+import { whatsappReadiness } from "@/lib/whatsapp-readiness";
 
 const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -10,13 +12,6 @@ const vapidSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().min(20),
   VAPID_SUBJECT: z.string().refine((value) =>
     value.startsWith("mailto:") || value.startsWith("https:")),
-});
-
-const twilioSchema = z.object({
-  TWILIO_ACCOUNT_SID: z.string().regex(/^AC[a-fA-F0-9]{32}$/),
-  TWILIO_AUTH_TOKEN: z.string().min(20),
-  TWILIO_MESSAGING_SERVICE_SID: z.string().regex(/^MG[a-fA-F0-9]{32}$/),
-  TWILIO_VERIFY_SERVICE_SID: z.string().regex(/^VA[a-fA-F0-9]{32}$/),
 });
 
 export function publicEnv() {
@@ -36,7 +31,7 @@ export function integrationStatus() {
     resendWebhooks: Boolean(process.env.RESEND_WEBHOOK_SECRET),
     browserPush: vapidSchema.safeParse(process.env).success
       && Boolean(process.env.CONTACT_ENCRYPTION_KEY),
-    sms: twilioSchema.safeParse(process.env).success
-      && Boolean(process.env.CONTACT_ENCRYPTION_KEY),
+    sms: smsReadiness().outbound === "configured",
+    whatsapp: whatsappReadiness().outbound === "configured",
   };
 }

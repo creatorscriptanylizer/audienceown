@@ -57,7 +57,9 @@ export function buildDeliveryMessage(
     text,
     html,
     notificationUrl: creatorUrl,
-    statusCallbackUrl: `${appUrl.replace(/\/$/, "")}/api/webhooks/sms/twilio`,
+    statusCallbackUrl: delivery.transport === "whatsapp"
+      ? `${appUrl.replace(/\/$/, "")}/api/webhooks/whatsapp/twilio`
+      : `${appUrl.replace(/\/$/, "")}/api/webhooks/sms/twilio`,
     metadata: {
       updateId: delivery.update_id,
       creatorId: delivery.creator_id,

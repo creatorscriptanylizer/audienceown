@@ -183,6 +183,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   const [smsBusy, setSmsBusy] = useState(false);
   const [smsResendSeconds, setSmsResendSeconds] = useState(0);
   const [smsTokens, setSmsTokens] = useState<{ preferenceToken: string; unsubscribeToken: string } | null>(null);
+  const [whatsAppConsent, setWhatsAppConsent] = useState(false);
   const [preferences, setPreferences] = useState<RecoveryPreferences>(() =>
     readSavedRecoveryPass(creator.handle)?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES },
   );
@@ -212,7 +213,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   async function smsRequest(action: "start" | "verify" | "resend" | "cancel") {
     const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!base) {
-      setSmsStatus("SMS verification is currently unavailable.");
+      setSmsStatus(`${method} verification is currently unavailable.`);
       return null;
     }
     setSmsBusy(true);
@@ -224,15 +225,20 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
           slug: creator.handle,
           phone: contact,
           country: smsCountry,
-          consent: true,
-          consentVersion: "sms-recovery-v1",
+          consent: method === "WhatsApp" ? whatsAppConsent : true,
+          consentVersion: method === "WhatsApp"
+            ? "whatsapp-recovery-v1"
+            : "sms-recovery-v1",
           source_platform: normaliseSource(source),
           source_referrer: document.referrer || null,
           landing_path: window.location.pathname,
           preferences,
         }
         : { action, sessionToken: smsSessionToken, ...(action === "verify" ? { code: smsCode } : {}) };
-      const response = await fetch(`${base}/functions/v1/sms-verification`, {
+      const verificationFunction = method === "WhatsApp"
+        ? "whatsapp-verification"
+        : "sms-verification";
+      const response = await fetch(`${base}/functions/v1/${verificationFunction}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -266,13 +272,13 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
           expired_code: "That code expired. Change the number and start again.",
           too_many_attempts: "Too many attempts. Please wait before trying again.",
           rate_limited: "Please wait before requesting another code.",
-          provider_unavailable: "SMS verification is temporarily unavailable.",
+          provider_unavailable: `${method} verification is temporarily unavailable.`,
         };
         setSmsStatus(messages[result.status] ?? "SMS verification could not be completed.");
       }
       return result;
     } catch {
-      setSmsStatus("SMS verification is temporarily unavailable.");
+      setSmsStatus(`${method} verification is temporarily unavailable.`);
       return null;
     } finally {
       setSmsBusy(false);
@@ -325,10 +331,10 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
         return;
       }
     }
-    if (method === "SMS") {
+    if (method === "SMS" || method === "WhatsApp") {
       if (!smsTokens) {
         setStep(2);
-        setSmsStatus("Verify your phone number before activating SMS.");
+        setSmsStatus(`Verify your phone number before activating ${method}.`);
         return;
       }
       const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -347,7 +353,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
     saveRecoveryPass(creator.handle, {
       method, contact: method === "Browser notification"
         ? "This browser"
-        : method === "SMS"
+        : method === "SMS" || method === "WhatsApp"
           ? smsMasked
           : contact,
       consent: true, memberNumber, savedAt: new Date().toISOString(), source,
@@ -392,7 +398,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
               {pushError && pushError !== "permission_denied" && <p className="pass-validation" role="status">Browser notifications could not be enabled. Please try reconnecting.</p>}
               <p className="pass-privacy">Clearing browser data, changing browsers, or revoking permission disables this Recovery Pass on this device.</p>
             </div>
-            : method === "SMS"
+            : method === "SMS" || method === "WhatsApp"
               ? <div>
                 {!smsSessionToken && <>
                   <label className="label" htmlFor="sms-country">Country context</label>
@@ -407,9 +413,20 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
                   <label className="label manage-contact-label" htmlFor="fan-contact">Mobile number</label>
                   <input id="fan-contact" className="input pass-contact" type="tel" inputMode="tel" autoComplete="tel" value={contact} onChange={(event) => setContact(event.target.value)} placeholder="+1 555 000 0000" />
                   <div className="mt-4 rounded-xl border border-zinc-700 p-4 text-xs leading-5 text-zinc-400">
-                    We’ll text a verification code to confirm you control this number. It will be used only for recovery alerts you select. Message and data rates may apply. Availability depends on your mobile network. You can remove SMS at any time; replying STOP disables future messages.
+                    {method === "WhatsApp"
+                      ? "Receive emergency recovery alerts from this creator through WhatsApp. This is not for marketing or general newsletters. You can remove this Recovery Pass at any time. We’ll send a WhatsApp verification code to confirm you control this number."
+                      : "We’ll text a verification code to confirm you control this number. It will be used only for recovery alerts you select. Message and data rates may apply. Availability depends on your mobile network. You can remove SMS at any time; replying STOP disables future messages."}
                   </div>
-                  <button type="button" className="button button-primary pass-next" disabled={smsBusy || !contact.trim()} onClick={() => smsRequest("start")}>Send verification code</button>
+                  {method === "WhatsApp" && <label className="mt-4 flex items-start gap-3 text-sm leading-5">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={whatsAppConsent}
+                      onChange={(event) => setWhatsAppConsent(event.target.checked)}
+                    />
+                    <span>I agree to receive emergency recovery alerts from this creator through WhatsApp.</span>
+                  </label>}
+                  <button type="button" className="button button-primary pass-next" disabled={smsBusy || !contact.trim() || (method === "WhatsApp" && !whatsAppConsent)} onClick={() => smsRequest("start")}>Send verification code</button>
                 </>}
                 {smsSessionToken && !smsTokens && <>
                   <p className="pass-privacy">Code sent to {smsMasked}. Enter it below.</p>
@@ -426,7 +443,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
               </div>
             : <input id="fan-contact" className="input pass-contact" type={method === "Email" ? "email" : "tel"} inputMode={method === "Email" ? "email" : "tel"} autoComplete={method === "Email" ? "email" : "tel"} autoCapitalize="none" spellCheck={false} aria-invalid={contactTouched && !contactValid} aria-describedby={contactTouched && !contactValid ? "contact-error" : undefined} placeholder={method === "Email" ? "you@example.com" : "+1 555 000 0000"} value={contact} onBlur={() => setContactTouched(true)} onChange={(e) => setContact(e.target.value)} />}
           {contactTouched && !contactValid && <p id="contact-error" className="pass-validation" role="alert">{method === "Email" ? "Enter a valid email address." : "Enter a valid mobile number."}</p>}
-          {method !== "SMS" && <button className="button button-primary pass-next" disabled={method === "Browser notification" ? !pushSubscription : !contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>}
+          {method !== "SMS" && method !== "WhatsApp" && <button className="button button-primary pass-next" disabled={method === "Browser notification" ? !pushSubscription : !contactValid} onClick={() => setStep(3)}>Choose my alerts <ArrowRight size={16} /></button>}
           <p className="pass-privacy">No password. No newsletter. You control every alert.</p>
         </>}
         {step === 3 && <>
@@ -535,10 +552,13 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
       }
       await unsubscribeBrowserPush();
     }
-    if (stored?.method === "SMS" && stored.preferenceToken) {
+    if ((stored?.method === "SMS" || stored?.method === "WhatsApp") && stored.preferenceToken) {
       const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (base) {
-        await fetch(`${base}/functions/v1/sms-verification`, {
+        const verificationFunction = stored.method === "WhatsApp"
+          ? "whatsapp-verification"
+          : "sms-verification";
+        await fetch(`${base}/functions/v1/${verificationFunction}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "remove", preferenceToken: stored.preferenceToken }),

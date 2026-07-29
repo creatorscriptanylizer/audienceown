@@ -1,0 +1,42 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { handleTwilioStatusWebhook } from "@/lib/delivery-webhooks/twilio-handler";
+import { canonicalAppUrl } from "@/lib/sms-readiness";
+
+export async function POST(request: Request) {
+  const appUrl = canonicalAppUrl();
+  if (!appUrl) return new Response("Webhook unavailable", { status: 503 });
+  return handleTwilioStatusWebhook(request, {
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    webhookUrl: `${appUrl}/api/webhooks/whatsapp/twilio`,
+    provider: "twilio-whatsapp",
+    async apply(event) {
+      const admin = createAdminClient();
+      if (!admin) throw new Error("Webhook database is unavailable.");
+      const { error } = await admin.rpc("apply_update_delivery_event", {
+        p_provider: event.provider,
+        p_provider_event_id: event.providerEventId,
+        p_provider_message_id: event.providerMessageId,
+        p_event_type: event.rawStatus,
+        p_normalized_status: event.normalizedStatus === "ignored" ? "" : event.normalizedStatus,
+        p_event_timestamp: new Date().toISOString(),
+        p_payload: { error_code: event.errorCode, failure_category: event.failureCategory },
+        p_signature_verified: true,
+      });
+      if (error) throw new Error("Webhook event could not be stored.");
+      if (["invalid_destination", "blocked_destination"].includes(event.failureCategory ?? "")) {
+        const { data: delivery } = await admin.from("update_deliveries")
+          .select("destination_hash")
+          .eq("provider", "twilio-whatsapp")
+          .eq("provider_message_id", event.providerMessageId)
+          .maybeSingle();
+        if (delivery?.destination_hash) {
+          const { error: revokeError } = await admin.rpc("opt_out_whatsapp_recovery_method", {
+            p_destination_hash: delivery.destination_hash,
+            p_reason: event.failureCategory!,
+          });
+          if (revokeError) throw new Error("Permanent WhatsApp failure could not be applied.");
+        }
+      }
+    },
+  });
+}

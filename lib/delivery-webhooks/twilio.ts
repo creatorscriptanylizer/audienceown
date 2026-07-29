@@ -4,9 +4,12 @@ import twilio from "twilio";
 export const TWILIO_OPT_OUT_KEYWORDS = new Set([
   "STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT",
 ]);
+export const WHATSAPP_OPT_OUT_KEYWORDS = new Set([
+  "STOP", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "REMOVE",
+]);
 
 export type TwilioStatusEvent = {
-  provider: "twilio";
+  provider: "twilio" | "twilio-whatsapp";
   providerEventId: string;
   providerMessageId: string;
   rawStatus: string;
@@ -24,13 +27,16 @@ export function verifyTwilioSignature(
   return twilio.validateRequest(authToken, signature, url, params);
 }
 
-export function normalizeTwilioStatus(params: Record<string, string>): TwilioStatusEvent | null {
+export function normalizeTwilioStatus(
+  params: Record<string, string>,
+  provider: TwilioStatusEvent["provider"] = "twilio",
+): TwilioStatusEvent | null {
   const messageSid = params.MessageSid?.trim();
   const rawStatus = params.MessageStatus?.trim().toLowerCase();
   if (!messageSid || !rawStatus) return null;
   const normalizedStatus = ["queued", "accepted", "scheduled", "sending", "sent"].includes(rawStatus)
     ? "accepted"
-    : rawStatus === "delivered"
+    : rawStatus === "delivered" || (provider === "twilio-whatsapp" && rawStatus === "read")
       ? "delivered"
       : ["undelivered", "failed"].includes(rawStatus)
         ? "failed"
@@ -41,7 +47,7 @@ export function normalizeTwilioStatus(params: Record<string, string>): TwilioSta
     .update(`${messageSid}:${rawStatus}:${errorCode ?? ""}`)
     .digest("hex");
   return {
-    provider: "twilio",
+    provider,
     providerEventId,
     providerMessageId: messageSid,
     rawStatus,
@@ -65,6 +71,16 @@ export function isSmsOptOutKeyword(body: string) {
   return TWILIO_OPT_OUT_KEYWORDS.has(body.trim().toUpperCase());
 }
 
+export function isWhatsAppOptOutKeyword(body: string) {
+  return WHATSAPP_OPT_OUT_KEYWORDS.has(body.trim().toUpperCase());
+}
+
 export function formParams(rawBody: string) {
-  return Object.fromEntries(new URLSearchParams(rawBody).entries());
+  const entries = new URLSearchParams(rawBody);
+  const result: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (Object.hasOwn(result, key)) return null;
+    result[key] = value;
+  }
+  return result;
 }

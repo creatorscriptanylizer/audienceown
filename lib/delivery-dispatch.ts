@@ -83,6 +83,18 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
               if (revokeError) throw new Error("Invalid SMS destination could not be revoked.");
             }
           }
+          if (delivery.transport === "whatsapp"
+            && ["invalid_destination", "not_whatsapp_capable", "not_opted_in"].includes(input.code)) {
+            const { data: failedDelivery } = await admin.from("update_deliveries")
+              .select("destination_hash").eq("id", delivery.delivery_id).maybeSingle();
+            if (failedDelivery?.destination_hash) {
+              const { error: revokeError } = await admin.rpc("opt_out_whatsapp_recovery_method", {
+                p_destination_hash: failedDelivery.destination_hash,
+                p_reason: input.code,
+              });
+              if (revokeError) throw new Error("Invalid WhatsApp destination could not be revoked.");
+            }
+          }
           return status;
         },
       });
@@ -103,6 +115,8 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
           ? "web-push"
           : delivery.transport === "sms"
             ? "twilio"
+          : delivery.transport === "whatsapp"
+            ? "twilio-whatsapp"
           : "unsupported";
       logDelivery("delivery_state_update_failed", delivery, {
         provider,

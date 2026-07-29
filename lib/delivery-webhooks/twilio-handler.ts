@@ -7,6 +7,7 @@ import {
 type Dependencies = {
   authToken?: string;
   webhookUrl: string;
+  provider?: "twilio" | "twilio-whatsapp";
   apply(event: NonNullable<ReturnType<typeof normalizeTwilioStatus>>): Promise<void>;
 };
 
@@ -17,6 +18,7 @@ export async function handleTwilioStatusWebhook(
   const rawBody = await request.text();
   const signature = request.headers.get("x-twilio-signature") ?? "";
   const params = formParams(rawBody);
+  if (!params) return new Response("Malformed callback", { status: 400 });
   if (!dependencies.authToken || !signature) {
     return new Response("Invalid signature", { status: 401 });
   }
@@ -28,7 +30,7 @@ export async function handleTwilioStatusWebhook(
   )) {
     return new Response("Invalid signature", { status: 401 });
   }
-  const event = normalizeTwilioStatus(params);
+  const event = normalizeTwilioStatus(params, dependencies.provider);
   if (!event) return new Response("Malformed callback", { status: 400 });
   try {
     await dependencies.apply(event);
