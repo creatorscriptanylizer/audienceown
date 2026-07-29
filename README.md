@@ -42,6 +42,19 @@ npm run check
 npm run build
 ```
 
+## Recovery Analytics
+
+Creators can inspect privacy-safe recovery coverage, selected transport
+distribution, daily trends, setup-state funnels, and recovery broadcast
+performance at `/dashboard/analytics/recovery`. Analytics remain creator-scoped
+and never expose destinations, hashes, endpoints, or fan identities.
+
+Configure the `RECOVERY_ANALYTICS_*` thresholds shown in `.env.example`.
+Historical coverage begins with Stage 3.1 daily snapshots; invoke
+`capture_recovery_daily_snapshots(limit)` once daily from a trusted
+service-role job. See [Recovery Analytics](docs/recovery-analytics.md) for
+definitions, suppression rules, and historical limitations.
+
 ## Delivery execution
 
 Audience preparation creates transport-specific `queued` rows without sending.

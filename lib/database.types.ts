@@ -143,6 +143,51 @@ export type Database = {
           },
         ]
       }
+      creator_recovery_daily_snapshots: {
+        Row: {
+          browser_notification_count: number
+          created_at: string
+          creator_user_id: string
+          email_count: number
+          id: string
+          partially_configured_relationships: number
+          recovery_ready_relationships: number
+          sms_count: number
+          snapshot_date: string
+          total_relationships: number
+          uncovered_relationships: number
+          whatsapp_count: number
+        }
+        Insert: {
+          browser_notification_count: number
+          created_at?: string
+          creator_user_id: string
+          email_count: number
+          id?: string
+          partially_configured_relationships: number
+          recovery_ready_relationships: number
+          sms_count: number
+          snapshot_date?: string
+          total_relationships: number
+          uncovered_relationships: number
+          whatsapp_count: number
+        }
+        Update: {
+          browser_notification_count?: number
+          created_at?: string
+          creator_user_id?: string
+          email_count?: number
+          id?: string
+          partially_configured_relationships?: number
+          recovery_ready_relationships?: number
+          sms_count?: number
+          snapshot_date?: string
+          total_relationships?: number
+          uncovered_relationships?: number
+          whatsapp_count?: number
+        }
+        Relationships: []
+      }
       creator_updates: {
         Row: {
           affected_platform_connection_id: string | null
@@ -1086,6 +1131,14 @@ export type Database = {
         Args: { p_creator_id: string; p_update_id: string }
         Returns: Json
       }
+      capture_creator_recovery_daily_snapshot: {
+        Args: { p_creator_user_id: string }
+        Returns: string
+      }
+      capture_recovery_daily_snapshots: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       claim_update_deliveries: {
         Args: {
           p_limit: number
@@ -1140,6 +1193,77 @@ export type Database = {
         Args: { update_type: Database["public"]["Enums"]["broadcast_type"] }
         Returns: string
       }
+      get_creator_recovery_broadcast_performance: {
+        Args: { p_before?: string; p_limit?: number }
+        Returns: {
+          acceptance_rate: number
+          accepted: number
+          affected_platform: string
+          audience_snapshot_size: number
+          broadcast_intent: Database["public"]["Enums"]["broadcast_intent"]
+          cancelled: number
+          confirmed_delivery_rate: number
+          data_completeness_state: string
+          delivered: number
+          failed: number
+          failure_rate: number
+          latest_delivery_activity: string
+          permanent_failed: number
+          provider_breakdown: Json
+          published_at: string
+          queued: number
+          retryable_failed: number
+          sending: number
+          skipped: number
+          title: string
+          transport_breakdown: Json
+          update_id: string
+        }[]
+      }
+      get_creator_recovery_coverage: {
+        Args: never
+        Returns: {
+          change_vs_previous_snapshot: number
+          last_snapshot_at: string
+          partially_configured_relationships: number
+          recovery_coverage_rate: number
+          recovery_ready_relationships: number
+          total_relationships: number
+          uncovered_relationships: number
+        }[]
+      }
+      get_creator_recovery_coverage_trend: {
+        Args: { p_days?: number }
+        Returns: {
+          history_source: string
+          recovery_coverage_rate: number
+          recovery_ready_relationships: number
+          snapshot_date: string
+          total_relationships: number
+        }[]
+      }
+      get_creator_recovery_funnel: {
+        Args: never
+        Returns: {
+          drop_from_previous_stage: number
+          percentage_of_total: number
+          relationship_count: number
+          stage: string
+        }[]
+      }
+      get_creator_recovery_transport_breakdown: {
+        Args: never
+        Returns: {
+          percentage_of_recovery_ready: number
+          percentage_of_total_audience: number
+          relationship_count: number
+          transport: Database["public"]["Enums"]["delivery_transport"]
+        }[]
+      }
+      get_creator_recovery_update_performance: {
+        Args: { p_update_id: string }
+        Returns: Json
+      }
       get_delivery_provider_health: {
         Args: { p_window_minutes?: number }
         Returns: {
@@ -1187,6 +1311,10 @@ export type Database = {
       }
       is_published_creator_media: {
         Args: { object_name: string }
+        Returns: boolean
+      }
+      is_recovery_method_usable: {
+        Args: { p_contact_id: string; p_method_id: string }
         Returns: boolean
       }
       mark_update_delivery_accepted: {
