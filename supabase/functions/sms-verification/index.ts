@@ -66,7 +66,12 @@ function twilioConfiguration() {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
   const serviceSid = Deno.env.get("TWILIO_VERIFY_SERVICE_SID");
-  return accountSid && authToken && serviceSid ? { accountSid, authToken, serviceSid } : null;
+  return accountSid && /^AC[a-fA-F0-9]{32}$/.test(accountSid)
+    && authToken && authToken.length >= 20
+    && !/^(placeholder|changeme|example|test|your[-_])/i.test(authToken)
+    && serviceSid && /^VA[a-fA-F0-9]{32}$/.test(serviceSid)
+    ? { accountSid, authToken, serviceSid }
+    : null;
 }
 
 async function twilioVerifyRequest(path: string, body: URLSearchParams) {
@@ -106,7 +111,9 @@ Deno.serve(async (request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const encryptionKey = Deno.env.get("CONTACT_ENCRYPTION_KEY");
-    if (!encryptionKey) return json({ status: "provider_unavailable" }, 503);
+    if (!encryptionKey || encryptionKey.length < 20) {
+      return json({ status: "provider_unavailable" }, 503);
+    }
     const now = new Date();
 
     if (input.action === "start") {

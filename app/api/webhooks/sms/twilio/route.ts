@@ -1,8 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleTwilioStatusWebhook } from "@/lib/delivery-webhooks/twilio-handler";
+import { canonicalAppUrl } from "@/lib/sms-readiness";
 
 export async function POST(request: Request) {
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const appUrl = canonicalAppUrl();
+  if (!appUrl) return new Response("Webhook unavailable", { status: 503 });
   return handleTwilioStatusWebhook(request, {
     authToken: process.env.TWILIO_AUTH_TOKEN,
     webhookUrl: `${appUrl}/api/webhooks/sms/twilio`,

@@ -154,7 +154,7 @@ begin
     or old.status = 'delivered' and new.status not in ('delivered', 'bounced', 'complained')
     or old.status = 'accepted' and new.status not in (
       'accepted', 'delivered', 'bounced', 'complained',
-      case when old.transport = 'sms' then 'failed'::public.delivery_status else 'accepted' end
+      case when old.transport in ('sms', 'whatsapp') then 'failed'::public.delivery_status else 'accepted' end
     )
     or old.status = 'failed' and new.status <> old.status
     or old.status in ('skipped', 'cancelled') and new.status <> old.status
@@ -228,7 +228,8 @@ begin
     where id = p_event_id;
     return delivery_row.status;
   end if;
-  if event_row.normalized_status = 'failed' and delivery_row.transport <> 'sms' then
+  if event_row.normalized_status = 'failed'
+    and delivery_row.transport not in ('sms', 'whatsapp') then
     update public.update_delivery_events
     set processing_status = 'rejected',
         processing_error = 'failed provider callbacks are not valid for this transport'

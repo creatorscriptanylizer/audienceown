@@ -4,6 +4,7 @@ import { aggregateDispatchResults, dispatchClaimedDelivery } from "@/lib/deliver
 import type { ClaimedDelivery } from "@/lib/delivery-message";
 import { getDeliveryProvider } from "@/lib/delivery-providers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canonicalAppUrl } from "@/lib/sms-readiness";
 
 export const DELIVERY_MAX_ATTEMPTS = 3;
 export const DELIVERY_STUCK_TIMEOUT_SECONDS = 15 * 60;
@@ -31,6 +32,8 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
   }
   const admin = createAdminClient();
   if (!admin) throw new Error("Delivery execution is not configured.");
+  const appUrl = canonicalAppUrl();
+  if (!appUrl) throw new Error("Canonical application URL is not configured.");
 
   const { data, error } = await admin.rpc("claim_update_deliveries", {
     p_limit: limit,
@@ -45,7 +48,7 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
     logDelivery("delivery_claimed", delivery);
     try {
       const result = await dispatchClaimedDelivery(delivery, {
-        appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+        appUrl,
         maxAttempts: DELIVERY_MAX_ATTEMPTS,
         resolveProvider: getDeliveryProvider,
         async markAccepted(deliveryId, provider, providerMessageId) {
