@@ -30,6 +30,10 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
   if (!Number.isInteger(limit) || limit < 1 || limit > DELIVERY_MAX_BATCH_SIZE) {
     throw new Error(`Delivery batch limit must be between 1 and ${DELIVERY_MAX_BATCH_SIZE}.`);
   }
+  console.info(JSON.stringify({
+    event: "dispatcher_run_start",
+    requested_limit: limit,
+  }));
   const admin = createAdminClient();
   if (!admin) throw new Error("Delivery execution is not configured.");
   const appUrl = canonicalAppUrl();
@@ -43,6 +47,10 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
   if (error) throw new Error("Queued deliveries could not be claimed.");
 
   const claimed = (data ?? []) as ClaimedDelivery[];
+  console.info(JSON.stringify({
+    event: "dispatcher_claimed",
+    claimed_count: claimed.length,
+  }));
   const results = [];
   for (const delivery of claimed) {
     logDelivery("delivery_claimed", delivery);
@@ -132,5 +140,13 @@ export async function dispatchQueuedDeliveries({ limit = 10 }: { limit?: number 
       });
     }
   }
-  return aggregateDispatchResults(results);
+  const summary = aggregateDispatchResults(results);
+  console.info(JSON.stringify({
+    event: "dispatcher_run_end",
+    claimed_count: claimed.length,
+    accepted_count: summary.accepted,
+    failed_count: summary.failed,
+    retrying_count: summary.retried,
+  }));
+  return summary;
 }

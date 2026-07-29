@@ -32,6 +32,13 @@ export async function handleTwilioStatusWebhook(
   }
   const event = normalizeTwilioStatus(params, dependencies.provider);
   if (!event) return new Response("Malformed callback", { status: 400 });
+  console.info(JSON.stringify({
+    event: "provider_callback_received",
+    provider: event.provider,
+    provider_message_id: event.providerMessageId,
+    event_type: event.rawStatus,
+    status: event.normalizedStatus,
+  }));
   try {
     await dependencies.apply(event);
   } catch {

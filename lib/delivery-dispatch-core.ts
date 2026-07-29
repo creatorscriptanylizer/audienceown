@@ -32,7 +32,8 @@ type DispatchDependencies = {
 function expectedProvider(transport: DeliveryTransport) {
   if (transport === "email") return "resend";
   if (transport === "browser_notification") return "web-push";
-  return transport === "sms" ? "twilio" : "unsupported";
+  if (transport === "sms") return "twilio";
+  return transport === "whatsapp" ? "twilio-whatsapp" : "unsupported";
 }
 
 export async function dispatchClaimedDelivery(

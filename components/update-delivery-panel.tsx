@@ -4,11 +4,11 @@ const statuses = ["queued", "sending", "accepted", "delivered", "bounced", "comp
 const statusLabels: Record<(typeof statuses)[number], string> = {
   queued: "Waiting to send",
   sending: "Sending",
-  accepted: "Accepted by provider",
-  delivered: "Delivered",
+  accepted: "Accepted by the delivery provider",
+  delivered: "Confirmed delivered by the provider",
   bounced: "Bounced",
   complained: "Spam complaint",
-  failed: "Failed",
+  failed: "Could not be delivered",
   skipped: "Skipped",
   cancelled: "Cancelled",
 };
@@ -59,7 +59,7 @@ export function UpdateDeliveryPanel({
               ? `${acceptedByTransport[transport]} accepted by email provider`
               : transport === "sms"
                 ? `${acceptedByTransport[transport]} accepted by SMS provider`
-              : `${acceptedByTransport[transport]} accepted by provider`}
+              : `${acceptedByTransport[transport]} accepted by WhatsApp provider`}
         </small>}
       </article>)}</div>
     </div>}

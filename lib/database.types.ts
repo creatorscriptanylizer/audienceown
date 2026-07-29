@@ -278,6 +278,78 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_health_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+        }
+        Relationships: []
+      }
+      delivery_operator_actions: {
+        Row: {
+          action_type: Database["public"]["Enums"]["delivery_operator_action_type"]
+          actor_role: Database["public"]["Enums"]["delivery_operator_role"]
+          actor_user_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          reason: string
+          target_delivery_id: string | null
+          target_provider: string | null
+          target_update_id: string | null
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["delivery_operator_action_type"]
+          actor_role: Database["public"]["Enums"]["delivery_operator_role"]
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason: string
+          target_delivery_id?: string | null
+          target_provider?: string | null
+          target_update_id?: string | null
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["delivery_operator_action_type"]
+          actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason?: string
+          target_delivery_id?: string | null
+          target_provider?: string | null
+          target_update_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_operator_actions_target_delivery_id_fkey"
+            columns: ["target_delivery_id"]
+            isOneToOne: false
+            referencedRelation: "update_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_operator_actions_target_update_id_fkey"
+            columns: ["target_update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follower_category_preferences: {
         Row: {
           category_key: string
@@ -1068,6 +1140,51 @@ export type Database = {
         Args: { update_type: Database["public"]["Enums"]["broadcast_type"] }
         Returns: string
       }
+      get_delivery_provider_health: {
+        Args: { p_window_minutes?: number }
+        Returns: {
+          acceptance_rate: number
+          accepted: number
+          delivered: number
+          delivery_rate: number
+          failed: number
+          last_activity: string
+          permanent_failures: number
+          provider: string
+          queued: number
+          retryable: number
+          sending: number
+          transport: Database["public"]["Enums"]["delivery_transport"]
+        }[]
+      }
+      get_delivery_system_health: { Args: never; Returns: Json }
+      get_pending_provider_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          age_seconds: number
+          event_type: string
+          id: string
+          processing_status: string
+          provider: string
+          provider_message_id_present: boolean
+          received_at: string
+        }[]
+      }
+      get_stuck_deliveries: {
+        Args: { p_limit?: number }
+        Returns: {
+          age_seconds: number
+          attempt_count: number
+          failure_code: string
+          id: string
+          provider: string
+          provider_message_id_present: boolean
+          sending_at: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          transport: Database["public"]["Enums"]["delivery_transport"]
+          update_id: string
+        }[]
+      }
       is_published_creator_media: {
         Args: { object_name: string }
         Returns: boolean
@@ -1112,9 +1229,40 @@ export type Database = {
         }
         Returns: Json
       }
+      reconcile_pending_provider_event: {
+        Args: {
+          p_actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
+          p_actor_user_id: string
+          p_pending_event_id: string
+          p_reason: string
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      reconcile_pending_provider_events: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       reconcile_update_delivery_events: {
         Args: { p_provider: string; p_provider_message_id: string }
         Returns: number
+      }
+      release_stuck_delivery: {
+        Args: {
+          p_actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
+          p_actor_user_id: string
+          p_delivery_id: string
+          p_reason: string
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      retry_failed_delivery: {
+        Args: {
+          p_actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
+          p_actor_user_id: string
+          p_delivery_id: string
+          p_reason: string
+        }
+        Returns: Database["public"]["Enums"]["delivery_status"]
       }
     }
     Enums: {
@@ -1146,6 +1294,14 @@ export type Database = {
         | "event"
         | "product_launch"
         | "account_update"
+      delivery_operator_action_type:
+        | "retry_delivery"
+        | "release_stuck_delivery"
+        | "reconcile_provider_event"
+        | "cancel_delivery"
+        | "mark_incident"
+        | "resolve_incident"
+      delivery_operator_role: "delivery_operator" | "delivery_admin"
       delivery_status:
         | "queued"
         | "sending"
@@ -1863,6 +2019,15 @@ export const Constants = {
         "product_launch",
         "account_update",
       ],
+      delivery_operator_action_type: [
+        "retry_delivery",
+        "release_stuck_delivery",
+        "reconcile_provider_event",
+        "cancel_delivery",
+        "mark_incident",
+        "resolve_incident",
+      ],
+      delivery_operator_role: ["delivery_operator", "delivery_admin"],
       delivery_status: [
         "queued",
         "sending",
