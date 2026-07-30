@@ -34,6 +34,250 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_draft_enhancement_jobs: {
+        Row: {
+          attempt_count: number
+          auto_send_requested: boolean
+          base_content_revision: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          creator_update_id: string
+          failed_at: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          max_attempts: number
+          next_attempt_at: string
+          preferred_variant: string
+          prompt_version: string
+          requested_variants: string[]
+          result_applied: boolean
+          source_event_type: string | null
+          source_object_type: string | null
+          source_provider: string | null
+          stale_result: boolean
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          auto_send_requested?: boolean
+          base_content_revision: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          creator_update_id: string
+          failed_at?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          preferred_variant: string
+          prompt_version: string
+          requested_variants: string[]
+          result_applied?: boolean
+          source_event_type?: string | null
+          source_object_type?: string | null
+          source_provider?: string | null
+          stale_result?: boolean
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          auto_send_requested?: boolean
+          base_content_revision?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_update_id?: string
+          failed_at?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          preferred_variant?: string
+          prompt_version?: string
+          requested_variants?: string[]
+          result_applied?: boolean
+          source_event_type?: string | null
+          source_object_type?: string | null
+          source_provider?: string | null
+          stale_result?: boolean
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_draft_enhancement_jobs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_draft_enhancement_jobs_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_draft_variants: {
+        Row: {
+          body: string
+          call_to_action: string | null
+          created_at: string
+          creator_id: string
+          creator_update_id: string
+          enhancement_job_id: string
+          estimated_cost_minor_units: number | null
+          id: string
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          prompt_version: string
+          provider: string
+          selected: boolean
+          source_url: string | null
+          title: string
+          variant_type: string
+        }
+        Insert: {
+          body: string
+          call_to_action?: string | null
+          created_at?: string
+          creator_id: string
+          creator_update_id: string
+          enhancement_job_id: string
+          estimated_cost_minor_units?: number | null
+          id?: string
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          prompt_version: string
+          provider: string
+          selected?: boolean
+          source_url?: string | null
+          title: string
+          variant_type: string
+        }
+        Update: {
+          body?: string
+          call_to_action?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_update_id?: string
+          enhancement_job_id?: string
+          estimated_cost_minor_units?: number | null
+          id?: string
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          prompt_version?: string
+          provider?: string
+          selected?: boolean
+          source_url?: string | null
+          title?: string
+          variant_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_draft_variants_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_draft_variants_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_draft_variants_enhancement_job_id_fkey"
+            columns: ["enhancement_job_id"]
+            isOneToOne: false
+            referencedRelation: "ai_draft_enhancement_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_events: {
+        Row: {
+          created_at: string
+          creator_id: string
+          enhancement_job_id: string
+          error_code: string | null
+          estimated_cost_minor_units: number | null
+          id: string
+          input_tokens: number | null
+          model: string
+          operation: string
+          output_tokens: number | null
+          provider: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          enhancement_job_id: string
+          error_code?: string | null
+          estimated_cost_minor_units?: number | null
+          id?: string
+          input_tokens?: number | null
+          model: string
+          operation: string
+          output_tokens?: number | null
+          provider: string
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          enhancement_job_id?: string
+          error_code?: string | null
+          estimated_cost_minor_units?: number | null
+          id?: string
+          input_tokens?: number | null
+          model?: string
+          operation?: string
+          output_tokens?: number | null
+          provider?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_enhancement_job_id_fkey"
+            columns: ["enhancement_job_id"]
+            isOneToOne: false
+            referencedRelation: "ai_draft_enhancement_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       browser_push_subscriptions: {
         Row: {
           auth_ciphertext: string
@@ -257,6 +501,86 @@ export type Database = {
           },
         ]
       }
+      creator_ai_settings: {
+        Row: {
+          ai_auto_send_enabled: boolean
+          ai_required: boolean
+          approval_required: boolean
+          audience_description: string
+          created_at: string
+          creator_id: string
+          cta_style: string
+          custom_voice_instructions: string
+          enabled: boolean
+          include_emojis: boolean
+          include_hashtags: boolean
+          monthly_budget_minor_units: number
+          monthly_generation_limit: number
+          phrases_to_avoid: string
+          preferred_model: string
+          preferred_terminology: string
+          preferred_variant: string
+          preserve_source_title: boolean
+          provider: string
+          tone: string
+          updated_at: string
+        }
+        Insert: {
+          ai_auto_send_enabled?: boolean
+          ai_required?: boolean
+          approval_required?: boolean
+          audience_description?: string
+          created_at?: string
+          creator_id: string
+          cta_style?: string
+          custom_voice_instructions?: string
+          enabled?: boolean
+          include_emojis?: boolean
+          include_hashtags?: boolean
+          monthly_budget_minor_units?: number
+          monthly_generation_limit?: number
+          phrases_to_avoid?: string
+          preferred_model?: string
+          preferred_terminology?: string
+          preferred_variant?: string
+          preserve_source_title?: boolean
+          provider?: string
+          tone?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_auto_send_enabled?: boolean
+          ai_required?: boolean
+          approval_required?: boolean
+          audience_description?: string
+          created_at?: string
+          creator_id?: string
+          cta_style?: string
+          custom_voice_instructions?: string
+          enabled?: boolean
+          include_emojis?: boolean
+          include_hashtags?: boolean
+          monthly_budget_minor_units?: number
+          monthly_generation_limit?: number
+          phrases_to_avoid?: string
+          preferred_model?: string
+          preferred_terminology?: string
+          preferred_variant?: string
+          preserve_source_title?: boolean
+          provider?: string
+          tone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_ai_settings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_recovery_daily_snapshots: {
         Row: {
           browser_notification_count: number
@@ -305,14 +629,19 @@ export type Database = {
       creator_updates: {
         Row: {
           affected_platform_connection_id: string | null
+          ai_enhanced_at: string | null
+          ai_prompt_version: string | null
           broadcast_intent: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at: string | null
           content: string
+          content_revision: number
           created_at: string
           creator_id: string
           cta_label: string | null
           cta_url: string | null
+          deterministic_content: string | null
+          deterministic_title: string | null
           id: string
           media_url: string | null
           preview_text: string
@@ -330,14 +659,19 @@ export type Database = {
         }
         Insert: {
           affected_platform_connection_id?: string | null
+          ai_enhanced_at?: string | null
+          ai_prompt_version?: string | null
           broadcast_intent: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at?: string | null
           content?: string
+          content_revision?: number
           created_at?: string
           creator_id: string
           cta_label?: string | null
           cta_url?: string | null
+          deterministic_content?: string | null
+          deterministic_title?: string | null
           id?: string
           media_url?: string | null
           preview_text?: string
@@ -355,14 +689,19 @@ export type Database = {
         }
         Update: {
           affected_platform_connection_id?: string | null
+          ai_enhanced_at?: string | null
+          ai_prompt_version?: string | null
           broadcast_intent?: Database["public"]["Enums"]["broadcast_intent"]
           broadcast_type?: Database["public"]["Enums"]["broadcast_type"]
           cancelled_at?: string | null
           content?: string
+          content_revision?: number
           created_at?: string
           creator_id?: string
           cta_label?: string | null
           cta_url?: string | null
+          deterministic_content?: string | null
+          deterministic_title?: string | null
           id?: string
           media_url?: string | null
           preview_text?: string
@@ -1463,6 +1802,10 @@ export type Database = {
         Args: { intent: Database["public"]["Enums"]["broadcast_intent"] }
         Returns: Database["public"]["Enums"]["broadcast_type"]
       }
+      cancel_ai_draft_enhancement: {
+        Args: { p_update_id: string }
+        Returns: Json
+      }
       cancel_scheduled_update: {
         Args: { p_creator_id: string; p_update_id: string }
         Returns: Json
@@ -1474,6 +1817,47 @@ export type Database = {
       capture_recovery_daily_snapshots: {
         Args: { p_limit?: number }
         Returns: number
+      }
+      claim_ai_draft_enhancement_jobs: {
+        Args: {
+          p_lease_owner?: string
+          p_lease_seconds?: number
+          p_limit?: number
+        }
+        Returns: {
+          attempt_count: number
+          auto_send_requested: boolean
+          base_content_revision: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          creator_update_id: string
+          failed_at: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          max_attempts: number
+          next_attempt_at: string
+          preferred_variant: string
+          prompt_version: string
+          requested_variants: string[]
+          result_applied: boolean
+          source_event_type: string | null
+          source_object_type: string | null
+          source_provider: string | null
+          stale_result: boolean
+          started_at: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ai_draft_enhancement_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       claim_social_connections: {
         Args: {
@@ -1591,6 +1975,19 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      complete_ai_draft_enhancement: {
+        Args: {
+          p_estimated_cost: number
+          p_input_tokens: number
+          p_job_id: string
+          p_lease_owner: string
+          p_model: string
+          p_output_tokens: number
+          p_provider: string
+          p_variants: Json
+        }
+        Returns: Json
+      }
       complete_whatsapp_recovery_verification: {
         Args: {
           p_destination_hash: string
@@ -1612,6 +2009,15 @@ export type Database = {
         Args: { p_transport: Database["public"]["Enums"]["delivery_transport"] }
         Returns: string
       }
+      enqueue_ai_draft_enhancement: {
+        Args: {
+          p_auto_send_requested?: boolean
+          p_prompt_version: string
+          p_requested_variants?: string[]
+          p_update_id: string
+        }
+        Returns: Json
+      }
       expected_delivery_transport: {
         Args: {
           selected_method_type: string
@@ -1623,6 +2029,17 @@ export type Database = {
         Args: { update_type: Database["public"]["Enums"]["broadcast_type"] }
         Returns: string
       }
+      fail_ai_draft_enhancement: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_lease_owner: string
+          p_retryable: boolean
+        }
+        Returns: Json
+      }
+      get_ai_usage_summary: { Args: never; Returns: Json }
       get_creator_recovery_broadcast_performance: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {
@@ -1868,6 +2285,10 @@ export type Database = {
           p_reason: string
         }
         Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      select_ai_draft_variant: {
+        Args: { p_update_id: string; p_variant_id: string }
+        Returns: Json
       }
     }
     Enums: {

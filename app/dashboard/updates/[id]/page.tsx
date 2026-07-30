@@ -8,6 +8,7 @@ import { CancelScheduledButton } from "@/components/cancel-scheduled-button";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { getEligibleRecipientsForUpdate } from "@/lib/update-delivery";
+import { AiDraftPanel } from "@/components/ai-draft-panel";
 
 const deliveryStatuses = ["queued", "sending", "accepted", "delivered", "bounced", "complained", "failed", "skipped", "cancelled"] as const;
 const deliveryTransports = ["email", "sms", "whatsapp", "browser_notification"] as const;
@@ -24,7 +25,7 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
   const supabase = await createClient();
   if (!supabase) notFound();
   const { data: update } = await supabase.from("creator_updates").select(
-    "id,broadcast_type,broadcast_intent,affected_platform_connection_id,status,title,subject,preview_text,content,cta_label,cta_url,scheduled_for",
+    "id,broadcast_type,broadcast_intent,affected_platform_connection_id,status,title,subject,preview_text,content,cta_label,cta_url,scheduled_for,deterministic_title,deterministic_content",
   ).eq("id", id).eq("creator_id", creator.id).maybeSingle();
   if (!update) notFound();
   const { data: accounts } = await supabase.from("connected_accounts")
@@ -57,6 +58,10 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
     (deliveries ?? []).filter((delivery) =>
       delivery.transport === transport && delivery.status === "accepted").length,
   ])) as Record<(typeof deliveryTransports)[number], number>;
+  const [{data:aiJobs},{data:aiVariants}]=await Promise.all([
+    supabase.from("ai_draft_enhancement_jobs").select("id,status,prompt_version,stale_result,last_error_code").eq("creator_update_id",id).order("created_at",{ascending:false}),
+    supabase.from("ai_draft_variants").select("id,variant_type,title,body,provider,model,prompt_version,selected").eq("creator_update_id",id).order("created_at"),
+  ]);
   return <>
     <Link href="/dashboard/updates" className="update-back-link"><ArrowLeft size={15}/> Update history</Link>
     {query.status === "published" && query.updateId === id && <section className="studio-publish-result" role="status">
@@ -78,12 +83,13 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
       <p className="local-scheduled-time"><LocalDateTime value={update.scheduled_for}/></p>
       <p>{deliveries?.length ?? 0} recipient notifications are prepared as a fixed audience snapshot. Content and targeting are locked.</p>
       <CancelScheduledButton updateId={id}/>
-    </section> : <BroadcastStudio
+    </section> : <><AiDraftPanel updateId={id} status={update.status} original={{title:update.deterministic_title,body:update.deterministic_content}}
+      jobs={aiJobs??[]} variants={aiVariants??[]}/><BroadcastStudio
       update={update}
       creator={{ displayName: creator.display_name, publicSlug: creator.public_slug }}
       accounts={accounts ?? []}
       estimate={estimate}
-    />}
+    /></>}
     <UpdateDeliveryPanel
       counts={counts}
       transportCounts={transportCounts}

@@ -28,8 +28,11 @@ export async function pollSocialConnections(limit=20){
         if(ingestError)throw ingestError;const ingestion=ingested as {event_id:string;inserted:boolean};if(!ingestion.inserted){summary.duplicates++;continue;}
         summary.detected++;providerSummary.detected++;if(connection.auto_create_drafts){const{data:draft,error:draftError}=await admin.rpc("create_social_draft",{p_event_id:ingestion.event_id});
           if(draftError)throw draftError;const created=draft as {update_id:string;created:boolean;auto_send:boolean};if(created.created)summary.drafts++;
-          if(created.auto_send){try{await publishDeliveryQueue(created.update_id,connection.creator_id,null,admin);summary.autoPublished++;}
-            catch{summary.failed++;providerSummary.failed++;}}}}
+          if(created.auto_send){const ai=await admin.rpc("enqueue_ai_draft_enhancement",{p_update_id:created.update_id,p_prompt_version:"social-draft-v1",
+            p_requested_variants:["standard","concise","detailed","browser","sms","recovery"],p_auto_send_requested:true});
+            const queued=(ai.data as{status?:string}|null)?.status;if(queued!=="pending"&&queued!=="processing"&&queued!=="retryable_failure"){
+              try{await publishDeliveryQueue(created.update_id,connection.creator_id,null,admin);summary.autoPublished++;}
+              catch{summary.failed++;providerSummary.failed++;}}}}}
       const cadence=Number(process.env.SOCIAL_POLL_INTERVAL_MINUTES??5);await admin.rpc("mark_social_connection_healthy",{p_connection_id:connection.id,p_cursor:result.cursor??connection.last_external_cursor??"",
         p_next_sync_at:new Date(Date.now()+Math.max(1,cadence)*60000).toISOString()});summary.polled++;
     }catch(error){summary.failed++;providerSummary.failed++;const permanent=error instanceof SocialProviderError&&!isRetryableProviderError(error);

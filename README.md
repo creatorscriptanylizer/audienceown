@@ -60,6 +60,15 @@ access remain connection-only or manual-import-only and never display fake
 automation. See [provider architecture](docs/social-provider-architecture.md)
 and the [capability matrix](docs/social-provider-capabilities.md).
 
+## AI-assisted drafts
+
+Optional Stage 4.2 enhancement creates structured, creator-configurable variants
+after deterministic social draft creation. AI is disabled by default and the app
+works without `OPENAI_API_KEY`. Results are revision-checked before touching the
+canonical draft, approval remains the default, and publishing still uses the
+atomic delivery pipeline. See [AI draft enhancement](docs/ai-draft-enhancement.md),
+[prompt safety](docs/ai-prompt-safety.md), and [operations](docs/ai-operations.md).
+
 ## Recovery Analytics
 
 Creators can inspect privacy-safe recovery coverage, selected transport

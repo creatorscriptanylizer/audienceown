@@ -17,3 +17,6 @@
 
 Capabilities are server-registered. Missing credentials disable only that provider.
 Connection-only and manual-import-only states never expose an automation toggle.
+
+AI enhancement is a provider-neutral optional layer after these detection
+capabilities. It neither adds provider access nor expands auto-send permissions.

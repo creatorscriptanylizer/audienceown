@@ -26,3 +26,7 @@ Manual imports accept only registered provider HTTPS hosts, creator-entered titl
 and publication time, and optional HTTPS thumbnail. They never scrape pages.
 Analytics are available at `/api/analytics/social` and
 `/api/analytics/social/[provider]`.
+
+After `create_social_draft` stores deterministic copy, an enabled creator AI
+profile may enqueue a separate enhancement job. The AI worker never runs inside
+social ingestion transactions or polling leases. See `ai-draft-enhancement.md`.
