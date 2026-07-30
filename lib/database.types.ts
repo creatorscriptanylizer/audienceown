@@ -96,42 +96,81 @@ export type Database = {
       connected_accounts: {
         Row: {
           account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          connection_health: string
           created_at: string
           creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_metadata: Json
           id: string
           is_primary: boolean
           is_public: boolean
           label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
           platform: string
+          poll_claimed_until: string | null
           position: number
+          token_expires_at: string | null
+          token_refreshed_at: string | null
           updated_at: string
           url: string
+          watch_enabled: boolean
         }
         Insert: {
           account_type: string
+          auto_create_drafts?: boolean
+          auto_send?: boolean
+          connection_health?: string
           created_at?: string
           creator_id: string
+          external_account_id?: string | null
+          external_account_name?: string | null
+          external_metadata?: Json
           id?: string
           is_primary?: boolean
           is_public?: boolean
           label: string
+          last_connection_error?: string | null
+          last_external_cursor?: string | null
+          last_sync_at?: string | null
           platform: string
+          poll_claimed_until?: string | null
           position?: number
+          token_expires_at?: string | null
+          token_refreshed_at?: string | null
           updated_at?: string
           url: string
+          watch_enabled?: boolean
         }
         Update: {
           account_type?: string
+          auto_create_drafts?: boolean
+          auto_send?: boolean
+          connection_health?: string
           created_at?: string
           creator_id?: string
+          external_account_id?: string | null
+          external_account_name?: string | null
+          external_metadata?: Json
           id?: string
           is_primary?: boolean
           is_public?: boolean
           label?: string
+          last_connection_error?: string | null
+          last_external_cursor?: string | null
+          last_sync_at?: string | null
           platform?: string
+          poll_claimed_until?: string | null
           position?: number
+          token_expires_at?: string | null
+          token_refreshed_at?: string | null
           updated_at?: string
           url?: string
+          watch_enabled?: boolean
         }
         Relationships: [
           {
@@ -139,6 +178,54 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_activity: {
+        Row: {
+          activity_type: string
+          body: string
+          created_at: string
+          creator_id: string
+          creator_update_id: string | null
+          id: string
+          read_at: string | null
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          body: string
+          created_at?: string
+          creator_id: string
+          creator_update_id?: string | null
+          id?: string
+          read_at?: string | null
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          body?: string
+          created_at?: string
+          creator_id?: string
+          creator_update_id?: string | null
+          id?: string
+          read_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_activity_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_activity_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
             referencedColumns: ["id"]
           },
         ]
@@ -200,10 +287,15 @@ export type Database = {
           cta_label: string | null
           cta_url: string | null
           id: string
+          media_url: string | null
           preview_text: string
           queued_at: string | null
           scheduled_for: string | null
           sent_at: string | null
+          source_external_id: string | null
+          source_metadata: Json
+          source_provider: string | null
+          source_published_at: string | null
           status: Database["public"]["Enums"]["broadcast_status"]
           subject: string
           title: string
@@ -220,10 +312,15 @@ export type Database = {
           cta_label?: string | null
           cta_url?: string | null
           id?: string
+          media_url?: string | null
           preview_text?: string
           queued_at?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
+          source_external_id?: string | null
+          source_metadata?: Json
+          source_provider?: string | null
+          source_published_at?: string | null
           status?: Database["public"]["Enums"]["broadcast_status"]
           subject?: string
           title?: string
@@ -240,10 +337,15 @@ export type Database = {
           cta_label?: string | null
           cta_url?: string | null
           id?: string
+          media_url?: string | null
           preview_text?: string
           queued_at?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
+          source_external_id?: string | null
+          source_metadata?: Json
+          source_provider?: string | null
+          source_published_at?: string | null
           status?: Database["public"]["Enums"]["broadcast_status"]
           subject?: string
           title?: string
@@ -657,6 +759,105 @@ export type Database = {
           },
         ]
       }
+      imported_social_content: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          creator_update_id: string | null
+          detection_event_id: string
+          id: string
+          imported_metadata: Json
+          platform_connection_id: string
+          published_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          creator_update_id?: string | null
+          detection_event_id: string
+          id?: string
+          imported_metadata?: Json
+          platform_connection_id: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          creator_update_id?: string | null
+          detection_event_id?: string
+          id?: string
+          imported_metadata?: Json
+          platform_connection_id?: string
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imported_social_content_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: true
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imported_social_content_detection_event_id_fkey"
+            columns: ["detection_event_id"]
+            isOneToOne: true
+            referencedRelation: "social_detection_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imported_social_content_platform_connection_id_fkey"
+            columns: ["platform_connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_connection_secrets: {
+        Row: {
+          access_token_ciphertext: string
+          created_at: string
+          platform_connection_id: string
+          refresh_token_ciphertext: string | null
+          token_scope: string | null
+          token_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_ciphertext: string
+          created_at?: string
+          platform_connection_id: string
+          refresh_token_ciphertext?: string | null
+          token_scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_ciphertext?: string
+          created_at?: string
+          platform_connection_id?: string
+          refresh_token_ciphertext?: string | null
+          token_scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_connection_secrets_platform_connection_id_fkey"
+            columns: ["platform_connection_id"]
+            isOneToOne: true
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_verification_sessions: {
         Row: {
           attempt_count: number
@@ -731,6 +932,72 @@ export type Database = {
             columns: ["recovery_method_id"]
             isOneToOne: false
             referencedRelation: "follower_recovery_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_detection_events: {
+        Row: {
+          created_at: string
+          creator_id: string
+          detected_at: string
+          event_type: string
+          external_object_id: string
+          id: string
+          object_type: string
+          platform_connection_id: string
+          processing_error: string | null
+          processing_status: string
+          provider: string
+          source_payload: Json
+          source_published_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          detected_at?: string
+          event_type: string
+          external_object_id: string
+          id?: string
+          object_type: string
+          platform_connection_id: string
+          processing_error?: string | null
+          processing_status?: string
+          provider: string
+          source_payload?: Json
+          source_published_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          detected_at?: string
+          event_type?: string
+          external_object_id?: string
+          id?: string
+          object_type?: string
+          platform_connection_id?: string
+          processing_error?: string | null
+          processing_status?: string
+          provider?: string
+          source_payload?: Json
+          source_published_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_detection_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_detection_events_platform_connection_id_fkey"
+            columns: ["platform_connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1163,6 +1430,41 @@ export type Database = {
           update_id: string
         }[]
       }
+      claim_youtube_connections: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          connection_health: string
+          created_at: string
+          creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_metadata: Json
+          id: string
+          is_primary: boolean
+          is_public: boolean
+          label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
+          platform: string
+          poll_claimed_until: string | null
+          position: number
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+          updated_at: string
+          url: string
+          watch_enabled: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "connected_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       complete_whatsapp_recovery_verification: {
         Args: {
           p_destination_hash: string
@@ -1178,6 +1480,7 @@ export type Database = {
         Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
         Returns: Json
       }
+      create_youtube_draft: { Args: { p_event_id: string }; Returns: Json }
       delivery_provider_for_transport: {
         Args: { p_transport: Database["public"]["Enums"]["delivery_transport"] }
         Returns: string
@@ -1308,6 +1611,18 @@ export type Database = {
           transport: Database["public"]["Enums"]["delivery_transport"]
           update_id: string
         }[]
+      }
+      get_youtube_automation_analytics: { Args: never; Returns: Json }
+      ingest_youtube_detection: {
+        Args: {
+          p_connection_id: string
+          p_event_type: string
+          p_external_object_id: string
+          p_object_type: string
+          p_source_payload: Json
+          p_source_published_at: string
+        }
+        Returns: Json
       }
       is_published_creator_media: {
         Args: { object_name: string }

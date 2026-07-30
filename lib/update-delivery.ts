@@ -15,6 +15,8 @@ import {
 } from "@/lib/update-recipients";
 import type { BroadcastType } from "@/lib/updates";
 import { getAudienceRule, type BroadcastIntent } from "@/lib/broadcast-studio";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
 type DeliveryResolution = {
   update: {
@@ -220,6 +222,7 @@ export async function publishDeliveryQueue(
   updateId: string,
   creatorId: string,
   scheduledFor: string | null = null,
+  suppliedClient?: SupabaseClient<Database>,
 ): Promise<PublicationSummary> {
   let resolution: DeliveryResolution;
   try {
@@ -230,7 +233,7 @@ export async function publishDeliveryQueue(
   if (resolution.update.status !== "queued" && resolution.eligible === 0) {
     throw new PublicationError("zero_audience");
   }
-  const supabase = await createClient();
+  const supabase = suppliedClient ?? await createClient();
   if (!supabase) throw new PublicationError("publication_failed");
 
   const { data: rpcSummary, error } = await supabase.rpc("publish_update_delivery_queue", {

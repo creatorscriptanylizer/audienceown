@@ -42,6 +42,16 @@ npm run check
 npm run build
 ```
 
+## YouTube social automation
+
+Creators can connect a YouTube channel at `/dashboard/platforms`. AudienceOwn
+polls the channel uploads playlist, creates one editable update draft per
+YouTube object, and requires approval by default. Optional automatic sending is
+an explicit per-connection setting and reuses the normal atomic publication
+queue. Configure the `GOOGLE_YOUTUBE_*`, `YOUTUBE_OAUTH_STATE_SECRET`,
+`SOCIAL_TOKEN_ENCRYPTION_KEY`, and `SOCIAL_WORKER_SECRET` values shown in
+`.env.example`. See [YouTube social automation](docs/social-automation.md).
+
 ## Recovery Analytics
 
 Creators can inspect privacy-safe recovery coverage, selected transport

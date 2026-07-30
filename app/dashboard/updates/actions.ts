@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { updateDraftSchema, updatePublishSchema } from "@/lib/updates";
 import { PublicationError, publishDeliveryQueue } from "@/lib/update-delivery";
 import { broadcastIntents, getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
@@ -183,6 +184,14 @@ async function commitPublication(
     return mutationError(scheduledFor
       ? "The draft was saved, but scheduling could not be completed. Nothing was queued."
       : "The draft was saved, but publication could not be completed. Nothing was queued.");
+  }
+  await createAdminClient()?.from("imported_social_content").update({
+    status: scheduledFor ? "approved" : "published",
+    approved_at: new Date().toISOString(),
+    ...(scheduledFor ? {} : { published_at: new Date().toISOString() }),
+  }).eq("creator_update_id", id);
+  if (!scheduledFor) {
+    console.info("social_automation", { event: "approval_published", provider: "youtube", updateId: id });
   }
   const query = new URLSearchParams({
     status: summary.status,

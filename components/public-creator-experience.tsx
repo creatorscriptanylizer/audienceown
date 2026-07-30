@@ -777,10 +777,11 @@ function EmergencyPage({ creator }: { creator: CreatorRecord }) {
   </>;
 }
 
-export function PublicCreatorExperience({ fallback, source, canUseDevTools = false }: {
+export function PublicCreatorExperience({ fallback, source, canUseDevTools = false, publicUpdates = [] }: {
   fallback: CreatorRecord;
   source?: string;
   canUseDevTools?: boolean;
+  publicUpdates?: Array<{ id: string; title: string; content: string; cta_url: string | null; media_url: string | null; sent_at: string | null }>;
 }) {
   const [creator, setCreator] = useState(fallback);
   const [pass, setPass] = useState<SavedRecoveryPass | null>(null);
@@ -810,6 +811,17 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
   return <div className={`fan-page ${creator.emergencyMode ? "fan-page-emergency" : ""}`}>
     <Header />
     {creator.emergencyMode ? <EmergencyPage creator={creator} /> : <HealthyPage creator={creator} pass={pass} onSave={() => setModal(true)} onManage={setManageMode} onDeactivate={() => deactivatePass()} />}
+    {publicUpdates.length > 0 && <section className="mx-auto my-8 max-w-3xl px-5">
+      <p className="fan-kicker">Latest updates</p>
+      <div className="mt-3 grid gap-3">{publicUpdates.map((update) => <article key={update.id} className="surface rounded-xl p-5">
+        {/* Provider thumbnail hosts are dynamic and cannot be safely enumerated for next/image. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {update.media_url && <img src={update.media_url} alt="" className="mb-4 aspect-video w-full rounded-lg object-cover"/>}
+        <h2 className="text-xl font-semibold">{update.title}</h2>
+        <p className="mt-2 whitespace-pre-line text-sm text-zinc-400">{update.content}</p>
+        {update.cta_url && <a href={update.cta_url} target="_blank" rel="noreferrer" className="button button-secondary mt-4">Watch on YouTube <ExternalLink size={14}/></a>}
+      </article>)}</div>
+    </section>}
     {canUseDevTools && <div className="developer-tools-wrap"><DeveloperTools
       creator={creator}
       onReset={() => deactivatePass(false)}
