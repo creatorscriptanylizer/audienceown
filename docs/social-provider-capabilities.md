@@ -1,0 +1,19 @@
+# Social provider capabilities
+
+| Provider | OAuth | Automatic detection | Source | Availability |
+|---|---:|---:|---|---|
+| YouTube | Yes | Videos/live | Polling | Credentials required |
+| Twitch | Yes | Live events | EventSub | Credentials required |
+| Spotify | Yes | Releases after artist selection | Polling | Credentials required |
+| TikTok | Yes | Public videos | Polling/webhook | Provider review required |
+| X | PKCE | Posts | Polling | Product tier/review required |
+| Instagram | Yes | Professional media | Polling/webhook | Meta review required |
+| Facebook | Yes | Page content/live | Polling/webhook | Meta review required |
+| Threads | Yes | Approved account media | Polling | Review required |
+| Pinterest | Yes | Selected-board Pins | Polling | Review required |
+| Discord | Bot OAuth | Filtered announcements | Events | Bot/event setup required |
+| LinkedIn | Yes | Only with approved read product | Otherwise manual | Review required |
+| Snapchat | Login Kit | No official public-content read | Manual import | Manual-import-only |
+
+Capabilities are server-registered. Missing credentials disable only that provider.
+Connection-only and manual-import-only states never expose an automation toggle.

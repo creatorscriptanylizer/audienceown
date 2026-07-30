@@ -1,0 +1,3 @@
+import { capabilities } from "../capabilities"; import { oauthProvider } from "../provider-factory";
+export const pinterestProvider=oauthProvider({displayName:"Pinterest",availability:"provider_review_required",unavailableReason:"Board and Pin read scopes require Pinterest app approval.",
+capabilities:capabilities({oauth:true,tokenRefresh:true,polling:true,contentDetection:true,automaticDrafts:true,automaticPublishing:true}),config:{provider:"pinterest",clientIdEnv:"PINTEREST_APP_ID",clientSecretEnv:"PINTEREST_APP_SECRET",redirectEnv:"PINTEREST_REDIRECT_URI",authorizeUrl:"https://www.pinterest.com/oauth/",tokenUrl:"https://api.pinterest.com/v5/oauth/token",scopes:["user_accounts:read","boards:read","pins:read"]}});

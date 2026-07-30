@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       is_primary: true, is_public: true, watch_enabled: true, auto_create_drafts: true,
       auto_send: false, connection_health: "healthy", last_connection_error: null,
       external_account_id: channel.id, external_account_name: channel.title,
-      external_metadata: { uploads_playlist_id: channel.uploadsPlaylistId },
+      provider_metadata: { uploads_playlist_id: channel.uploadsPlaylistId },
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       token_refreshed_at: new Date().toISOString(),
     };

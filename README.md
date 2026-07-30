@@ -52,6 +52,14 @@ queue. Configure the `GOOGLE_YOUTUBE_*`, `YOUTUBE_OAUTH_STATE_SECRET`,
 `SOCIAL_TOKEN_ENCRYPTION_KEY`, and `SOCIAL_WORKER_SECRET` values shown in
 `.env.example`. See [YouTube social automation](docs/social-automation.md).
 
+Stage 4.1 generalizes this pipeline through a registered, capability-aware
+provider system. Generic routes live under `/api/integrations/[provider]`,
+verified webhook ingress is `/api/webhooks/social/[provider]`, and the bounded
+worker is `/api/internal/social/poll`. Providers without official content-read
+access remain connection-only or manual-import-only and never display fake
+automation. See [provider architecture](docs/social-provider-architecture.md)
+and the [capability matrix](docs/social-provider-capabilities.md).
+
 ## Recovery Analytics
 
 Creators can inspect privacy-safe recovery coverage, selected transport

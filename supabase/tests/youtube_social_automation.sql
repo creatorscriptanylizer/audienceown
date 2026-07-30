@@ -20,7 +20,7 @@ select set_config('tests.social_a',(select id::text from public.creators where p
 select set_config('tests.social_b',(select id::text from public.creators where public_slug='social-b'),true);
 
 insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary,is_public,
- watch_enabled,external_account_id,external_account_name,external_metadata,connection_health)
+ watch_enabled,external_account_id,external_account_name,provider_metadata,connection_health)
 values
 ('c4100000-0000-4000-8000-000000000001',current_setting('tests.social_a')::uuid,'youtube','official','Channel A','https://youtube.com/channel/a',true,true,true,'channel-a','Channel A','{"uploads_playlist_id":"uploads-a"}','healthy'),
 ('c4100000-0000-4000-8000-000000000002',current_setting('tests.social_b')::uuid,'youtube','official','Channel B','https://youtube.com/channel/b',true,true,true,'channel-b','Channel B','{"uploads_playlist_id":"uploads-b"}','healthy');

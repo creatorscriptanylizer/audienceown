@@ -98,12 +98,14 @@ export type Database = {
           account_type: string
           auto_create_drafts: boolean
           auto_send: boolean
+          capability_state: Json
           connection_health: string
           created_at: string
           creator_id: string
           external_account_id: string | null
           external_account_name: string | null
-          external_metadata: Json
+          external_account_url: string | null
+          granted_scopes: string[]
           id: string
           is_primary: boolean
           is_public: boolean
@@ -111,25 +113,34 @@ export type Database = {
           last_connection_error: string | null
           last_external_cursor: string | null
           last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
           platform: string
           poll_claimed_until: string | null
           position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
           token_expires_at: string | null
           token_refreshed_at: string | null
           updated_at: string
           url: string
           watch_enabled: boolean
+          webhook_enabled: boolean
         }
         Insert: {
           account_type: string
           auto_create_drafts?: boolean
           auto_send?: boolean
+          capability_state?: Json
           connection_health?: string
           created_at?: string
           creator_id: string
           external_account_id?: string | null
           external_account_name?: string | null
-          external_metadata?: Json
+          external_account_url?: string | null
+          granted_scopes?: string[]
           id?: string
           is_primary?: boolean
           is_public?: boolean
@@ -137,25 +148,34 @@ export type Database = {
           last_connection_error?: string | null
           last_external_cursor?: string | null
           last_sync_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          next_sync_at?: string | null
           platform: string
           poll_claimed_until?: string | null
           position?: number
+          provider_metadata?: Json
+          provider_status?: string
+          requested_scopes?: string[]
           token_expires_at?: string | null
           token_refreshed_at?: string | null
           updated_at?: string
           url: string
           watch_enabled?: boolean
+          webhook_enabled?: boolean
         }
         Update: {
           account_type?: string
           auto_create_drafts?: boolean
           auto_send?: boolean
+          capability_state?: Json
           connection_health?: string
           created_at?: string
           creator_id?: string
           external_account_id?: string | null
           external_account_name?: string | null
-          external_metadata?: Json
+          external_account_url?: string | null
+          granted_scopes?: string[]
           id?: string
           is_primary?: boolean
           is_public?: boolean
@@ -163,14 +183,21 @@ export type Database = {
           last_connection_error?: string | null
           last_external_cursor?: string | null
           last_sync_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          next_sync_at?: string | null
           platform?: string
           poll_claimed_until?: string | null
           position?: number
+          provider_metadata?: Json
+          provider_status?: string
+          requested_scopes?: string[]
           token_expires_at?: string | null
           token_refreshed_at?: string | null
           updated_at?: string
           url?: string
           watch_enabled?: boolean
+          webhook_enabled?: boolean
         }
         Relationships: [
           {
@@ -941,7 +968,9 @@ export type Database = {
           created_at: string
           creator_id: string
           detected_at: string
+          detection_source: string
           event_type: string
+          external_event_id: string | null
           external_object_id: string
           id: string
           object_type: string
@@ -949,6 +978,7 @@ export type Database = {
           processing_error: string | null
           processing_status: string
           provider: string
+          provider_event_received_at: string | null
           source_payload: Json
           source_published_at: string | null
           updated_at: string
@@ -957,7 +987,9 @@ export type Database = {
           created_at?: string
           creator_id: string
           detected_at?: string
+          detection_source?: string
           event_type: string
+          external_event_id?: string | null
           external_object_id: string
           id?: string
           object_type: string
@@ -965,6 +997,7 @@ export type Database = {
           processing_error?: string | null
           processing_status?: string
           provider: string
+          provider_event_received_at?: string | null
           source_payload?: Json
           source_published_at?: string | null
           updated_at?: string
@@ -973,7 +1006,9 @@ export type Database = {
           created_at?: string
           creator_id?: string
           detected_at?: string
+          detection_source?: string
           event_type?: string
+          external_event_id?: string | null
           external_object_id?: string
           id?: string
           object_type?: string
@@ -981,6 +1016,7 @@ export type Database = {
           processing_error?: string | null
           processing_status?: string
           provider?: string
+          provider_event_received_at?: string | null
           source_payload?: Json
           source_published_at?: string | null
           updated_at?: string
@@ -1001,6 +1037,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_webhook_receipts: {
+        Row: {
+          created_at: string
+          event_timestamp: string
+          id: string
+          payload_digest: string
+          processing_status: string
+          provider: string
+          provider_event_id: string
+          signature_verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_timestamp: string
+          id?: string
+          payload_digest: string
+          processing_status?: string
+          provider: string
+          provider_event_id: string
+          signature_verified: boolean
+        }
+        Update: {
+          created_at?: string
+          event_timestamp?: string
+          id?: string
+          payload_digest?: string
+          processing_status?: string
+          provider?: string
+          provider_event_id?: string
+          signature_verified?: boolean
+        }
+        Relationships: []
       }
       update_deliveries: {
         Row: {
@@ -1406,6 +1475,54 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: number
       }
+      claim_social_connections: {
+        Args: {
+          p_lease_owner?: string
+          p_lease_seconds?: number
+          p_limit?: number
+        }
+        Returns: {
+          account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          capability_state: Json
+          connection_health: string
+          created_at: string
+          creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_account_url: string | null
+          granted_scopes: string[]
+          id: string
+          is_primary: boolean
+          is_public: boolean
+          label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          platform: string
+          poll_claimed_until: string | null
+          position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+          updated_at: string
+          url: string
+          watch_enabled: boolean
+          webhook_enabled: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "connected_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_update_deliveries: {
         Args: {
           p_limit: number
@@ -1436,12 +1553,14 @@ export type Database = {
           account_type: string
           auto_create_drafts: boolean
           auto_send: boolean
+          capability_state: Json
           connection_health: string
           created_at: string
           creator_id: string
           external_account_id: string | null
           external_account_name: string | null
-          external_metadata: Json
+          external_account_url: string | null
+          granted_scopes: string[]
           id: string
           is_primary: boolean
           is_public: boolean
@@ -1449,14 +1568,21 @@ export type Database = {
           last_connection_error: string | null
           last_external_cursor: string | null
           last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
           platform: string
           poll_claimed_until: string | null
           position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
           token_expires_at: string | null
           token_refreshed_at: string | null
           updated_at: string
           url: string
           watch_enabled: boolean
+          webhook_enabled: boolean
         }[]
         SetofOptions: {
           from: "*"
@@ -1476,6 +1602,7 @@ export type Database = {
         }
         Returns: string
       }
+      create_social_draft: { Args: { p_event_id: string }; Returns: Json }
       create_update_delivery_queue: {
         Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
         Returns: Json
@@ -1597,6 +1724,10 @@ export type Database = {
           received_at: string
         }[]
       }
+      get_social_automation_analytics: {
+        Args: { p_provider?: string }
+        Returns: Json
+      }
       get_stuck_deliveries: {
         Args: { p_limit?: number }
         Returns: {
@@ -1613,6 +1744,20 @@ export type Database = {
         }[]
       }
       get_youtube_automation_analytics: { Args: never; Returns: Json }
+      ingest_social_detection: {
+        Args: {
+          p_connection_id: string
+          p_detection_source?: string
+          p_event_type: string
+          p_external_event_id: string
+          p_external_object_id: string
+          p_object_type: string
+          p_provider: string
+          p_source_payload: Json
+          p_source_published_at: string
+        }
+        Returns: Json
+      }
       ingest_youtube_detection: {
         Args: {
           p_connection_id: string
@@ -1631,6 +1776,23 @@ export type Database = {
       is_recovery_method_usable: {
         Args: { p_contact_id: string; p_method_id: string }
         Returns: boolean
+      }
+      mark_social_connection_healthy: {
+        Args: {
+          p_connection_id: string
+          p_cursor: string
+          p_next_sync_at: string
+        }
+        Returns: undefined
+      }
+      mark_social_connection_unhealthy: {
+        Args: {
+          p_connection_id: string
+          p_error: string
+          p_health: string
+          p_next_sync_at: string
+        }
+        Returns: undefined
       }
       mark_update_delivery_accepted: {
         Args: {

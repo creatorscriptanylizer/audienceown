@@ -1,5 +1,5 @@
 import { isDeliveryWorkerAuthorized } from "@/lib/delivery-worker-auth";
-import { pollYouTubeConnections } from "@/lib/youtube-poller";
+import { pollSocialConnections } from "@/lib/social-providers/polling";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Limit must be between 1 and 100" }, { status: 400 });
   }
   try {
-    return Response.json(await pollYouTubeConnections(limit), { headers: { "cache-control": "no-store" } });
+    return Response.json(await pollSocialConnections(limit), { headers: { "cache-control": "no-store" } });
   } catch {
     return Response.json({ error: "YouTube poll failed" }, { status: 500 });
   }

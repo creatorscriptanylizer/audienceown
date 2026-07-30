@@ -1,0 +1,3 @@
+import { capabilities } from "../capabilities"; import { oauthProvider } from "../provider-factory";
+export const threadsProvider=oauthProvider({displayName:"Threads",availability:"provider_review_required",unavailableReason:"Threads content access requires approved app permissions.",
+capabilities:capabilities({oauth:true,tokenRefresh:true,polling:true,contentDetection:true,automaticDrafts:true,automaticPublishing:true}),config:{provider:"threads",clientIdEnv:"THREADS_APP_ID",clientSecretEnv:"THREADS_APP_SECRET",redirectEnv:"THREADS_REDIRECT_URI",authorizeUrl:"https://threads.net/oauth/authorize",tokenUrl:"https://graph.threads.net/oauth/access_token",scopes:["threads_basic"]}});

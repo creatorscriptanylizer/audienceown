@@ -44,7 +44,7 @@ export async function pollYouTubeConnections(limit = 10): Promise<PollSummary> {
         ]);
         console.info("social_automation", { event: "token_refreshed", provider: "youtube", connectionId: connection.id });
       }
-      const metadata = connection.external_metadata as { uploads_playlist_id?: string } | null;
+      const metadata = connection.provider_metadata as { uploads_playlist_id?: string } | null;
       if (!metadata?.uploads_playlist_id) throw new YouTubeProviderError("malformed", "Uploads playlist is unavailable.");
       const result = await pollYouTubeUploads(accessToken, metadata.uploads_playlist_id, connection.last_external_cursor);
       for (const item of result.items.reverse()) {
