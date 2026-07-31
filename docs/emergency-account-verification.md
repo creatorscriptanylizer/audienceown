@@ -1,5 +1,7 @@
 # Emergency account verification
 
+Verified replacements contribute trust only through the canonical identity graph. Their freshness window is shorter than ordinary provider evidence, and revoked replacements never contribute positively.
+
 Stage 5.2 binds a prepared replacement to an authoritative provider, stable provider account ID, canonical HTTPS URL, display handle, creator, method, and verification timestamp. Handles are display metadata and never ownership proof.
 
 Supported methods are `provider_oauth`, `existing_connected_account`, `provider_api`, `profile_challenge`, `domain_challenge`, and privileged `manual_review`. Provider OAuth, connected-account identity, and provider API verification are high confidence. Profile challenges are medium confidence. Manual review is medium at most and cannot be self-approved. Domain verification proves control of a recovery domain, not ownership of an unrelated social account.

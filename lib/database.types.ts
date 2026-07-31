@@ -971,27 +971,36 @@ export type Database = {
           created_at: string
           creator_id: string
           id: string
+          identity_revision: number
           identity_status: string
           primary_domain_id: string | null
           public_display_name: string
+          trust_lease_expires_at: string | null
+          trust_lease_owner: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           creator_id: string
           id?: string
+          identity_revision?: number
           identity_status?: string
           primary_domain_id?: string | null
           public_display_name: string
+          trust_lease_expires_at?: string | null
+          trust_lease_owner?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           creator_id?: string
           id?: string
+          identity_revision?: number
           identity_status?: string
           primary_domain_id?: string | null
           public_display_name?: string
+          trust_lease_expires_at?: string | null
+          trust_lease_owner?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1178,6 +1187,273 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_trust_evaluations: {
+        Row: {
+          blocker_count: number
+          created_at: string
+          creator_id: string
+          evaluated_at: string
+          expires_at: string | null
+          id: string
+          identity_profile_id: string
+          internal_score: number
+          policy_version: string
+          source_revision: number
+          stale_signal_count: number
+          strong_signal_count: number
+          trust_state: string
+          valid_signal_count: number
+          warning_count: number
+        }
+        Insert: {
+          blocker_count: number
+          created_at?: string
+          creator_id: string
+          evaluated_at: string
+          expires_at?: string | null
+          id?: string
+          identity_profile_id: string
+          internal_score: number
+          policy_version: string
+          source_revision: number
+          stale_signal_count: number
+          strong_signal_count: number
+          trust_state: string
+          valid_signal_count: number
+          warning_count: number
+        }
+        Update: {
+          blocker_count?: number
+          created_at?: string
+          creator_id?: string
+          evaluated_at?: string
+          expires_at?: string | null
+          id?: string
+          identity_profile_id?: string
+          internal_score?: number
+          policy_version?: string
+          source_revision?: number
+          stale_signal_count?: number
+          strong_signal_count?: number
+          trust_state?: string
+          valid_signal_count?: number
+          warning_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_trust_evaluations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_evaluations_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_trust_events: {
+        Row: {
+          created_at: string
+          creator_id: string
+          evaluation_id: string | null
+          event_type: string
+          id: number
+          identity_profile_id: string
+          metadata: Json
+          new_state: string | null
+          policy_version: string
+          previous_state: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          evaluation_id?: string | null
+          event_type: string
+          id?: never
+          identity_profile_id: string
+          metadata?: Json
+          new_state?: string | null
+          policy_version: string
+          previous_state?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          evaluation_id?: string | null
+          event_type?: string
+          id?: never
+          identity_profile_id?: string
+          metadata?: Json
+          new_state?: string | null
+          policy_version?: string
+          previous_state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_trust_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_events_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "creator_trust_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_events_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_trust_recommendations: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          creator_id: string
+          description: string
+          evaluation_id: string
+          id: string
+          priority: string
+          recommendation_code: string
+          resolved_at: string | null
+          title: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          creator_id: string
+          description: string
+          evaluation_id: string
+          id?: string
+          priority: string
+          recommendation_code: string
+          resolved_at?: string | null
+          title: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          creator_id?: string
+          description?: string
+          evaluation_id?: string
+          id?: string
+          priority?: string
+          recommendation_code?: string
+          resolved_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_trust_recommendations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_recommendations_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "creator_trust_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_trust_signals: {
+        Row: {
+          created_at: string
+          creator_id: string
+          evaluation_id: string
+          expires_at: string | null
+          first_observed_at: string | null
+          id: string
+          identity_account_id: string | null
+          identity_domain_id: string | null
+          last_observed_at: string | null
+          metadata: Json
+          provider_family: string
+          reason_code: string
+          signal_state: string
+          signal_type: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          evaluation_id: string
+          expires_at?: string | null
+          first_observed_at?: string | null
+          id?: string
+          identity_account_id?: string | null
+          identity_domain_id?: string | null
+          last_observed_at?: string | null
+          metadata?: Json
+          provider_family: string
+          reason_code: string
+          signal_state: string
+          signal_type: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          evaluation_id?: string
+          expires_at?: string | null
+          first_observed_at?: string | null
+          id?: string
+          identity_account_id?: string | null
+          identity_domain_id?: string | null
+          last_observed_at?: string | null
+          metadata?: Json
+          provider_family?: string
+          reason_code?: string
+          signal_state?: string
+          signal_type?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_trust_signals_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_signals_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "creator_trust_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_signals_identity_account_id_fkey"
+            columns: ["identity_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_trust_signals_identity_domain_id_fkey"
+            columns: ["identity_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
             referencedColumns: ["id"]
           },
         ]
@@ -3417,6 +3693,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_trust_evaluations: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          created_at: string
+          creator_id: string
+          id: string
+          identity_revision: number
+          identity_status: string
+          primary_domain_id: string | null
+          public_display_name: string
+          trust_lease_expires_at: string | null
+          trust_lease_owner: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "creator_identity_profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_update_deliveries: {
         Args: {
           p_limit: number
@@ -3575,6 +3872,17 @@ export type Database = {
         Returns: Json
       }
       ensure_creator_identity_profile: { Args: never; Returns: string }
+      evaluate_creator_trust: {
+        Args: {
+          p_domain_freshness_hours?: number
+          p_emergency_freshness_hours?: number
+          p_policy_version?: string
+          p_profile_id: string
+          p_provider_freshness_hours?: number
+          p_ttl_minutes?: number
+        }
+        Returns: string
+      }
       expected_delivery_transport: {
         Args: {
           selected_method_type: string
@@ -3669,6 +3977,7 @@ export type Database = {
         Args: { p_update_id: string }
         Returns: Json
       }
+      get_creator_trust: { Args: never; Returns: Json }
       get_delivery_provider_health: {
         Args: { p_window_minutes?: number }
         Returns: {
@@ -3703,6 +4012,7 @@ export type Database = {
         Args: { p_slug: string }
         Returns: Json
       }
+      get_public_creator_trust: { Args: { p_slug: string }; Returns: Json }
       get_social_automation_analytics: {
         Args: { p_provider?: string }
         Returns: Json
@@ -3779,6 +4089,10 @@ export type Database = {
           p_health: string
           p_next_sync_at: string
         }
+        Returns: undefined
+      }
+      mark_trust_recommendation_resolved: {
+        Args: { p_recommendation_id: string }
         Returns: undefined
       }
       mark_update_delivery_accepted: {
@@ -3907,6 +4221,7 @@ export type Database = {
         Args: { p_verification_id: string }
         Returns: string
       }
+      trust_provider_family: { Args: { p_provider: string }; Returns: string }
       update_emergency: {
         Args: {
           p_emergency_id: string

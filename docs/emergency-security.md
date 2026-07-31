@@ -1,5 +1,7 @@
 # Emergency security boundaries
 
+Public trust never overrides emergency safety. Restricted trust suppresses verified badges while preserving neutral active-emergency guidance; authorization-session and private verification details never enter trust records.
+
 - Emergency tables use forced RLS. Owners see only their creator, and team access is derived from explicit permissions.
 - A critical incident requester cannot approve their own alert.
 - Approval is tied to `content_revision`; edits and replacement changes invalidate prior approval.

@@ -4,4 +4,6 @@ export type IdentityAccountKind="creator_account"|"organization_account"|"page"|
 export type PublicIdentityAccount={provider:string;displayHandle:string|null;displayName:string|null;canonicalProfileUrl:string;accountKind:IdentityAccountKind;verificationStatus:"verified";official:boolean;primary:boolean;verifiedAt:string|null};
 export type PublicIdentityDomain={hostname:string;canonicalUrl:string;official:boolean;primary:boolean;verifiedAt:string|null};
 export type PublicIdentityRelationship={relationshipType:string;sourceProvider:string|null;sourceUrl:string|null;targetProvider:string|null;targetUrl:string|null;verifiedAt:string|null};
-export type PublicIdentityGraph={creator:{slug:string;displayName:string};identityStatus:IdentityStatus;accounts:PublicIdentityAccount[];domains:PublicIdentityDomain[];relationships:PublicIdentityRelationship[];lastUpdatedAt:string};
+export type PublicTrustSignal={type:"verified_provider"|"verified_domain";label:string};
+export type PublicTrust={state:"unverified"|"partially_verified"|"verified"|"strongly_verified"|"needs_attention"|"restricted";label:string;summary:string;signals:PublicTrustSignal[];lastEvaluatedAt:string|null};
+export type PublicIdentityGraph={creator:{slug:string;displayName:string};identityStatus:IdentityStatus;accounts:PublicIdentityAccount[];domains:PublicIdentityDomain[];relationships:PublicIdentityRelationship[];lastUpdatedAt:string;trust?:PublicTrust};
