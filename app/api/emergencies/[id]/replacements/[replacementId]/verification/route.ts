@@ -1,0 +1,4 @@
+import{emergencyApiContext}from"@/lib/emergency/api";
+export async function GET(_request:Request,{params}:{params:Promise<{id:string;replacementId:string}>}){const{id,replacementId}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});
+const{data,error}=await ctx.client.from("emergency_account_verifications").select("id,provider,method,confidence,status,external_account_id,external_account_name,canonical_profile_url,requested_at,verified_at,failed_at,revoked_at,failure_code,last_revalidated_at,next_revalidation_at,revalidation_status,last_revalidation_error").eq("creator_id",ctx.creator.id).eq("emergency_id",id).eq("replacement_account_id",replacementId).order("created_at",{ascending:false});
+return error?Response.json({error:"Verification could not be loaded"},{status:500}):Response.json({verifications:data},{headers:{"cache-control":"no-store"}});}

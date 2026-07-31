@@ -1,0 +1,3 @@
+import{emergencyApiContext,emergencyError}from"@/lib/emergency/api";import{requireSameOrigin}from"@/lib/emergency/request-security";
+export async function POST(request:Request,{params}:{params:Promise<{id:string;replacementId:string}>}){const{id,replacementId}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});if(!requireSameOrigin(request))return Response.json({error:"Cross-origin request rejected"},{status:403});
+const{error}=await ctx.client.rpc("revoke_emergency_verification" as never,{p_emergency_id:id,p_replacement_id:replacementId}as never);return error?emergencyError(error):Response.json({status:"revoked"});}

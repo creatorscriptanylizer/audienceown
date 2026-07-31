@@ -16,3 +16,6 @@ Review team membership regularly. Treat `manual_review` verification as a privil
 ## Stage 5.1 preparedness guarantees
 
 Templates, plans, and drills are private creator-scoped data with forced RLS and no anonymous grants. Proposed replacement details are planning data, not verification. Drill results are aggregate-only, cannot enqueue or dispatch provider notifications, cannot make incidents public, and cannot confer approval on a real emergency. Real activation still requires approval of the current content revision, recent reauthentication where required, verified official replacement state, immutable snapshots, and append-only audit history.
+# Stage 5.2 verification controls
+
+Replacement ownership now uses stable provider identity through the existing encrypted OAuth connection and adapter registry. Emergency tables never store provider tokens, raw challenges, unrestricted provider responses, or private profile data. Critical redirects require high confidence, a separate approver, single-use authorization, and activation-time policy/hash validation. See [account verification](./emergency-account-verification.md), [authorization](./emergency-authorization.md), and [risk policy](./emergency-risk-policy.md).

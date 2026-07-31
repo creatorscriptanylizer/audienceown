@@ -993,6 +993,143 @@ export type Database = {
           },
         ]
       }
+      emergency_account_verifications: {
+        Row: {
+          canonical_profile_url: string | null
+          challenge_attempts: number
+          challenge_consumed_at: string | null
+          challenge_expires_at: string | null
+          challenge_hash: string | null
+          confidence: string
+          connected_account_id: string | null
+          created_at: string
+          creator_id: string
+          emergency_id: string | null
+          evidence_metadata: Json
+          external_account_id: string | null
+          external_account_name: string | null
+          failed_at: string | null
+          failure_code: string | null
+          id: string
+          last_revalidated_at: string | null
+          last_revalidation_error: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          max_challenge_attempts: number
+          method: string
+          next_revalidation_at: string | null
+          provider: string
+          replacement_account_id: string
+          requested_at: string
+          requested_by: string
+          revalidation_status: string
+          revoked_at: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          canonical_profile_url?: string | null
+          challenge_attempts?: number
+          challenge_consumed_at?: string | null
+          challenge_expires_at?: string | null
+          challenge_hash?: string | null
+          confidence: string
+          connected_account_id?: string | null
+          created_at?: string
+          creator_id: string
+          emergency_id?: string | null
+          evidence_metadata?: Json
+          external_account_id?: string | null
+          external_account_name?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          id?: string
+          last_revalidated_at?: string | null
+          last_revalidation_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          max_challenge_attempts?: number
+          method: string
+          next_revalidation_at?: string | null
+          provider: string
+          replacement_account_id: string
+          requested_at?: string
+          requested_by: string
+          revalidation_status?: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          canonical_profile_url?: string | null
+          challenge_attempts?: number
+          challenge_consumed_at?: string | null
+          challenge_expires_at?: string | null
+          challenge_hash?: string | null
+          confidence?: string
+          connected_account_id?: string | null
+          created_at?: string
+          creator_id?: string
+          emergency_id?: string | null
+          evidence_metadata?: Json
+          external_account_id?: string | null
+          external_account_name?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          id?: string
+          last_revalidated_at?: string | null
+          last_revalidation_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          max_challenge_attempts?: number
+          method?: string
+          next_revalidation_at?: string | null
+          provider?: string
+          replacement_account_id?: string
+          requested_at?: string
+          requested_by?: string
+          revalidation_status?: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_account_verifications_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_account_verifications_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_account_verifications_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_account_verifications_replacement_account_id_fkey"
+            columns: ["replacement_account_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_replacement_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_affected_accounts: {
         Row: {
           canonical_profile_url: string
@@ -1054,48 +1191,75 @@ export type Database = {
       emergency_alert_snapshots: {
         Row: {
           affected_accounts: Json
+          approver_ids: string[]
+          authorization_assurance_level: string | null
+          content_hash: string | null
           created_at: string
           created_by: string
           creator_id: string
           creator_update_id: string
+          destination_hash: string | null
           emergency_id: string
           emergency_type: string
           id: string
           message: string
+          policy_version: string | null
           replacement_accounts: Json
           revision: number
           severity: string
+          stable_provider_account_id: string | null
           title: string
+          verification_confidence: string | null
+          verification_id: string | null
+          verification_method: string | null
         }
         Insert: {
           affected_accounts: Json
+          approver_ids?: string[]
+          authorization_assurance_level?: string | null
+          content_hash?: string | null
           created_at?: string
           created_by: string
           creator_id: string
           creator_update_id: string
+          destination_hash?: string | null
           emergency_id: string
           emergency_type: string
           id?: string
           message: string
+          policy_version?: string | null
           replacement_accounts: Json
           revision: number
           severity: string
+          stable_provider_account_id?: string | null
           title: string
+          verification_confidence?: string | null
+          verification_id?: string | null
+          verification_method?: string | null
         }
         Update: {
           affected_accounts?: Json
+          approver_ids?: string[]
+          authorization_assurance_level?: string | null
+          content_hash?: string | null
           created_at?: string
           created_by?: string
           creator_id?: string
           creator_update_id?: string
+          destination_hash?: string | null
           emergency_id?: string
           emergency_type?: string
           id?: string
           message?: string
+          policy_version?: string | null
           replacement_accounts?: Json
           revision?: number
           severity?: string
+          stable_provider_account_id?: string | null
           title?: string
+          verification_confidence?: string | null
+          verification_id?: string | null
+          verification_method?: string | null
         }
         Relationships: [
           {
@@ -1119,6 +1283,13 @@ export type Database = {
             referencedRelation: "creator_emergencies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "emergency_alert_snapshots_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_account_verifications"
+            referencedColumns: ["id"]
+          },
         ]
       }
       emergency_approvals: {
@@ -1130,8 +1301,11 @@ export type Database = {
           emergency_id: string
           id: string
           invalidated_at: string | null
+          policy_version: string | null
           reason: string | null
           revision: number
+          snapshot_hash: string | null
+          verification_id: string | null
         }
         Insert: {
           creator_id: string
@@ -1141,8 +1315,11 @@ export type Database = {
           emergency_id: string
           id?: string
           invalidated_at?: string | null
+          policy_version?: string | null
           reason?: string | null
           revision: number
+          snapshot_hash?: string | null
+          verification_id?: string | null
         }
         Update: {
           creator_id?: string
@@ -1152,8 +1329,11 @@ export type Database = {
           emergency_id?: string
           id?: string
           invalidated_at?: string | null
+          policy_version?: string | null
           reason?: string | null
           revision?: number
+          snapshot_hash?: string | null
+          verification_id?: string | null
         }
         Relationships: [
           {
@@ -1165,6 +1345,76 @@ export type Database = {
           },
           {
             foreignKeyName: "emergency_approvals_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_approvals_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_account_verifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_authorization_sessions: {
+        Row: {
+          assurance_level: string
+          consumed_at: string | null
+          content_revision: number | null
+          created_at: string
+          creator_id: string
+          emergency_id: string | null
+          expires_at: string
+          id: string
+          issued_at: string
+          purpose: string
+          revoked_at: string | null
+          session_fingerprint_hash: string
+          user_id: string
+        }
+        Insert: {
+          assurance_level: string
+          consumed_at?: string | null
+          content_revision?: number | null
+          created_at?: string
+          creator_id: string
+          emergency_id?: string | null
+          expires_at: string
+          id?: string
+          issued_at?: string
+          purpose: string
+          revoked_at?: string | null
+          session_fingerprint_hash: string
+          user_id: string
+        }
+        Update: {
+          assurance_level?: string
+          consumed_at?: string | null
+          content_revision?: number | null
+          created_at?: string
+          creator_id?: string
+          emergency_id?: string | null
+          expires_at?: string
+          id?: string
+          issued_at?: string
+          purpose?: string
+          revoked_at?: string | null
+          session_fingerprint_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_authorization_sessions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_authorization_sessions_emergency_id_fkey"
             columns: ["emergency_id"]
             isOneToOne: false
             referencedRelation: "creator_emergencies"
@@ -1383,54 +1633,88 @@ export type Database = {
       }
       emergency_replacement_accounts: {
         Row: {
+          active_verification_id: string | null
           canonical_profile_url: string
+          connected_account_id: string | null
           created_at: string
           creator_id: string
           display_handle: string
           emergency_id: string
           id: string
+          last_revalidated_at: string | null
+          last_revalidation_error: string | null
+          next_revalidation_at: string | null
           official: boolean
           provider: string
+          revalidation_status: string
           stable_provider_account_id: string
           updated_at: string
+          verification_confidence: string | null
+          verification_lease_expires_at: string | null
+          verification_lease_owner: string | null
           verification_method: string | null
           verification_state: string
           verified_at: string | null
           verified_by: string | null
         }
         Insert: {
+          active_verification_id?: string | null
           canonical_profile_url: string
+          connected_account_id?: string | null
           created_at?: string
           creator_id: string
           display_handle: string
           emergency_id: string
           id?: string
+          last_revalidated_at?: string | null
+          last_revalidation_error?: string | null
+          next_revalidation_at?: string | null
           official?: boolean
           provider: string
+          revalidation_status?: string
           stable_provider_account_id: string
           updated_at?: string
+          verification_confidence?: string | null
+          verification_lease_expires_at?: string | null
+          verification_lease_owner?: string | null
           verification_method?: string | null
           verification_state?: string
           verified_at?: string | null
           verified_by?: string | null
         }
         Update: {
+          active_verification_id?: string | null
           canonical_profile_url?: string
+          connected_account_id?: string | null
           created_at?: string
           creator_id?: string
           display_handle?: string
           emergency_id?: string
           id?: string
+          last_revalidated_at?: string | null
+          last_revalidation_error?: string | null
+          next_revalidation_at?: string | null
           official?: boolean
           provider?: string
+          revalidation_status?: string
           stable_provider_account_id?: string
           updated_at?: string
+          verification_confidence?: string | null
+          verification_lease_expires_at?: string | null
+          verification_lease_owner?: string | null
           verification_method?: string | null
           verification_state?: string
           verified_at?: string | null
           verified_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "emergency_replacement_accounts_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "emergency_replacement_accounts_creator_id_fkey"
             columns: ["creator_id"]
@@ -1443,6 +1727,13 @@ export type Database = {
             columns: ["emergency_id"]
             isOneToOne: false
             referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_replacement_active_verification_fk"
+            columns: ["active_verification_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_account_verifications"
             referencedColumns: ["id"]
           },
         ]
@@ -2413,7 +2704,15 @@ export type Database = {
       }
     }
     Functions: {
-      activate_emergency: { Args: { p_emergency_id: string }; Returns: Json }
+      activate_emergency:
+        | { Args: { p_emergency_id: string }; Returns: Json }
+        | {
+            Args: {
+              p_authorization_session_id?: string
+              p_emergency_id: string
+            }
+            Returns: Json
+          }
       activate_sms_recovery_pass: {
         Args: {
           p_preference_token_hash: string
@@ -2432,6 +2731,17 @@ export type Database = {
           p_url: string
         }
         Returns: string
+      }
+      apply_emergency_revalidation: {
+        Args: {
+          p_error?: string
+          p_external_id: string
+          p_name: string
+          p_outcome: string
+          p_url: string
+          p_verification_id: string
+        }
+        Returns: Json
       }
       apply_update_delivery_event: {
         Args: {
@@ -2514,6 +2824,50 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "ai_draft_enhancement_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_emergency_verifications: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          canonical_profile_url: string | null
+          challenge_attempts: number
+          challenge_consumed_at: string | null
+          challenge_expires_at: string | null
+          challenge_hash: string | null
+          confidence: string
+          connected_account_id: string | null
+          created_at: string
+          creator_id: string
+          emergency_id: string | null
+          evidence_metadata: Json
+          external_account_id: string | null
+          external_account_name: string | null
+          failed_at: string | null
+          failure_code: string | null
+          id: string
+          last_revalidated_at: string | null
+          last_revalidation_error: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          max_challenge_attempts: number
+          method: string
+          next_revalidation_at: string | null
+          provider: string
+          replacement_account_id: string
+          requested_at: string
+          requested_by: string
+          revalidation_status: string
+          revoked_at: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "emergency_account_verifications"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -2662,6 +3016,15 @@ export type Database = {
         }
         Returns: string
       }
+      consume_emergency_authorization: {
+        Args: {
+          p_emergency_id: string
+          p_purpose: string
+          p_revision: number
+          p_session_id: string
+        }
+        Returns: string
+      }
       create_emergency: {
         Args: {
           p_affected_account: string
@@ -2700,6 +3063,10 @@ export type Database = {
           p_to: string
         }
         Returns: undefined
+      }
+      emergency_snapshot_hash: {
+        Args: { p_emergency_id: string }
+        Returns: string
       }
       enqueue_ai_draft_enhancement: {
         Args: {
@@ -2882,6 +3249,10 @@ export type Database = {
         }
         Returns: Json
       }
+      invalidate_emergency_verification_approval: {
+        Args: { p_emergency_id: string; p_reason: string }
+        Returns: undefined
+      }
       is_published_creator_media: {
         Args: { object_name: string }
         Returns: boolean
@@ -2964,6 +3335,19 @@ export type Database = {
         Args: { p_provider: string; p_provider_message_id: string }
         Returns: number
       }
+      record_emergency_verification: {
+        Args: {
+          p_canonical_url: string
+          p_confidence: string
+          p_connected_account_id?: string
+          p_evidence?: Json
+          p_external_id: string
+          p_external_name: string
+          p_method: string
+          p_replacement_id: string
+        }
+        Returns: string
+      }
       release_stuck_delivery: {
         Args: {
           p_actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
@@ -2981,6 +3365,10 @@ export type Database = {
           p_reason: string
         }
         Returns: Database["public"]["Enums"]["delivery_status"]
+      }
+      revoke_emergency_verification: {
+        Args: { p_emergency_id: string; p_replacement_id: string }
+        Returns: undefined
       }
       select_ai_draft_variant: {
         Args: { p_update_id: string; p_variant_id: string }

@@ -8,6 +8,8 @@ export const youtubeProvider: SocialProviderAdapter = {
   capabilities:capabilities({oauth:true,tokenRefresh:true,tokenRevocation:true,polling:true,
     contentDetection:true,livestreamDetection:true,scheduledContentDetection:true,
     automaticDrafts:true,automaticPublishing:true}),
+  emergencyVerification:{oauthIdentityVerification:true,connectedAccountVerification:true,
+    profileChallengeVerification:false,providerApiVerification:true},
   requestedScopes:["https://www.googleapis.com/auth/youtube.readonly"],
   async createAuthorizationUrl({state}) { return {url:getYouTubeAuthorizationUrl(state)}; },
   async exchangeAuthorizationCode({code}) {
@@ -20,6 +22,10 @@ export const youtubeProvider: SocialProviderAdapter = {
       grantedScopes:(token.scope??"").split(" ").filter(Boolean),tokenType:token.token_type??"Bearer"};
   },
   async fetchIdentity({accessToken}) { const channel=await getYouTubeChannel(accessToken);
+    return {id:channel.id,name:channel.title,url:`https://www.youtube.com/channel/${channel.id}`,metadata:{uploads_playlist_id:channel.uploadsPlaylistId}}; },
+  async fetchEmergencyAccountIdentity({accessToken}) { const channel=await getYouTubeChannel(accessToken);
+    return {id:channel.id,name:channel.title,url:`https://www.youtube.com/channel/${channel.id}`,metadata:{uploads_playlist_id:channel.uploadsPlaylistId}}; },
+  async verifyEmergencyAccountOwnership({accessToken}) { const channel=await getYouTubeChannel(accessToken);
     return {id:channel.id,name:channel.title,url:`https://www.youtube.com/channel/${channel.id}`,metadata:{uploads_playlist_id:channel.uploadsPlaylistId}}; },
   async pollContent({accessToken,cursor,metadata}) {
     const result=await pollYouTubeUploads(accessToken,String(metadata?.uploads_playlist_id??""),cursor??null);

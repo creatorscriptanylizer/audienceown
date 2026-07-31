@@ -24,3 +24,6 @@ A plan is ready only when its official affected account exists, content is valid
 6. Complete normal verification, separate approval, recent reauthentication, activation, snapshot, and audit steps.
 
 Prepared content is never public. Only active real emergencies are selected by the public creator page.
+# Verified backups
+
+Prepared backup accounts should be connected and provider-verified before an incident. Readiness distinguishes a display handle from stable provider identity and reports verification health and revalidation due dates.

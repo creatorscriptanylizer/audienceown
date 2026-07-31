@@ -1,0 +1,4 @@
+import{isDeliveryWorkerAuthorized}from"@/lib/delivery-worker-auth";import{revalidateEmergencyAccounts}from"@/lib/emergency/revalidation";
+export const runtime="nodejs";export async function POST(request:Request){if(!isDeliveryWorkerAuthorized(request.headers.get("authorization"),process.env.EMERGENCY_VERIFICATION_WORKER_SECRET))return Response.json({error:"Unauthorized"},{status:401});
+let limit=Number(process.env.EMERGENCY_VERIFICATION_BATCH_SIZE??20);try{const body=await request.json()as{limit?:unknown};if(body.limit!==undefined)limit=Number(body.limit);}catch{}if(!Number.isInteger(limit)||limit<1||limit>100)return Response.json({error:"Limit must be between 1 and 100"},{status:400});
+try{return Response.json(await revalidateEmergencyAccounts(limit),{headers:{"cache-control":"no-store"}});}catch{return Response.json({error:"Account revalidation failed"},{status:500});}}

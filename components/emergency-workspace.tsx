@@ -13,9 +13,9 @@ export type EmergencyReadiness = {
   primaryDestinationLabel: string | null;
 };
 type EmergencyItem={id:string;emergency_type:string;lifecycle_status:string;severity:string;title:string;message:string;updated_at:string;
-emergency_affected_accounts:{display_handle:string;provider:string}[];emergency_replacement_accounts:{display_handle:string;provider:string;verification_state:string;official:boolean}[];
+emergency_affected_accounts:{display_handle:string;provider:string}[];emergency_replacement_accounts:{id:string;display_handle:string;provider:string;canonical_profile_url:string;stable_provider_account_id:string;verification_state:string;verification_method:string|null;verification_confidence:string|null;official:boolean;verified_at:string|null;last_revalidated_at:string|null;next_revalidation_at:string|null;revalidation_status:string}[];
 emergency_events:{id:number;event_type:string;created_at:string}[];creator_update_id:string|null};
-type Account={id:string;platform:string;label:string;url:string};
+type Account={id:string;platform:string;label:string;url:string;external_account_id?:string|null;connection_health?:string;provider_status?:string};
 type Delivery={update_id:string;status:string;transport:string};
 type PreparednessProps=React.ComponentProps<typeof PreparednessCenter>;
 
@@ -34,6 +34,7 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
   setMessage("Emergency record updated.");window.location.reload();}catch(error){setMessage(error instanceof Error?error.message:"Request failed");}finally{setBusy(false);}}
   async function createIncident(form:FormData){await request("/api/emergencies",{emergency_type:String(form.get("emergency_type")),severity:String(form.get("severity")),
   title:String(form.get("title")),message:String(form.get("message")),affected_account_id:String(form.get("affected_account_id"))});}
+  async function activateIncident(id:string,severity:string){if(severity!=="critical")return request(`/api/emergencies/${id}/activate`);setBusy(true);setMessage(null);try{const started=await fetch(`/api/emergencies/${id}/authorization/start`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({purpose:"activate_critical_incident"})});const session=await started.json()as{id?:string;challenge?:string;error?:string};if(!started.ok||!session.id||!session.challenge)throw new Error(session.error??"Strong authorization could not be started");const completed=await fetch(`/api/emergencies/${id}/authorization/complete`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:session.id,challenge:session.challenge})});const completion=await completed.json()as{error?:string};if(!completed.ok)throw new Error(completion.error??"Strong authorization could not be completed");const activated=await fetch(`/api/emergencies/${id}/activate`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorization_session_id:session.id})});const result=await activated.json()as{error?:string};if(!activated.ok)throw new Error(result.error??"Activation blocked");window.location.reload();}catch(error){setMessage(error instanceof Error?error.message:"Activation blocked");}finally{setBusy(false);}}
   const readyCount = [
     readiness.recoveryPassEnabled,
     readiness.creatorPageLive,
@@ -72,23 +73,25 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
     <p className="mt-2 max-w-3xl whitespace-pre-line text-sm text-zinc-300">{e.message}</p></div><span className="text-xs text-zinc-500">Updated {new Date(e.updated_at).toLocaleString()}</span></div>
     <div className="mt-4 flex flex-wrap gap-2">{["draft","pending_verification"].includes(e.lifecycle_status)&&<button className="button button-secondary" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/submit`)}>Submit for approval</button>}
     {e.lifecycle_status==="pending_approval"&&<button className="button button-secondary" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/approve`,{})}>Approve</button>}
-    {e.lifecycle_status==="ready"&&<button className="button button-primary" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/activate`)}>Activate and notify Recovery Pass holders</button>}
+    {e.lifecycle_status==="ready"&&<button className="button button-primary" disabled={busy} onClick={()=>activateIncident(e.id,e.severity)}>Activate and notify Recovery Pass holders</button>}
     {e.lifecycle_status==="active"&&<button className="button button-secondary" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/resolve`)}>Resolve</button>}
     {["draft","pending_verification","pending_approval","ready"].includes(e.lifecycle_status)&&<button className="button button-secondary" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/cancel`)}>Cancel</button>}</div>
-    {["draft","pending_verification","pending_approval","ready"].includes(e.lifecycle_status)&&<form action={async(form)=>request(`/api/emergencies/${e.id}/replacements/verify`,{provider:String(form.get("provider")),
-    stable_provider_account_id:String(form.get("stable_provider_account_id")),display_handle:String(form.get("display_handle")),canonical_profile_url:String(form.get("canonical_profile_url")),
-    verification_method:String(form.get("verification_method")),official:true})} className="mt-5 grid gap-2 border-t border-white/10 pt-4 md:grid-cols-3">
+    {["draft","pending_verification","pending_approval","ready"].includes(e.lifecycle_status)&&<form action={async(form)=>request(`/api/emergencies/${e.id}/replacements`,{provider:String(form.get("provider")),
+    stable_provider_account_id:String(form.get("stable_provider_account_id")),display_handle:String(form.get("display_handle")),canonical_profile_url:String(form.get("canonical_profile_url"))})} className="mt-5 grid gap-2 border-t border-white/10 pt-4 md:grid-cols-3">
     <input name="provider" placeholder="Provider" required/><input name="stable_provider_account_id" placeholder="Stable provider account ID" required/>
     <input name="display_handle" placeholder="@official-backup" required/><input name="canonical_profile_url" type="url" placeholder="https://…" required/>
-    <select name="verification_method" defaultValue="manual_review"><option value="oauth">OAuth</option><option value="provider_api">Provider API</option><option value="dns">DNS</option><option value="manual_review">Manual review</option></select>
-    <button className="button button-secondary" disabled={busy}>Add and verify official replacement</button></form>}
+    <button className="button button-secondary" disabled={busy}>Prepare backup account</button></form>}
     <div className="mt-4 grid gap-3 md:grid-cols-3"><div><strong className="text-xs uppercase text-zinc-500">Affected</strong>{e.emergency_affected_accounts.map(a=><p className="mt-1 text-sm" key={`${a.provider}-${a.display_handle}`}>{a.provider} · {a.display_handle}</p>)}</div>
     <div><strong className="text-xs uppercase text-zinc-500">Verified replacement</strong>{e.emergency_replacement_accounts.length?e.emergency_replacement_accounts.map(r=><p className="mt-1 text-sm" key={`${r.provider}-${r.display_handle}`}>
-    {r.display_handle} · {r.verification_state}{r.official?" · official":""}</p>):<p className="mt-1 text-sm text-zinc-500">None</p>}</div>
+    {r.display_handle} · {r.verification_state}{r.verification_confidence?` · ${r.verification_confidence} confidence`:""}{r.official?" · official":""}</p>):<p className="mt-1 text-sm text-zinc-500">None</p>}</div>
     <div><strong className="flex items-center gap-1 text-xs uppercase text-zinc-500"><History size={13}/>History and delivery</strong>
     {e.emergency_events.slice(-3).reverse().map(event=><p className="mt-1 text-sm" key={event.id}>{event.event_type.replaceAll("_"," ")} · {new Date(event.created_at).toLocaleString()}</p>)}
     {e.creator_update_id?deliveries.filter(d=>d.update_id===e.creator_update_id).slice(0,5).map((d,index)=><p className="text-sm text-zinc-400" key={`${d.transport}-${index}`}>{d.transport} · {d.status}</p>)
-    :<p className="mt-1 text-sm text-zinc-500">Not activated</p>}</div></div></article>)}</section>}
+    :<p className="mt-1 text-sm text-zinc-500">Not activated</p>}</div></div>
+    <div className="mt-5 border-t border-white/10 pt-4"><strong className="text-xs uppercase text-zinc-500">Verified Backup Accounts</strong>{e.emergency_replacement_accounts.map(r=><div className="mt-3 rounded-lg border border-white/10 p-3" key={r.id}><p className="text-sm font-medium">{r.provider} · {r.display_handle}</p><p className="mt-1 text-xs text-zinc-400">{r.verification_method??"Not verified"} · {r.verification_confidence??"no confidence"} · health: {r.revalidation_status}</p>
+    {r.verification_state==="verified"?<button className="button button-secondary mt-2" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/replacements/${r.id}/revoke`)}>Revoke verification</button>:<div className="mt-2 flex flex-wrap gap-2">{accounts.filter(a=>a.platform===r.provider&&a.external_account_id&&["healthy","degraded"].includes(a.connection_health??"")).map(a=><button type="button" className="button button-secondary" disabled={busy} key={a.id} onClick={()=>request(`/api/emergencies/${e.id}/replacements/from-connection`,{replacement_id:r.id,connection_id:a.id})}>Verify with {a.label}</button>)}{!accounts.some(a=>a.platform===r.provider&&a.external_account_id)&&<span className="text-xs text-zinc-500">Provider verification unavailable until a healthy account is connected.</span>}</div>}</div>)}</div>
+    {e.severity==="critical"&&<div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3"><strong className="text-sm">Critical activation checklist</strong><ul className="mt-2 space-y-1 text-xs text-zinc-300"><li>✓ Replacement account verified</li><li>✓ High-confidence verification required</li><li>✓ Separate approver required</li><li>✓ Current content approval required</li><li>✓ Strong reauthentication required</li><li>✓ Immutable snapshot and delivery readiness checked at activation</li></ul></div>}
+    </article>)}</section>}
 
     <section className="emergency-readiness">
       <div className="emergency-readiness-copy">

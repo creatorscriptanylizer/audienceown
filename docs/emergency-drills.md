@@ -28,3 +28,6 @@ Real activation continues to require current-content approval, separate approval
 - **No eligible holders:** Check Recovery Pass status, the selected recovery method for each relationship, and account-update preferences.
 - **Provider unavailable:** Configure the provider for each estimated transport. Drills never fall back to email.
 - **Repeated run:** Completed drill runs return their stored aggregate result, making retries safe.
+# Verification-safe drills
+
+Safe drills never create provider ownership evidence. They may evaluate whether a prepared backup has current verification, whether a separate approver exists, and whether strong authorization and delivery readiness are configured without activating a public alert.

@@ -20,6 +20,15 @@ export type ProviderTokenSet = {
 export type ProviderIdentity = {
   id: string; name: string; url: string; metadata: Record<string, unknown>;
 };
+export type EmergencyVerificationCapabilities = {
+  oauthIdentityVerification: boolean;
+  connectedAccountVerification: boolean;
+  profileChallengeVerification: boolean;
+  providerApiVerification: boolean;
+};
+export type EmergencyVerificationContext = ProviderContext & {
+  expectedAccountId?: string; challenge?: string; challengeLocation?: string;
+};
 export type NormalizedSocialContent = {
   provider: SocialProvider; externalObjectId: string; externalEventId?: string;
   objectType: "video" | "short_video" | "livestream" | "post" | "image" | "carousel"
@@ -45,12 +54,16 @@ export interface SocialProviderAdapter {
   availability: ProviderAvailability;
   unavailableReason?: string;
   capabilities: ProviderCapabilities;
+  emergencyVerification: EmergencyVerificationCapabilities;
   requestedScopes: string[];
   createAuthorizationUrl?(context: AuthorizationContext): Promise<{ url: string }>;
   exchangeAuthorizationCode?(context: ExchangeContext): Promise<ProviderTokenSet>;
   refreshAccessToken?(context: ProviderContext): Promise<ProviderTokenSet>;
   revokeConnection?(context: ProviderContext): Promise<void>;
   fetchIdentity?(context: ProviderContext): Promise<ProviderIdentity>;
+  fetchEmergencyAccountIdentity?(context: EmergencyVerificationContext): Promise<ProviderIdentity>;
+  verifyEmergencyAccountOwnership?(context: EmergencyVerificationContext): Promise<ProviderIdentity>;
+  checkProfileChallenge?(context: EmergencyVerificationContext): Promise<ProviderIdentity | null>;
   pollContent?(context: ProviderContext): Promise<ProviderPollResult>;
   verifyWebhook?(request: Request): Promise<VerifiedWebhook>;
   normalizeWebhook?(event: VerifiedWebhook): Promise<NormalizedSocialContent[]>;
