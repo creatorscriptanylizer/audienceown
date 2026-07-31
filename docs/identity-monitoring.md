@@ -1,0 +1,11 @@
+# Continuous identity monitoring
+
+Stage 6.2 monitors the Stage 6.0 identity graph and feeds Stage 6.1 trust. It does not create another identity, trust, or emergency model. Authoritative worker observations are normalized, fingerprinted, correlated into incidents, and processed through safe graph mutations. Creator reports remain explicitly unverified and cannot revoke verification.
+
+The `identity-monitoring-v1` policy distinguishes handle, display-name, URL, stable-ID, availability, grant, verification, domain, sync, and emergency-replacement changes. Same-stable-ID presentation changes update the existing account. A stable-ID mismatch never overwrites the canonical stable ID; it suppresses official/public/primary presentation and requires review.
+
+Observations are idempotent by source event ID. Active incidents use a correlation key comprising creator, affected identity, and incident type. Repeated failures update one unresolved incident and deduplicate its private alert. Immutable actions record trust requests, badge suppression, alerts, lifecycle changes, and draft preparation.
+
+Monitoring never activates an emergency and never calls follower delivery. A creator may explicitly prepare a draft for a high-risk incident, after which every Stage 5 verification, approval, reauthentication, authorization, and activation rule still applies.
+
+Configure the optional worker with `IDENTITY_MONITOR_WORKER_SECRET`, `IDENTITY_MONITOR_BATCH_SIZE` (default 20), `IDENTITY_MONITOR_OFFICIAL_INTERVAL_MINUTES`, `IDENTITY_MONITOR_NORMAL_INTERVAL_HOURS` (24), `IDENTITY_MONITOR_EMERGENCY_INTERVAL_MINUTES`, `IDENTITY_MONITOR_MAX_ATTEMPTS` (6), and `IDENTITY_MONITOR_PROVIDER_CONCURRENCY`. The application boots without worker configuration.

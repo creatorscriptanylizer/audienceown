@@ -1,0 +1,1 @@
+import{incidentMutation}from"@/lib/identity/monitoring-api";export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){return incidentMutation(request,(await params).id,"dismiss");}

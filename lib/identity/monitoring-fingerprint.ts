@@ -1,0 +1,7 @@
+import{createHash}from"node:crypto";
+export type AccountFingerprintInput={provider:string;stableProviderAccountId:string;displayHandle:string|null;displayName:string|null;canonicalProfileUrl:string;verificationStatus:string;official:boolean;publicVisible:boolean;primaryForProvider:boolean;providerHealthState:string|null};
+export type DomainFingerprintInput={hostname:string;canonicalUrl:string;verificationStatus:string;dnsVerificationState:string|null;httpsVerificationState:string|null};
+function normalized(value:string|null|undefined){return value?.trim().normalize("NFKC").toLowerCase()??"";}function fingerprint(parts:string[]){return createHash("sha256").update(parts.join("\u001f")).digest("hex");}
+export function accountMonitoringFingerprint(input:AccountFingerprintInput){return fingerprint([normalized(input.provider),input.stableProviderAccountId,normalized(input.displayHandle),normalized(input.displayName),new URL(input.canonicalProfileUrl).toString(),input.verificationStatus,String(input.official),String(input.publicVisible),String(input.primaryForProvider),input.providerHealthState??""]);}
+export function domainMonitoringFingerprint(input:DomainFingerprintInput){return fingerprint([normalized(input.hostname),new URL(input.canonicalUrl).toString(),input.verificationStatus,input.dnsVerificationState??"",input.httpsVerificationState??""]);}
+export function safeFingerprintChanged(previous:string|null|undefined,current:string){return Boolean(previous&&previous!==current);}

@@ -698,6 +698,11 @@ export type Database = {
           lease_expires_at: string | null
           lease_owner: string | null
           metadata: Json
+          monitor_attempts: number
+          monitor_lease_expires_at: string | null
+          monitor_lease_owner: string | null
+          monitoring_fingerprint: string | null
+          next_monitor_at: string | null
           next_sync_at: string | null
           official: boolean
           primary_for_provider: boolean
@@ -732,6 +737,11 @@ export type Database = {
           lease_expires_at?: string | null
           lease_owner?: string | null
           metadata?: Json
+          monitor_attempts?: number
+          monitor_lease_expires_at?: string | null
+          monitor_lease_owner?: string | null
+          monitoring_fingerprint?: string | null
+          next_monitor_at?: string | null
           next_sync_at?: string | null
           official?: boolean
           primary_for_provider?: boolean
@@ -766,6 +776,11 @@ export type Database = {
           lease_expires_at?: string | null
           lease_owner?: string | null
           metadata?: Json
+          monitor_attempts?: number
+          monitor_lease_expires_at?: string | null
+          monitor_lease_owner?: string | null
+          monitoring_fingerprint?: string | null
+          next_monitor_at?: string | null
           next_sync_at?: string | null
           official?: boolean
           primary_for_provider?: boolean
@@ -824,6 +839,11 @@ export type Database = {
           identity_profile_id: string
           last_checked_at: string | null
           last_verified_at: string | null
+          monitor_attempts: number
+          monitor_lease_expires_at: string | null
+          monitor_lease_owner: string | null
+          monitoring_fingerprint: string | null
+          next_monitor_at: string | null
           official: boolean
           primary_domain: boolean
           public_visible: boolean
@@ -843,6 +863,11 @@ export type Database = {
           identity_profile_id: string
           last_checked_at?: string | null
           last_verified_at?: string | null
+          monitor_attempts?: number
+          monitor_lease_expires_at?: string | null
+          monitor_lease_owner?: string | null
+          monitoring_fingerprint?: string | null
+          next_monitor_at?: string | null
           official?: boolean
           primary_domain?: boolean
           public_visible?: boolean
@@ -862,6 +887,11 @@ export type Database = {
           identity_profile_id?: string
           last_checked_at?: string | null
           last_verified_at?: string | null
+          monitor_attempts?: number
+          monitor_lease_expires_at?: string | null
+          monitor_lease_owner?: string | null
+          monitoring_fingerprint?: string | null
+          next_monitor_at?: string | null
           official?: boolean
           primary_domain?: boolean
           public_visible?: boolean
@@ -1158,6 +1188,63 @@ export type Database = {
           whatsapp_count?: number
         }
         Relationships: []
+      }
+      creator_security_alerts: {
+        Row: {
+          action_url: string | null
+          alert_type: string
+          created_at: string
+          creator_id: string
+          dismissed_at: string | null
+          id: string
+          message: string
+          read_at: string | null
+          severity: string
+          source_incident_id: string | null
+          title: string
+        }
+        Insert: {
+          action_url?: string | null
+          alert_type: string
+          created_at?: string
+          creator_id: string
+          dismissed_at?: string | null
+          id?: string
+          message: string
+          read_at?: string | null
+          severity: string
+          source_incident_id?: string | null
+          title: string
+        }
+        Update: {
+          action_url?: string | null
+          alert_type?: string
+          created_at?: string
+          creator_id?: string
+          dismissed_at?: string | null
+          id?: string
+          message?: string
+          read_at?: string | null
+          severity?: string
+          source_incident_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_security_alerts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_security_alerts_source_incident_id_fkey"
+            columns: ["source_incident_id"]
+            isOneToOne: false
+            referencedRelation: "identity_monitoring_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_team_members: {
         Row: {
@@ -2762,6 +2849,274 @@ export type Database = {
           },
         ]
       }
+      identity_monitoring_actions: {
+        Row: {
+          action_type: string
+          actor_type: string
+          actor_user_id: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          metadata: Json
+          monitoring_incident_id: string
+          result_code: string | null
+          status: string
+        }
+        Insert: {
+          action_type: string
+          actor_type: string
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          metadata?: Json
+          monitoring_incident_id: string
+          result_code?: string | null
+          status: string
+        }
+        Update: {
+          action_type?: string
+          actor_type?: string
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          metadata?: Json
+          monitoring_incident_id?: string
+          result_code?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_monitoring_actions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_actions_monitoring_incident_id_fkey"
+            columns: ["monitoring_incident_id"]
+            isOneToOne: false
+            referencedRelation: "identity_monitoring_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_monitoring_incidents: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          affected_account_id: string | null
+          affected_domain_id: string | null
+          assigned_to: string | null
+          correlation_key: string
+          created_at: string
+          creator_id: string
+          emergency_id: string | null
+          id: string
+          identity_profile_id: string
+          incident_type: string
+          observation_id: string
+          resolution_code: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          summary: string
+          title: string
+          trust_evaluation_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          affected_account_id?: string | null
+          affected_domain_id?: string | null
+          assigned_to?: string | null
+          correlation_key: string
+          created_at?: string
+          creator_id: string
+          emergency_id?: string | null
+          id?: string
+          identity_profile_id: string
+          incident_type: string
+          observation_id: string
+          resolution_code?: string | null
+          resolved_at?: string | null
+          severity: string
+          status?: string
+          summary: string
+          title: string
+          trust_evaluation_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          affected_account_id?: string | null
+          affected_domain_id?: string | null
+          assigned_to?: string | null
+          correlation_key?: string
+          created_at?: string
+          creator_id?: string
+          emergency_id?: string | null
+          id?: string
+          identity_profile_id?: string
+          incident_type?: string
+          observation_id?: string
+          resolution_code?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          summary?: string
+          title?: string
+          trust_evaluation_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_monitoring_incidents_affected_account_id_fkey"
+            columns: ["affected_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_affected_domain_id_fkey"
+            columns: ["affected_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "identity_monitoring_observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_incidents_trust_evaluation_id_fkey"
+            columns: ["trust_evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "creator_trust_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_monitoring_observations: {
+        Row: {
+          created_at: string
+          creator_id: string
+          current_fingerprint: string | null
+          expires_at: string | null
+          id: string
+          identity_account_id: string | null
+          identity_domain_id: string | null
+          identity_profile_id: string
+          metadata: Json
+          observation_status: string
+          observation_type: string
+          observed_at: string
+          previous_fingerprint: string | null
+          processed_at: string | null
+          provider: string | null
+          severity: string
+          source: string
+          source_event_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          current_fingerprint?: string | null
+          expires_at?: string | null
+          id?: string
+          identity_account_id?: string | null
+          identity_domain_id?: string | null
+          identity_profile_id: string
+          metadata?: Json
+          observation_status?: string
+          observation_type: string
+          observed_at: string
+          previous_fingerprint?: string | null
+          processed_at?: string | null
+          provider?: string | null
+          severity: string
+          source: string
+          source_event_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          current_fingerprint?: string | null
+          expires_at?: string | null
+          id?: string
+          identity_account_id?: string | null
+          identity_domain_id?: string | null
+          identity_profile_id?: string
+          metadata?: Json
+          observation_status?: string
+          observation_type?: string
+          observed_at?: string
+          previous_fingerprint?: string | null
+          processed_at?: string | null
+          provider?: string | null
+          severity?: string
+          source?: string
+          source_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_monitoring_observations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_observations_identity_account_id_fkey"
+            columns: ["identity_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_observations_identity_domain_id_fkey"
+            columns: ["identity_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_monitoring_observations_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imported_social_content: {
         Row: {
           approved_at: string | null
@@ -3622,6 +3977,59 @@ export type Database = {
           lease_expires_at: string | null
           lease_owner: string | null
           metadata: Json
+          monitor_attempts: number
+          monitor_lease_expires_at: string | null
+          monitor_lease_owner: string | null
+          monitoring_fingerprint: string | null
+          next_monitor_at: string | null
+          next_sync_at: string | null
+          official: boolean
+          primary_for_provider: boolean
+          provider: string
+          public_visible: boolean
+          revoked_at: string | null
+          source_connection_id: string | null
+          source_replacement_account_id: string | null
+          stable_provider_account_id: string
+          sync_attempts: number
+          sync_status: string
+          updated_at: string
+          verification_confidence: string | null
+          verification_method: string | null
+          verification_status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "creator_identity_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_identity_monitoring: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_kind: string
+          archived_at: string | null
+          canonical_profile_url: string
+          created_at: string
+          creator_id: string
+          display_handle: string | null
+          display_name: string | null
+          first_verified_at: string | null
+          id: string
+          identity_profile_id: string
+          last_revalidated_at: string | null
+          last_sync_error: string | null
+          last_synced_at: string | null
+          last_verified_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          metadata: Json
+          monitor_attempts: number
+          monitor_lease_expires_at: string | null
+          monitor_lease_owner: string | null
+          monitoring_fingerprint: string | null
+          next_monitor_at: string | null
           next_sync_at: string | null
           official: boolean
           primary_for_provider: boolean
@@ -4037,6 +4445,22 @@ export type Database = {
         Args: { p_creator_id: string; p_permission: string }
         Returns: boolean
       }
+      ingest_identity_observation: {
+        Args: {
+          p_account_id?: string
+          p_current_fingerprint?: string
+          p_domain_id?: string
+          p_metadata?: Json
+          p_observation_type: string
+          p_observed_at?: string
+          p_previous_fingerprint?: string
+          p_profile_id: string
+          p_severity: string
+          p_source: string
+          p_source_event_id?: string
+        }
+        Returns: Json
+      }
       ingest_social_detection: {
         Args: {
           p_connection_id: string
@@ -4121,6 +4545,14 @@ export type Database = {
       opt_out_whatsapp_recovery_method: {
         Args: { p_destination_hash: string; p_reason: string }
         Returns: number
+      }
+      prepare_monitoring_emergency: {
+        Args: { p_incident_id: string }
+        Returns: string
+      }
+      process_identity_observation: {
+        Args: { p_observation_id: string }
+        Returns: string
       }
       process_update_delivery_event: {
         Args: { p_event_id: string }
@@ -4231,6 +4663,18 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      update_monitoring_incident: {
+        Args: {
+          p_action: string
+          p_incident_id: string
+          p_resolution_code?: string
+        }
+        Returns: undefined
+      }
+      update_security_alert: {
+        Args: { p_action: string; p_alert_id: string }
+        Returns: undefined
       }
       verify_emergency_replacement: {
         Args: {

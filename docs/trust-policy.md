@@ -13,3 +13,5 @@ Explicit rules override score thresholds:
 Recommendations are evaluation-scoped and idempotent. They point to concrete actions: verify a primary account or domain, refresh stale evidence, reconnect a provider, add an independent family, or keep revoked identities archived. Resolved recommendations remain in creator-visible history.
 
 The internal score and signal weights aid deterministic policy implementation and operations only. They are absent from public RPCs, APIs, and UI because a raw number would conceal evidence quality, independence, blockers, and freshness.
+
+Authoritative monitoring revocation, stable-ID mismatch, domain failure, and emergency-replacement invalidation remove positive presentation before trust reevaluation. Recovery requires authoritative revalidation.

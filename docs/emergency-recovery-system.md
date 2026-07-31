@@ -1,5 +1,7 @@
 # Verified Emergency Mode
 
+High-risk identity monitoring incidents may prepare a creator-requested draft only. Monitoring cannot submit, approve, authorize, activate, publish, or deliver an emergency.
+
 Verified Emergency Mode records a creator incident separately from delivery. An incident begins as a draft, captures the affected official account,
 verifies any replacement account, receives revision-bound approval, and creates an immutable alert snapshot at activation.
 
@@ -24,4 +26,3 @@ Prepared replacement records are verified by authoritative provider identity bef
 # Identity continuity
 
 Active emergency replacements remain governed by Stage 5 policy and public snapshot rules. Stage 6 adds continuity context without changing activation, authorization, snapshots, or Recovery Pass delivery.
-
