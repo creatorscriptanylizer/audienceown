@@ -581,6 +581,81 @@ export type Database = {
           },
         ]
       }
+      creator_emergencies: {
+        Row: {
+          activated_at: string | null
+          approved_revision: number | null
+          cancelled_at: string | null
+          content_revision: number
+          created_at: string
+          creator_id: string
+          creator_update_id: string | null
+          emergency_type: string
+          id: string
+          lifecycle_status: string
+          message: string
+          requested_by: string
+          resolved_at: string | null
+          severity: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          approved_revision?: number | null
+          cancelled_at?: string | null
+          content_revision?: number
+          created_at?: string
+          creator_id: string
+          creator_update_id?: string | null
+          emergency_type: string
+          id?: string
+          lifecycle_status?: string
+          message: string
+          requested_by: string
+          resolved_at?: string | null
+          severity?: string
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          approved_revision?: number | null
+          cancelled_at?: string | null
+          content_revision?: number
+          created_at?: string
+          creator_id?: string
+          creator_update_id?: string | null
+          emergency_type?: string
+          id?: string
+          lifecycle_status?: string
+          message?: string
+          requested_by?: string
+          resolved_at?: string | null
+          severity?: string
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_emergencies_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_emergencies_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_recovery_daily_snapshots: {
         Row: {
           browser_notification_count: number
@@ -625,6 +700,38 @@ export type Database = {
           whatsapp_count?: number
         }
         Relationships: []
+      }
+      creator_team_members: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          permissions: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          permissions?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          permissions?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_team_members_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_updates: {
         Row: {
@@ -859,6 +966,305 @@ export type Database = {
             columns: ["target_update_id"]
             isOneToOne: false
             referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_affected_accounts: {
+        Row: {
+          canonical_profile_url: string
+          connected_account_id: string | null
+          created_at: string
+          creator_id: string
+          display_handle: string
+          emergency_id: string
+          id: string
+          provider: string
+          stable_provider_account_id: string
+        }
+        Insert: {
+          canonical_profile_url: string
+          connected_account_id?: string | null
+          created_at?: string
+          creator_id: string
+          display_handle: string
+          emergency_id: string
+          id?: string
+          provider: string
+          stable_provider_account_id: string
+        }
+        Update: {
+          canonical_profile_url?: string
+          connected_account_id?: string | null
+          created_at?: string
+          creator_id?: string
+          display_handle?: string
+          emergency_id?: string
+          id?: string
+          provider?: string
+          stable_provider_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_affected_accounts_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_affected_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_affected_accounts_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_alert_snapshots: {
+        Row: {
+          affected_accounts: Json
+          created_at: string
+          created_by: string
+          creator_id: string
+          creator_update_id: string
+          emergency_id: string
+          emergency_type: string
+          id: string
+          message: string
+          replacement_accounts: Json
+          revision: number
+          severity: string
+          title: string
+        }
+        Insert: {
+          affected_accounts: Json
+          created_at?: string
+          created_by: string
+          creator_id: string
+          creator_update_id: string
+          emergency_id: string
+          emergency_type: string
+          id?: string
+          message: string
+          replacement_accounts: Json
+          revision: number
+          severity: string
+          title: string
+        }
+        Update: {
+          affected_accounts?: Json
+          created_at?: string
+          created_by?: string
+          creator_id?: string
+          creator_update_id?: string
+          emergency_id?: string
+          emergency_type?: string
+          id?: string
+          message?: string
+          replacement_accounts?: Json
+          revision?: number
+          severity?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_alert_snapshots_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_alert_snapshots_creator_update_id_fkey"
+            columns: ["creator_update_id"]
+            isOneToOne: true
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_alert_snapshots_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_approvals: {
+        Row: {
+          creator_id: string
+          decided_at: string
+          decided_by: string
+          decision: string
+          emergency_id: string
+          id: string
+          invalidated_at: string | null
+          reason: string | null
+          revision: number
+        }
+        Insert: {
+          creator_id: string
+          decided_at?: string
+          decided_by: string
+          decision: string
+          emergency_id: string
+          id?: string
+          invalidated_at?: string | null
+          reason?: string | null
+          revision: number
+        }
+        Update: {
+          creator_id?: string
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          emergency_id?: string
+          id?: string
+          invalidated_at?: string | null
+          reason?: string | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_approvals_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_approvals_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          creator_id: string
+          emergency_id: string
+          event_type: string
+          from_status: string | null
+          id: number
+          metadata: Json
+          revision: number
+          to_status: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id: string
+          emergency_id: string
+          event_type: string
+          from_status?: string | null
+          id?: never
+          metadata?: Json
+          revision: number
+          to_status?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id?: string
+          emergency_id?: string
+          event_type?: string
+          from_status?: string | null
+          id?: never
+          metadata?: Json
+          revision?: number
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_events_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_replacement_accounts: {
+        Row: {
+          canonical_profile_url: string
+          created_at: string
+          creator_id: string
+          display_handle: string
+          emergency_id: string
+          id: string
+          official: boolean
+          provider: string
+          stable_provider_account_id: string
+          updated_at: string
+          verification_method: string | null
+          verification_state: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          canonical_profile_url: string
+          created_at?: string
+          creator_id: string
+          display_handle: string
+          emergency_id: string
+          id?: string
+          official?: boolean
+          provider: string
+          stable_provider_account_id: string
+          updated_at?: string
+          verification_method?: string | null
+          verification_state?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          canonical_profile_url?: string
+          created_at?: string
+          creator_id?: string
+          display_handle?: string
+          emergency_id?: string
+          id?: string
+          official?: boolean
+          provider?: string
+          stable_provider_account_id?: string
+          updated_at?: string
+          verification_method?: string | null
+          verification_state?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_replacement_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_replacement_accounts_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "creator_emergencies"
             referencedColumns: ["id"]
           },
         ]
@@ -1769,12 +2175,23 @@ export type Database = {
       }
     }
     Functions: {
+      activate_emergency: { Args: { p_emergency_id: string }; Returns: Json }
       activate_sms_recovery_pass: {
         Args: {
           p_preference_token_hash: string
           p_session_id: string
           p_token_expires_at: string
           p_unsubscribe_token_hash: string
+        }
+        Returns: string
+      }
+      add_emergency_replacement: {
+        Args: {
+          p_account_id: string
+          p_emergency_id: string
+          p_handle: string
+          p_provider: string
+          p_url: string
         }
         Returns: string
       }
@@ -1789,6 +2206,10 @@ export type Database = {
           p_provider_message_id: string
           p_signature_verified: boolean
         }
+        Returns: Json
+      }
+      approve_emergency: {
+        Args: { p_emergency_id: string; p_reason?: string }
         Returns: Json
       }
       broadcast_audience_rule_for_target: {
@@ -1975,6 +2396,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      close_emergency: {
+        Args: { p_action: string; p_emergency_id: string }
+        Returns: Json
+      }
       complete_ai_draft_enhancement: {
         Args: {
           p_estimated_cost: number
@@ -1999,6 +2424,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_emergency: {
+        Args: {
+          p_affected_account: string
+          p_message: string
+          p_severity: string
+          p_title: string
+          p_type: string
+        }
+        Returns: string
+      }
       create_social_draft: { Args: { p_event_id: string }; Returns: Json }
       create_update_delivery_queue: {
         Args: { p_creator_id: string; p_recipients: Json; p_update_id: string }
@@ -2008,6 +2443,16 @@ export type Database = {
       delivery_provider_for_transport: {
         Args: { p_transport: Database["public"]["Enums"]["delivery_transport"] }
         Returns: string
+      }
+      emergency_append_event: {
+        Args: {
+          p_emergency_id: string
+          p_event_type: string
+          p_from: string
+          p_metadata?: Json
+          p_to: string
+        }
+        Returns: undefined
       }
       enqueue_ai_draft_enhancement: {
         Args: {
@@ -2161,6 +2606,10 @@ export type Database = {
         }[]
       }
       get_youtube_automation_analytics: { Args: never; Returns: Json }
+      has_creator_permission: {
+        Args: { p_creator_id: string; p_permission: string }
+        Returns: boolean
+      }
       ingest_social_detection: {
         Args: {
           p_connection_id: string
@@ -2289,6 +2738,29 @@ export type Database = {
       select_ai_draft_variant: {
         Args: { p_update_id: string; p_variant_id: string }
         Returns: Json
+      }
+      submit_emergency: { Args: { p_emergency_id: string }; Returns: Json }
+      update_emergency: {
+        Args: {
+          p_emergency_id: string
+          p_message: string
+          p_severity: string
+          p_title: string
+          p_type: string
+        }
+        Returns: Json
+      }
+      verify_emergency_replacement: {
+        Args: {
+          p_account_id: string
+          p_emergency_id: string
+          p_handle: string
+          p_method: string
+          p_official?: boolean
+          p_provider: string
+          p_url: string
+        }
+        Returns: string
       }
     }
     Enums: {

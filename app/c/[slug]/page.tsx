@@ -6,6 +6,7 @@ import { getCreator, getViewer } from "@/lib/dal";
 import { canAccessRecoveryDeveloperTools } from "@/lib/recovery-access";
 import { createClient } from "@/lib/supabase/server";
 import type { CreatorRecord } from "@/lib/public-creators";
+import { applyPublicEmergency, type PublicEmergency } from "@/lib/emergency/public-banner";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -32,7 +33,7 @@ export default async function Page({ params, searchParams }: Props) {
     supabase.from("creators").select("id,owner_user_id").eq("public_slug", slug).eq("public_profile_enabled", true).maybeSingle(),
   ]) : [{ data: null }, { data: [] }, { data: null }];
   const demo = getDemoCreator(slug);
-  const creator: CreatorRecord | null = demo ?? (profile && profile.display_name && profile.public_slug ? {
+  const baseCreator: CreatorRecord | null = demo ?? (profile && profile.display_name && profile.public_slug ? {
     handle: profile.public_slug,
     displayName: profile.display_name,
     avatar: profile.profile_image_path ?? undefined,
@@ -48,6 +49,12 @@ export default async function Page({ params, searchParams }: Props) {
     })),
     recoveryRoutes: {},
   } : null);
+  const {data:activeEmergency}=supabase&&databaseCreator?await supabase.from("creator_emergencies")
+    .select("emergency_type,severity,title,message,updated_at,emergency_affected_accounts(provider,display_handle,canonical_profile_url),emergency_replacement_accounts(provider,display_handle,canonical_profile_url,verified_at,verification_state,official)")
+    .eq("creator_id",databaseCreator.id).eq("lifecycle_status","active").maybeSingle():{data:null};
+  const emergency=activeEmergency?{...activeEmergency,affected:activeEmergency.emergency_affected_accounts?.[0]??null,
+    replacement:activeEmergency.emergency_replacement_accounts?.find((replacement)=>replacement.verification_state==="verified"&&replacement.official===true)??null}as PublicEmergency:null;
+  const creator=baseCreator?(databaseCreator?applyPublicEmergency(baseCreator,emergency):baseCreator):null;
   if (!creator || !creator.recoveryPassPublished) notFound();
   const [viewer, ownedCreator] = await Promise.all([getViewer(), getCreator()]);
   const metadataRole = viewer?.app_metadata?.role ?? viewer?.user_metadata?.role;

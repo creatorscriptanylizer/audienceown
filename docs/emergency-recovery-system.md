@@ -1,0 +1,21 @@
+# Verified Emergency Mode
+
+Verified Emergency Mode records a creator incident separately from delivery. An incident begins as a draft, captures the affected official account,
+verifies any replacement account, receives revision-bound approval, and creates an immutable alert snapshot at activation.
+
+Activation creates one canonical `creator_updates` account update. AudienceOwn then uses the existing atomic update delivery queue and each fan's selected
+Recovery Pass method. Emergency Mode does not create recipients, transports, or a broadcast-email delivery path.
+
+## Lifecycle
+
+`draft` → `pending_verification` or `pending_approval` → `ready` → `active` → `resolved`.
+Pre-activation incidents may be cancelled. Editing approved content increments the revision, invalidates approvals, and returns the incident to approval.
+
+Replacement accounts record provider, stable provider ID, handle, canonical HTTPS profile, verification state and method, verifier, and timestamp.
+Only a verified replacement can be marked official or displayed publicly.
+
+## Creator experience
+
+The Emergency Center at `/dashboard/emergency` creates incidents, previews content, verifies replacements, submits and approves alerts, activates delivery,
+resolves or cancels incidents, and shows audit and delivery counts. The public creator page uses the active incident only; resolution removes the banner.
+

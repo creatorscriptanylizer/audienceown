@@ -5,13 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 export default async function EmergencyPage() {
   const creator = await requireCreator();
   const supabase = await createClient();
-  const { data: accounts } = supabase
-    ? await supabase.from("connected_accounts").select("account_type,label,is_primary").eq("creator_id", creator.id)
-    : { data: [] };
+  const [{data:accounts},{data:emergencies},{data:deliveries}] = supabase
+    ? await Promise.all([supabase.from("connected_accounts").select("id,account_type,platform,label,url,is_primary").eq("creator_id", creator.id),
+      supabase.from("creator_emergencies").select("id,emergency_type,lifecycle_status,severity,title,message,updated_at,creator_update_id,emergency_affected_accounts(display_handle,provider),emergency_replacement_accounts(display_handle,provider,verification_state,official),emergency_events(id,event_type,created_at)")
+        .eq("creator_id",creator.id).order("updated_at",{ascending:false}),
+      supabase.from("update_deliveries").select("update_id,status,transport").eq("creator_id",creator.id)])
+    : [{data:[]},{data:[]},{data:[]}];
   const connectedAccounts = accounts ?? [];
   const primaryDestination = connectedAccounts.find((account) => account.is_primary);
 
-  return <EmergencyWorkspace readiness={{
+  return <EmergencyWorkspace accounts={(connectedAccounts.filter(a=>a.account_type==="official"))} emergencies={(emergencies??[])as never[]} deliveries={deliveries??[]} readiness={{
     recoveryPassEnabled: creator.recovery_pass_enabled,
     creatorPageLive: creator.public_profile_enabled,
     profileCompleted: Boolean(creator.display_name && creator.public_slug && creator.public_bio),
