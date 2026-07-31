@@ -30,3 +30,6 @@ Analytics are available at `/api/analytics/social` and
 After `create_social_draft` stores deterministic copy, an enabled creator AI
 profile may enqueue a separate enhancement job. The AI worker never runs inside
 social ingestion transactions or polling leases. See `ai-draft-enhancement.md`.
+# Identity graph projection
+
+Provider adapters remain the only provider-identity integration layer. Stage 6 synchronization reuses their identity fetchers and encrypted connection credentials, then projects safe stable identity into `creator_identity_accounts`. It does not add OAuth implementations or token storage.

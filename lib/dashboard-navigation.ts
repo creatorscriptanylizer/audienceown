@@ -1,4 +1,4 @@
-import { BarChart3, FileUser, House, LifeBuoy, Link2, MailPlus, Settings, Users } from "lucide-react";
+import { BarChart3, FileUser, House, LifeBuoy, Link2, MailPlus, Settings, Users, Waypoints } from "lucide-react";
 
 export const dashboardLinks = [
   { href: "/dashboard", label: "Dashboard", icon: House },
@@ -6,6 +6,7 @@ export const dashboardLinks = [
   { href: "/dashboard/updates", label: "Updates", icon: MailPlus },
   { href: "/dashboard/audience", label: "Audience", icon: Users },
   { href: "/dashboard/platforms", label: "Platforms", icon: Link2 },
+  { href: "/dashboard/identity", label: "Identity", icon: Waypoints },
   { href: "/dashboard/analytics/recovery", label: "Recovery Analytics", icon: BarChart3 },
   { href: "/dashboard/emergency", label: "Emergency", icon: LifeBuoy },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

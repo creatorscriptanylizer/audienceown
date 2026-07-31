@@ -7,6 +7,7 @@ import { canAccessRecoveryDeveloperTools } from "@/lib/recovery-access";
 import { createClient } from "@/lib/supabase/server";
 import type { CreatorRecord } from "@/lib/public-creators";
 import { applyPublicEmergency, type PublicEmergency } from "@/lib/emergency/public-banner";
+import { parsePublicIdentityGraph } from "@/lib/identity/public";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -69,6 +70,8 @@ export default async function Page({ params, searchParams }: Props) {
     ? await supabase.from("creator_updates").select("id,title,content,cta_url,media_url,sent_at")
       .eq("creator_id", databaseCreator.id).eq("status", "sent").order("sent_at", { ascending: false }).limit(10)
     : { data: [] };
+  const {data:identityData}=supabase?await supabase.rpc("get_public_creator_identity_graph",{p_slug:slug}):{data:null};
+  const identityGraph=parsePublicIdentityGraph(identityData);
   return <PublicCreatorExperience fallback={creator} source={src} canUseDevTools={canUseDevTools}
-    publicUpdates={publicUpdates ?? []} />;
+    publicUpdates={publicUpdates ?? []} identityGraph={identityGraph} />;
 }

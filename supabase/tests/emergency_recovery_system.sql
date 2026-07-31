@@ -1,5 +1,5 @@
 begin;
-select plan(58);
+select plan(61);
 select has_table('public','creator_emergencies','creator emergencies exist');
 select has_table('public','emergency_affected_accounts','affected accounts exist');
 select has_table('public','emergency_replacement_accounts','replacement accounts exist');
@@ -39,6 +39,10 @@ select is((public.submit_emergency(current_setting('tests.emergency_id')::uuid)-
 select set_config('tests.replacement_id',(select id::text from public.emergency_replacement_accounts limit 1),true);
 reset role;set local role service_role;select set_config('request.jwt.claim.role','service_role',true);
 select lives_ok($$select public.record_emergency_verification(current_setting('tests.replacement_id')::uuid,'provider_api','high','backup-123','@officialbackup','https://youtube.com/channel/backup-123',null,jsonb_build_object('requested_by','f4000000-0000-4000-8000-000000000001'))$$,'replacement may be verified authoritatively');
+update public.connected_accounts set external_account_id=id::text,external_account_url=url,external_account_name=label,connection_health='healthy',provider_status='ready'where id='f4100000-0000-4000-8000-000000000001';
+select lives_ok($$select public.sync_identity_account_from_connection('f4100000-0000-4000-8000-000000000001')$$,'affected account syncs into identity graph');
+select lives_ok($$select public.sync_identity_account_from_emergency_replacement(current_setting('tests.replacement_id')::uuid)$$,'emergency replacement syncs into identity graph');
+select is((select count(*)::integer from public.creator_identity_relationships where relationship_type='emergency_replacement_for'),1,'emergency replacement relationship is directional and preserved');
 reset role;set local role authenticated;select set_config('request.jwt.claim.role','authenticated',true);select set_config('request.jwt.claim.sub','f4000000-0000-4000-8000-000000000001',true);select set_config('request.jwt.claims','{"sub":"f4000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select ok((select official and verification_state='verified' and verified_at is not null from public.emergency_replacement_accounts),'only verified replacement is official');
 select is((select lifecycle_status from public.creator_emergencies),'pending_approval','verification advances the incident');

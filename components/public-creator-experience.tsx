@@ -26,6 +26,7 @@ import {
   unsubscribeBrowserPush,
 } from "@/lib/browser-push-client";
 import { normaliseSource } from "@/lib/recovery-pass";
+import type { PublicIdentityGraph } from "@/lib/identity/types";
 
 type AlertMethod = "Email" | "SMS" | "WhatsApp" | "Browser notification";
 const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
@@ -104,6 +105,8 @@ function OfficialLinks({ creator, heading = "Official accounts" }: { creator: Cr
     </div>
   </section>;
 }
+
+function VerifiedIdentity({graph,emergency}:{graph:PublicIdentityGraph;emergency:boolean}){if(!graph.accounts.length&&!graph.domains.length)return null;return <section className="mx-auto my-8 max-w-3xl px-5" aria-labelledby="verified-identity-title"><div className="surface rounded-xl p-5"><div className="flex items-start justify-between gap-3"><div><p className="fan-kicker">Verified identity</p><h2 id="verified-identity-title" className="mt-1 text-xl font-semibold">Official accounts and domains</h2><p className="mt-1 text-sm text-zinc-400">These destinations have been verified as belonging to this creator.</p></div><ShieldCheck className="text-emerald-300" size={24}/></div><div className="mt-5 grid gap-3 sm:grid-cols-2">{graph.accounts.map(account=><a href={account.canonicalProfileUrl} target="_blank" rel="noreferrer" key={`${account.provider}-${account.canonicalProfileUrl}`} className={`rounded-lg border p-3 ${emergency&&account.accountKind==="replacement_account"?"border-emerald-400/50 bg-emerald-400/5":"border-white/10"}`}><small className="uppercase text-zinc-500">{account.provider}</small><strong className="mt-1 block">{account.displayHandle??account.displayName??"Official account"}</strong><span className="mt-2 block text-xs text-emerald-300">{account.accountKind==="replacement_account"?"Replacement account":account.official?"Verified official":"Verified account"}{account.primary?" · Primary account":""}</span></a>)}{graph.domains.map(domain=><a href={domain.canonicalUrl} target="_blank" rel="noreferrer" key={domain.hostname} className="rounded-lg border border-white/10 p-3"><small className="uppercase text-zinc-500">Website</small><strong className="mt-1 block">{domain.hostname}</strong><span className="mt-2 block text-xs text-emerald-300">Verified domain{domain.primary?" · Primary":""}</span></a>)}</div>{graph.relationships.length>0&&<p className="mt-4 text-xs text-zinc-500">Identity continuity includes {graph.relationships.length} verified replacement or migration relationship{graph.relationships.length===1?"":"s"}.</p>}</div></section>}
 
 function useDialogFocusTrap(onClose: () => void) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -777,11 +780,12 @@ function EmergencyPage({ creator }: { creator: CreatorRecord }) {
   </>;
 }
 
-export function PublicCreatorExperience({ fallback, source, canUseDevTools = false, publicUpdates = [] }: {
+export function PublicCreatorExperience({ fallback, source, canUseDevTools = false, publicUpdates = [], identityGraph = null }: {
   fallback: CreatorRecord;
   source?: string;
   canUseDevTools?: boolean;
   publicUpdates?: Array<{ id: string; title: string; content: string; cta_url: string | null; media_url: string | null; sent_at: string | null }>;
+  identityGraph?: PublicIdentityGraph | null;
 }) {
   const [creator, setCreator] = useState(fallback);
   const [pass, setPass] = useState<SavedRecoveryPass | null>(null);
@@ -811,6 +815,7 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
   return <div className={`fan-page ${creator.emergencyMode ? "fan-page-emergency" : ""}`}>
     <Header />
     {creator.emergencyMode ? <EmergencyPage creator={creator} /> : <HealthyPage creator={creator} pass={pass} onSave={() => setModal(true)} onManage={setManageMode} onDeactivate={() => deactivatePass()} />}
+    {identityGraph && <VerifiedIdentity graph={identityGraph} emergency={creator.emergencyMode}/>}
     {publicUpdates.length > 0 && <section className="mx-auto my-8 max-w-3xl px-5">
       <p className="fan-kicker">Latest updates</p>
       <div className="mt-3 grid gap-3">{publicUpdates.map((update) => <article key={update.id} className="surface rounded-xl p-5">

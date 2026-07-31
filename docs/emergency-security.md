@@ -19,3 +19,6 @@ Templates, plans, and drills are private creator-scoped data with forced RLS and
 # Stage 5.2 verification controls
 
 Replacement ownership now uses stable provider identity through the existing encrypted OAuth connection and adapter registry. Emergency tables never store provider tokens, raw challenges, unrestricted provider responses, or private profile data. Critical redirects require high confidence, a separate approver, single-use authorization, and activation-time policy/hash validation. See [account verification](./emergency-account-verification.md), [authorization](./emergency-authorization.md), and [risk policy](./emergency-risk-policy.md).
+# Identity graph boundary
+
+The identity graph is a projection and cannot upgrade emergency verification. Revocation removes official/public identity presentation, while Stage 5 remains authoritative for critical activation and public emergency badges.

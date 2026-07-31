@@ -679,6 +679,432 @@ export type Database = {
           },
         ]
       }
+      creator_identity_accounts: {
+        Row: {
+          account_kind: string
+          archived_at: string | null
+          canonical_profile_url: string
+          created_at: string
+          creator_id: string
+          display_handle: string | null
+          display_name: string | null
+          first_verified_at: string | null
+          id: string
+          identity_profile_id: string
+          last_revalidated_at: string | null
+          last_sync_error: string | null
+          last_synced_at: string | null
+          last_verified_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          metadata: Json
+          next_sync_at: string | null
+          official: boolean
+          primary_for_provider: boolean
+          provider: string
+          public_visible: boolean
+          revoked_at: string | null
+          source_connection_id: string | null
+          source_replacement_account_id: string | null
+          stable_provider_account_id: string
+          sync_attempts: number
+          sync_status: string
+          updated_at: string
+          verification_confidence: string | null
+          verification_method: string | null
+          verification_status: string
+        }
+        Insert: {
+          account_kind: string
+          archived_at?: string | null
+          canonical_profile_url: string
+          created_at?: string
+          creator_id: string
+          display_handle?: string | null
+          display_name?: string | null
+          first_verified_at?: string | null
+          id?: string
+          identity_profile_id: string
+          last_revalidated_at?: string | null
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          last_verified_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          metadata?: Json
+          next_sync_at?: string | null
+          official?: boolean
+          primary_for_provider?: boolean
+          provider: string
+          public_visible?: boolean
+          revoked_at?: string | null
+          source_connection_id?: string | null
+          source_replacement_account_id?: string | null
+          stable_provider_account_id: string
+          sync_attempts?: number
+          sync_status?: string
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Update: {
+          account_kind?: string
+          archived_at?: string | null
+          canonical_profile_url?: string
+          created_at?: string
+          creator_id?: string
+          display_handle?: string | null
+          display_name?: string | null
+          first_verified_at?: string | null
+          id?: string
+          identity_profile_id?: string
+          last_revalidated_at?: string | null
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          last_verified_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          metadata?: Json
+          next_sync_at?: string | null
+          official?: boolean
+          primary_for_provider?: boolean
+          provider?: string
+          public_visible?: boolean
+          revoked_at?: string | null
+          source_connection_id?: string | null
+          source_replacement_account_id?: string | null
+          stable_provider_account_id?: string
+          sync_attempts?: number
+          sync_status?: string
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_identity_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_accounts_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_accounts_source_connection_id_fkey"
+            columns: ["source_connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_accounts_source_replacement_account_id_fkey"
+            columns: ["source_replacement_account_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_replacement_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_identity_domains: {
+        Row: {
+          canonical_url: string
+          created_at: string
+          creator_id: string
+          first_verified_at: string | null
+          hostname: string
+          id: string
+          identity_profile_id: string
+          last_checked_at: string | null
+          last_verified_at: string | null
+          official: boolean
+          primary_domain: boolean
+          public_visible: boolean
+          revoked_at: string | null
+          updated_at: string
+          verification_confidence: string | null
+          verification_method: string | null
+          verification_status: string
+        }
+        Insert: {
+          canonical_url: string
+          created_at?: string
+          creator_id: string
+          first_verified_at?: string | null
+          hostname: string
+          id?: string
+          identity_profile_id: string
+          last_checked_at?: string | null
+          last_verified_at?: string | null
+          official?: boolean
+          primary_domain?: boolean
+          public_visible?: boolean
+          revoked_at?: string | null
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Update: {
+          canonical_url?: string
+          created_at?: string
+          creator_id?: string
+          first_verified_at?: string | null
+          hostname?: string
+          id?: string
+          identity_profile_id?: string
+          last_checked_at?: string | null
+          last_verified_at?: string | null
+          official?: boolean
+          primary_domain?: boolean
+          public_visible?: boolean
+          revoked_at?: string | null
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_identity_domains_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_domains_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_identity_events: {
+        Row: {
+          account_id: string | null
+          actor_user_id: string | null
+          created_at: string
+          creator_id: string
+          domain_id: string | null
+          event_type: string
+          id: number
+          identity_profile_id: string
+          metadata: Json
+          relationship_id: string | null
+          source: string
+        }
+        Insert: {
+          account_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id: string
+          domain_id?: string | null
+          event_type: string
+          id?: never
+          identity_profile_id: string
+          metadata?: Json
+          relationship_id?: string | null
+          source: string
+        }
+        Update: {
+          account_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id?: string
+          domain_id?: string | null
+          event_type?: string
+          id?: never
+          identity_profile_id?: string
+          metadata?: Json
+          relationship_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_identity_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_events_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_events_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_events_relationship_id_fkey"
+            columns: ["relationship_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_relationships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_identity_profiles: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          identity_status: string
+          primary_domain_id: string | null
+          public_display_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          identity_status?: string
+          primary_domain_id?: string | null
+          public_display_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          identity_status?: string
+          primary_domain_id?: string | null
+          public_display_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_identity_profiles_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_primary_domain_fk"
+            columns: ["primary_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_identity_relationships: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          creator_id: string
+          evidence_source: string | null
+          id: string
+          identity_profile_id: string
+          relationship_type: string
+          revoked_at: string | null
+          source_account_id: string | null
+          source_domain_id: string | null
+          status: string
+          target_account_id: string | null
+          target_domain_id: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          creator_id: string
+          evidence_source?: string | null
+          id?: string
+          identity_profile_id: string
+          relationship_type: string
+          revoked_at?: string | null
+          source_account_id?: string | null
+          source_domain_id?: string | null
+          status?: string
+          target_account_id?: string | null
+          target_domain_id?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          creator_id?: string
+          evidence_source?: string | null
+          id?: string
+          identity_profile_id?: string
+          relationship_type?: string
+          revoked_at?: string | null
+          source_account_id?: string | null
+          source_domain_id?: string | null
+          status?: string
+          target_account_id?: string | null
+          target_domain_id?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_identity_relationships_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_relationships_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_relationships_source_account_id_fkey"
+            columns: ["source_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_relationships_source_domain_id_fkey"
+            columns: ["source_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_relationships_target_account_id_fkey"
+            columns: ["target_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_identity_relationships_target_domain_id_fkey"
+            columns: ["target_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_recovery_daily_snapshots: {
         Row: {
           browser_notification_count: number
@@ -2732,6 +3158,18 @@ export type Database = {
         }
         Returns: string
       }
+      append_identity_event: {
+        Args: {
+          p_account_id?: string
+          p_domain_id?: string
+          p_event_type: string
+          p_metadata?: Json
+          p_profile_id: string
+          p_relationship_id?: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       apply_emergency_revalidation: {
         Args: {
           p_error?: string
@@ -2740,6 +3178,18 @@ export type Database = {
           p_outcome: string
           p_url: string
           p_verification_id: string
+        }
+        Returns: Json
+      }
+      apply_identity_provider_sync: {
+        Args: {
+          p_account_id: string
+          p_error?: string
+          p_handle: string
+          p_name: string
+          p_stable_id: string
+          p_status: string
+          p_url: string
         }
         Returns: Json
       }
@@ -2759,6 +3209,10 @@ export type Database = {
       approve_emergency: {
         Args: { p_emergency_id: string; p_reason?: string }
         Returns: Json
+      }
+      archive_identity_account: {
+        Args: { p_account_id: string }
+        Returns: undefined
       }
       broadcast_audience_rule_for_target: {
         Args: {
@@ -2868,6 +3322,49 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "emergency_account_verifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_identity_accounts: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_kind: string
+          archived_at: string | null
+          canonical_profile_url: string
+          created_at: string
+          creator_id: string
+          display_handle: string | null
+          display_name: string | null
+          first_verified_at: string | null
+          id: string
+          identity_profile_id: string
+          last_revalidated_at: string | null
+          last_sync_error: string | null
+          last_synced_at: string | null
+          last_verified_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          metadata: Json
+          next_sync_at: string | null
+          official: boolean
+          primary_for_provider: boolean
+          provider: string
+          public_visible: boolean
+          revoked_at: string | null
+          source_connection_id: string | null
+          source_replacement_account_id: string | null
+          stable_provider_account_id: string
+          sync_attempts: number
+          sync_status: string
+          updated_at: string
+          verification_confidence: string | null
+          verification_method: string | null
+          verification_status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "creator_identity_accounts"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -3077,6 +3574,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ensure_creator_identity_profile: { Args: never; Returns: string }
       expected_delivery_transport: {
         Args: {
           selected_method_type: string
@@ -3099,6 +3597,7 @@ export type Database = {
         Returns: Json
       }
       get_ai_usage_summary: { Args: never; Returns: Json }
+      get_creator_identity_graph: { Args: never; Returns: Json }
       get_creator_recovery_broadcast_performance: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {
@@ -3199,6 +3698,10 @@ export type Database = {
           provider_message_id_present: boolean
           received_at: string
         }[]
+      }
+      get_public_creator_identity_graph: {
+        Args: { p_slug: string }
+        Returns: Json
       }
       get_social_automation_analytics: {
         Args: { p_provider?: string }
@@ -3318,6 +3821,10 @@ export type Database = {
         }
         Returns: Json
       }
+      queue_identity_account_sync: {
+        Args: { p_account_id: string }
+        Returns: undefined
+      }
       reconcile_pending_provider_event: {
         Args: {
           p_actor_role?: Database["public"]["Enums"]["delivery_operator_role"]
@@ -3374,7 +3881,32 @@ export type Database = {
         Args: { p_update_id: string; p_variant_id: string }
         Returns: Json
       }
+      set_identity_account_presentation: {
+        Args: {
+          p_account_id: string
+          p_official: boolean
+          p_primary: boolean
+          p_public_visible: boolean
+        }
+        Returns: Json
+      }
+      set_primary_identity_domain: {
+        Args: { p_domain_id: string; p_public_visible?: boolean }
+        Returns: undefined
+      }
       submit_emergency: { Args: { p_emergency_id: string }; Returns: Json }
+      sync_identity_account_from_connection: {
+        Args: { p_connection_id: string }
+        Returns: string
+      }
+      sync_identity_account_from_emergency_replacement: {
+        Args: { p_replacement_id: string }
+        Returns: string
+      }
+      sync_identity_domain: {
+        Args: { p_verification_id: string }
+        Returns: string
+      }
       update_emergency: {
         Args: {
           p_emergency_id: string

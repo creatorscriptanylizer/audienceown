@@ -136,3 +136,7 @@ The endpoint is disabled when `DELIVERY_WORKER_SECRET` is absent, accepts at
 most 25 deliveries, returns aggregate and safe per-delivery results, and never
 returns destinations. Only service-role database functions can claim or
 complete deliveries.
+
+## Creator identity graph
+
+Stage 6.0 maintains one stable-ID-anchored identity graph for every creator, projecting verified provider connections, emergency replacements, and domains into the dashboard and public creator page. See [Creator identity graph](docs/creator-identity-graph.md), [identity synchronization](docs/identity-synchronization.md), and the [public identity API](docs/public-identity-api.md).

@@ -21,4 +21,7 @@ resolves or cancels incidents, and shows audit and delivery counts. The public c
 # Stage 5.2
 
 Prepared replacement records are verified by authoritative provider identity before the existing approval, snapshot, creator-update, and Recovery Pass delivery lifecycle. No second incident or delivery pipeline is introduced. Verification revocation invalidates approval and immediately removes official public presentation.
+# Identity continuity
+
+Active emergency replacements remain governed by Stage 5 policy and public snapshot rules. Stage 6 adds continuity context without changing activation, authorization, snapshots, or Recovery Pass delivery.
 

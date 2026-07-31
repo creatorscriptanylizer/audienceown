@@ -9,3 +9,6 @@ Provider support is capability-driven. YouTube channels, Meta professional ident
 Challenges are random, hashed at rest, expire quickly, have bounded attempts, and are tied to one replacement. Profile content is checked only through official APIs. Domain checks require HTTPS/DNS exact matches, public IPs, bounded bodies and timeouts, and reject unsafe redirects.
 
 Verified connected accounts are revalidated daily by default. Active critical destinations should be scheduled every 15–60 minutes. Stable-ID matches preserve verification and safely refresh handle/URL metadata. A stable-ID change or lost grant revokes verification, invalidates approval, appends history, and removes the public badge.
+# Identity graph integration
+
+Successful emergency replacement verification can be projected into the creator identity graph. The verification remains authoritative; the graph stores only normalized identity and a directional `emergency_replacement_for` relationship.

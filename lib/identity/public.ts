@@ -1,0 +1,4 @@
+import type{PublicIdentityGraph}from"./types";
+export function parsePublicIdentityGraph(value:unknown):PublicIdentityGraph|null{if(!value||typeof value!=="object"||Array.isArray(value))return null;const row=value as Record<string,unknown>,creator=row.creator;if(!creator||typeof creator!=="object"||Array.isArray(creator))return null;const c=creator as Record<string,unknown>;
+if(typeof c.slug!=="string"||typeof c.displayName!=="string"||typeof row.identityStatus!=="string"||typeof row.lastUpdatedAt!=="string"||!Array.isArray(row.accounts)||!Array.isArray(row.domains)||!Array.isArray(row.relationships))return null;return value as PublicIdentityGraph;}
+export function visibleIdentityAccounts(graph:PublicIdentityGraph){return graph.accounts.filter(account=>account.verificationStatus==="verified"&&account.canonicalProfileUrl.startsWith("https://"));}
