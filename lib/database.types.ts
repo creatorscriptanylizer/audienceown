@@ -588,6 +588,7 @@ export type Database = {
           cancelled_at: string | null
           content_revision: number
           created_at: string
+          creation_key: string | null
           creator_id: string
           creator_update_id: string | null
           emergency_type: string
@@ -597,6 +598,8 @@ export type Database = {
           requested_by: string
           resolved_at: string | null
           severity: string
+          source_plan_id: string | null
+          source_template_id: string | null
           submitted_at: string | null
           title: string
           updated_at: string
@@ -607,6 +610,7 @@ export type Database = {
           cancelled_at?: string | null
           content_revision?: number
           created_at?: string
+          creation_key?: string | null
           creator_id: string
           creator_update_id?: string | null
           emergency_type: string
@@ -616,6 +620,8 @@ export type Database = {
           requested_by: string
           resolved_at?: string | null
           severity?: string
+          source_plan_id?: string | null
+          source_template_id?: string | null
           submitted_at?: string | null
           title: string
           updated_at?: string
@@ -626,6 +632,7 @@ export type Database = {
           cancelled_at?: string | null
           content_revision?: number
           created_at?: string
+          creation_key?: string | null
           creator_id?: string
           creator_update_id?: string | null
           emergency_type?: string
@@ -635,6 +642,8 @@ export type Database = {
           requested_by?: string
           resolved_at?: string | null
           severity?: string
+          source_plan_id?: string | null
+          source_template_id?: string | null
           submitted_at?: string | null
           title?: string
           updated_at?: string
@@ -652,6 +661,20 @@ export type Database = {
             columns: ["creator_update_id"]
             isOneToOne: false
             referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_emergencies_source_plan_id_fkey"
+            columns: ["source_plan_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_emergencies_source_template_id_fkey"
+            columns: ["source_template_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1149,6 +1172,73 @@ export type Database = {
           },
         ]
       }
+      emergency_drills: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          drill_mode: string
+          id: string
+          idempotency_key: string | null
+          result: Json
+          source_plan_id: string | null
+          source_template_id: string | null
+          started_at: string
+          started_by: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          drill_mode?: string
+          id?: string
+          idempotency_key?: string | null
+          result?: Json
+          source_plan_id?: string | null
+          source_template_id?: string | null
+          started_at?: string
+          started_by: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          drill_mode?: string
+          id?: string
+          idempotency_key?: string | null
+          result?: Json
+          source_plan_id?: string | null
+          source_template_id?: string | null
+          started_at?: string
+          started_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_drills_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_drills_source_plan_id_fkey"
+            columns: ["source_plan_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_drills_source_template_id_fkey"
+            columns: ["source_template_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_events: {
         Row: {
           actor_user_id: string | null
@@ -1199,6 +1289,94 @@ export type Database = {
             columns: ["emergency_id"]
             isOneToOne: false
             referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_plans: {
+        Row: {
+          affected_account_id: string
+          created_at: string
+          created_by: string
+          creator_id: string
+          emergency_type: string
+          id: string
+          last_validated_at: string | null
+          message: string
+          name: string
+          notes: string | null
+          proposed_replacement_handle: string | null
+          proposed_replacement_provider: string | null
+          proposed_replacement_url: string | null
+          readiness_result: Json
+          readiness_status: string
+          severity: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_account_id: string
+          created_at?: string
+          created_by: string
+          creator_id: string
+          emergency_type: string
+          id?: string
+          last_validated_at?: string | null
+          message: string
+          name: string
+          notes?: string | null
+          proposed_replacement_handle?: string | null
+          proposed_replacement_provider?: string | null
+          proposed_replacement_url?: string | null
+          readiness_result?: Json
+          readiness_status?: string
+          severity: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_account_id?: string
+          created_at?: string
+          created_by?: string
+          creator_id?: string
+          emergency_type?: string
+          id?: string
+          last_validated_at?: string | null
+          message?: string
+          name?: string
+          notes?: string | null
+          proposed_replacement_handle?: string | null
+          proposed_replacement_provider?: string | null
+          proposed_replacement_url?: string | null
+          readiness_result?: Json
+          readiness_status?: string
+          severity?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_plans_affected_account_id_fkey"
+            columns: ["affected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_plans_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_plans_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1265,6 +1443,66 @@ export type Database = {
             columns: ["emergency_id"]
             isOneToOne: false
             referencedRelation: "creator_emergencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          creator_id: string
+          default_affected_account_id: string | null
+          emergency_type: string
+          id: string
+          message_template: string
+          name: string
+          severity: string
+          title_template: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          creator_id: string
+          default_affected_account_id?: string | null
+          emergency_type: string
+          id?: string
+          message_template: string
+          name: string
+          severity: string
+          title_template: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          creator_id?: string
+          default_affected_account_id?: string | null
+          emergency_type?: string
+          id?: string
+          message_template?: string
+          name?: string
+          severity?: string
+          title_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_templates_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_templates_default_affected_account_id_fkey"
+            columns: ["default_affected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -2431,6 +2669,15 @@ export type Database = {
           p_severity: string
           p_title: string
           p_type: string
+        }
+        Returns: string
+      }
+      create_prepared_emergency: {
+        Args: {
+          p_affected_account?: string
+          p_creation_key?: string
+          p_plan_id?: string
+          p_template_id?: string
         }
         Returns: string
       }

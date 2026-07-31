@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Circle, History, LifeBuoy, Radio, ShieldAlert, TriangleAlert } from "lucide-react";
+import { PreparednessCenter } from "@/components/emergency/preparedness-center";
 
 export type EmergencyReadiness = {
   recoveryPassEnabled: boolean;
@@ -16,6 +17,7 @@ emergency_affected_accounts:{display_handle:string;provider:string}[];emergency_
 emergency_events:{id:number;event_type:string;created_at:string}[];creator_update_id:string|null};
 type Account={id:string;platform:string;label:string;url:string};
 type Delivery={update_id:string;status:string;transport:string};
+type PreparednessProps=React.ComponentProps<typeof PreparednessCenter>;
 
 function ReadinessItem({ label, complete, unavailable = false }: { label: string; complete: boolean; unavailable?: boolean }) {
   return <li className={complete ? "is-complete" : unavailable ? "is-unavailable" : "is-incomplete"}>
@@ -25,7 +27,7 @@ function ReadinessItem({ label, complete, unavailable = false }: { label: string
   </li>;
 }
 
-export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],deliveries=[] }: { readiness: EmergencyReadiness;accounts?:Account[];emergencies?:EmergencyItem[];deliveries?:Delivery[] }) {
+export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],deliveries=[],templates=[],plans=[],drills=[] }: { readiness: EmergencyReadiness;accounts?:Account[];emergencies?:EmergencyItem[];deliveries?:Delivery[];templates?:PreparednessProps["templates"];plans?:PreparednessProps["plans"];drills?:PreparednessProps["drills"] }) {
   const[message,setMessage]=useState<string|null>(null),[busy,setBusy]=useState(false);
   async function request(path:string,body?:unknown){setBusy(true);setMessage(null);try{const response=await fetch(path,{method:"POST",headers:body?{"content-type":"application/json"}:undefined,
   body:body?JSON.stringify(body):undefined});const result=await response.json()as{error?:string};if(!response.ok)throw new Error(result.error??"Request failed");
@@ -46,6 +48,8 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
       <h1>Emergency</h1>
       <p>Prepare and manage the route your audience can use if a platform account is hacked, suspended, deleted, or no longer accessible.</p>
     </header>
+
+    <PreparednessCenter accounts={accounts} templates={templates} plans={plans} drills={drills}/>
 
     <section className="surface mb-6 rounded-xl p-5">
       <p className="eyebrow">Emergency Center</p><h2 className="mt-2 text-xl font-semibold">Create a verified incident</h2>

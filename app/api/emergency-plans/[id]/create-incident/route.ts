@@ -1,0 +1,2 @@
+import { emergencyApiContext, emergencyError } from "@/lib/emergency/api";
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const key=request.headers.get("idempotency-key")??crypto.randomUUID();const{data,error}=await ctx.client.rpc("create_prepared_emergency",{p_plan_id:id,p_creation_key:key});return error?emergencyError(error):Response.json({id:data},{status:201});}

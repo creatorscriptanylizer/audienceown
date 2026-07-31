@@ -13,3 +13,6 @@
 - Broadcast email remains outside Emergency Mode. Email is used here only when it is the fan's verified selected Recovery Pass method.
 
 Review team membership regularly. Treat `manual_review` verification as a privileged operational action and retain evidence outside public alert fields.
+## Stage 5.1 preparedness guarantees
+
+Templates, plans, and drills are private creator-scoped data with forced RLS and no anonymous grants. Proposed replacement details are planning data, not verification. Drill results are aggregate-only, cannot enqueue or dispatch provider notifications, cannot make incidents public, and cannot confer approval on a real emergency. Real activation still requires approval of the current content revision, recent reauthentication where required, verified official replacement state, immutable snapshots, and append-only audit history.

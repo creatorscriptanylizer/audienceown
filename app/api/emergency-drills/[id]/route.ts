@@ -1,0 +1,2 @@
+import { emergencyApiContext, emergencyError } from "@/lib/emergency/api";
+export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const{data,error}=await ctx.client.from("emergency_drills").select("*,emergency_plans(*)").eq("id",id).eq("creator_id",ctx.creator.id).maybeSingle();return error?emergencyError(error):data?Response.json({drill:data}):Response.json({error:"Drill not found"},{status:404});}

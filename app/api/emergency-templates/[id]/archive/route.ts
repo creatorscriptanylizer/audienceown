@@ -1,0 +1,2 @@
+import { emergencyApiContext, emergencyError } from "@/lib/emergency/api";
+export async function POST(_request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const{data,error}=await ctx.client.from("emergency_templates").update({active:false}).eq("id",id).eq("creator_id",ctx.creator.id).select("id,active").maybeSingle();return error?emergencyError(error):data?Response.json({template:data}):Response.json({error:"Template not found"},{status:404});}

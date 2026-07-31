@@ -1,0 +1,3 @@
+import { emergencyApiContext, emergencyError } from "@/lib/emergency/api";
+import { validatePlan } from "@/lib/emergency/preparedness-server";
+export async function POST(_request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params,ctx=await emergencyApiContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const{data,error}=await ctx.client.from("emergency_plans").select("*").eq("id",id).eq("creator_id",ctx.creator.id).maybeSingle();if(error)return emergencyError(error);if(!data)return Response.json({error:"Plan not found"},{status:404});try{return Response.json(await validatePlan(ctx,data));}catch(cause){return emergencyError(cause as{code?:string});}}
