@@ -1,0 +1,2 @@
+export function patreonVerificationState(input:{credentialsConfigured:boolean;grantValid?:boolean;campaignId?:string|null}){if(!input.credentialsConfigured)return{status:"unavailable"as const,reason:"Provider credentials are not configured"};if(!input.grantValid)return{status:"needs_attention"as const,reason:"Creator grant is missing or revoked"};if(!input.campaignId)return{status:"pending"as const,reason:"Authoritative campaign identity requires review"};return{status:"verified"as const,reason:null};}
+

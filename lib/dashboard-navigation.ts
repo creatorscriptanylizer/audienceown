@@ -1,4 +1,4 @@
-import { BadgeCheck, BarChart3, FileUser, House, LifeBuoy, Link2, MailPlus, Settings, Users, Waypoints } from "lucide-react";
+import { BadgeCheck, BarChart3, FileUser, House, LifeBuoy, Link2, MailPlus, Network, Settings, Users, Waypoints } from "lucide-react";
 
 export const dashboardLinks = [
   { href: "/dashboard", label: "Dashboard", icon: House },
@@ -7,6 +7,7 @@ export const dashboardLinks = [
   { href: "/dashboard/audience", label: "Audience", icon: Users },
   { href: "/dashboard/platforms", label: "Platforms", icon: Link2 },
   { href: "/dashboard/identity", label: "Identity", icon: Waypoints },
+  { href: "/dashboard/ecosystem", label: "Ecosystem", icon: Network },
   { href: "/dashboard/authenticity", label: "Authenticity", icon: BadgeCheck },
   { href: "/dashboard/analytics/recovery", label: "Recovery Analytics", icon: BarChart3 },
   { href: "/dashboard/emergency", label: "Emergency", icon: LifeBuoy },

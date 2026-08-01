@@ -1,5 +1,7 @@
 # Creator identity graph
 
+Stage 8 ecosystem destinations are projections attached through verified accounts, domains, or creator identity. Stable provider IDs preserve continuity; ecosystem records never duplicate social accounts already represented here.
+
 Continuity statements derive only from this graph's authoritative relationships and revisions.
 
 Stage 7.0 consumes this graph through the safe public authenticity serializer; authenticity profiles control presentation only and are not a second identity model.

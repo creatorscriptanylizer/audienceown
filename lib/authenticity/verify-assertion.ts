@@ -20,7 +20,7 @@ export function verifyAuthenticityAssertion(
     || assertion.protected.alg !== "EdDSA" || typeof assertion.protected.kid !== "string") {
     return { valid: false, reason: "malformed" };
   }
-  if (assertion.payload.version !== "audienceown-authenticity-v1") return { valid: false, reason: "version" };
+  if (!["audienceown-authenticity-v1", "audienceown-authenticity-v2"].includes(assertion.payload.version)) return { valid: false, reason: "version" };
   if (assertion.payload.iss !== options.issuer) return { valid: false, reason: "issuer" };
   const now = (options.now ?? new Date()).getTime();
   const issued = Date.parse(assertion.payload.issuedAt);

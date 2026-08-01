@@ -2,13 +2,19 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseAuthenticityRecord } from "./public";
 import type { AuthenticityRecord } from "./types";
+import { parsePublicEcosystemGraph } from "@/lib/ecosystem/public";
 
 export async function getPublicAuthenticity(slug: string): Promise<AuthenticityRecord | null> {
   const db = createAdminClient();
   if (!db) return null;
-  const { data, error } = await db.rpc("get_public_creator_authenticity", { p_slug: slug });
+  const [{ data, error }, { data: ecosystemData }] = await Promise.all([
+    db.rpc("get_public_creator_authenticity", { p_slug: slug }),
+    db.rpc("get_public_creator_ecosystem_graph", { p_slug: slug }),
+  ]);
   if (error) return null;
-  return parseAuthenticityRecord(data);
+  const record = parseAuthenticityRecord(data);
+  const ecosystem = parsePublicEcosystemGraph(ecosystemData);
+  return record ? { ...record, ecosystem: ecosystem?.destinations ?? [] } : null;
 }
 
 export function authenticityCacheControl(record: AuthenticityRecord) {

@@ -1,0 +1,3 @@
+import{z}from"zod";import{ecosystemDestinationTypes}from"./types";import{validateRemoteUrl}from"./network-security";
+const schema=z.object({version:z.literal("audienceown-ecosystem-v1"),issuer:z.string().url(),creator:z.object({slug:z.string().min(1).max(100)}).strict(),destinations:z.array(z.object({type:z.enum(ecosystemDestinationTypes),url:z.string().url(),name:z.string().min(1).max(200).optional()}).strict()).max(100)}).strict();
+export function parseDomainManifest(value:unknown,verifiedHostname:string){const parsed=schema.parse(value);return{...parsed,destinations:parsed.destinations.map(item=>{const url=validateRemoteUrl(item.url,[verifiedHostname]);return{...item,url:url.toString(),hostname:url.hostname};})};}

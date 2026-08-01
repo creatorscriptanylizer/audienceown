@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Stage 8.0 adds Ecosystem Connect: verified communities, developer and organization presences, memberships, newsletters, podcasts, applications, and official services projected into the canonical identity graph. See [Ecosystem Connect](docs/ecosystem-connect.md) and the [public ecosystem API](docs/public-ecosystem-api.md).
+
 Stage 7.0 adds Verified Creator Cards, canonical `/verify/:slug` records, safe embeds and QR links, and optional Ed25519 assertions on top of the existing identity graph. See [public authenticity](docs/public-authenticity.md) and [authenticity assertions](docs/authenticity-assertions.md).
 
 Stage 7.1 adds portable manifests, exact account lookup, signed continuity statements, safe event feeds, domain discovery, server webhooks, and an issuer-pinned TypeScript SDK. See [Authenticity Network](docs/authenticity-network.md).

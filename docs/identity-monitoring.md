@@ -1,5 +1,7 @@
 # Continuous identity monitoring
 
+Ecosystem monitoring preserves harmless renames, suppresses presentation on authority loss or stable-ID conflict, advances identity revision, queues trust/assertion refresh, and creates private alerts. It never activates emergencies or contacts followers.
+
 Network manifests, lookup, SDK resources, feeds, and webhooks apply the same immediate suppression.
 
 Monitoring restrictions flow into authenticity through current policy. Observations, incidents, alerts, provider errors, and internal timestamps are never public.

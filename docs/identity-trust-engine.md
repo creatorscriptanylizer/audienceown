@@ -1,5 +1,7 @@
 # Explainable identity trust engine
 
+Ecosystem signals are grouped by provider family (`github`, `discord`, `patreon`, `domain`, newsletter, podcast, application store, or other). Multiple destinations in one family cannot inflate independent-signal strength; popularity, revenue, membership, stars, and engagement are excluded.
+
 Public authenticity maps the current safe trust state to a fixed label. It never exports the internal score, signal weights, evidence, or recommendations.
 
 Stage 6.1 derives creator trust from the Stage 6.0 canonical identity graph. It does not introduce a second identity record or an editable score. `creator_identity_profiles.identity_revision` changes whenever an account, domain, or relationship changes; evaluations record that source revision and become stale when it advances.

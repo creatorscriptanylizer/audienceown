@@ -1,5 +1,7 @@
 # Emergency security boundaries
 
+Ecosystem verification, synchronization, monitoring, and presentation cannot create or activate emergencies, publish provider content, or send Recovery Pass notifications.
+
 Neither discovery, lookup, continuity issuance, nor webhook delivery can activate emergencies or follower notifications.
 
 Authenticity presentation cannot activate an emergency, verify a replacement, or bypass authorization and monitoring restrictions.

@@ -1,5 +1,7 @@
 # Public authenticity
 
+Public authenticity may include verified official ecosystem destinations. Serializers exclude stable/internal IDs, permissions, scopes, evidence, errors, private communities, and private membership data.
+
 Stage 7.1 reuses this exact serializer for network manifests, lookups, feeds, and proofs; those projections never become identity truth.
 
 Stage 7.0 adds a presentation layer over the Creator Identity Graph. It does not copy or replace identity, trust, monitoring, or emergency truth. A public record is available only when the creator page and authenticity profile are enabled, the identity is not archived, and policy permits display.
