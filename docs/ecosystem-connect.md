@@ -12,3 +12,4 @@ Provider stable IDs are preferred. URLs are fallback identity anchors only when 
 
 Public resources are `/api/public/creators/{slug}/ecosystem`, `/verify/{slug}/ecosystem.json`, and exact lookup at `/api/public/ecosystem/lookup`. Only current verified, official, public destinations are serialized.
 Selected TikTok, Instagram professional, and Facebook Page assets reuse connected accounts and provider content sources. A Meta authorization alone never creates public ecosystem destinations; explicit asset selection and authority are required.
+Stage 8.4 assets reuse provider content sources and selected-asset bindings. LinkedIn login never selects every organization, and Threads never inherits Instagram or Facebook assets.

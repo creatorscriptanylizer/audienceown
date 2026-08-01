@@ -10,6 +10,7 @@ import { MetaAssetSelection } from "@/components/providers/meta-asset-selection"
 import { getSocialProvider } from "@/lib/social-providers/registry";
 import { providerReadiness } from "@/lib/social-providers/readiness";
 import type { ProviderAccessLevel } from "@/lib/social-providers/types";
+import { ProviderExpansionThreeSummary } from "@/components/providers/provider-expansion-three-summary";
 
 function accessLevel(value:string|null|undefined,fallback:ProviderAccessLevel):ProviderAccessLevel{return value==="none"||value==="development"||value==="standard"||value==="advanced"||value==="approved"?value:fallback;}
 
@@ -34,6 +35,7 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
   ]);
   const expansionTwoReadiness=Object.fromEntries((["tiktok","instagram","facebook"]as const).map(provider=>{const base=providerReadiness(getSocialProvider(provider)),grantedScopes=[...new Set((socialConnections??[]).filter(connection=>connection.platform===provider).flatMap(connection=>connection.granted_scopes))],missingScopes=base.requiredScopes.filter(scope=>!grantedScopes.includes(scope)),stored=(accessReviews??[]).filter(review=>review.provider===provider&&(!review.expires_at||review.expires_at>new Date().toISOString())).at(-1),reviewStatus=stored?.status==="approved"?"approved":stored?.status==="submitted"?"submitted":stored?.status==="restricted"?"restricted":stored?.status==="rejected"?"rejected":stored?.status==="review_required"?"required":base.reviewStatus;return[provider,{...base,grantedScopes,missingScopes,reviewStatus,accessLevel:accessLevel(stored?.access_level,base.accessLevel),contentDetectionAvailable:base.contentDetectionAvailable&&missingScopes.length===0}];}));
   const metaConnectionId=socialConnections?.find(connection=>connection.platform==="facebook"&&connection.provider_status==="asset_selection_required")?.id;
+  const expansionThreeReadiness=Object.fromEntries((["x","linkedin","threads"]as const).map(provider=>[provider,providerReadiness(getSocialProvider(provider))]));
 
   return <>
     <header className="platforms-page-header">
@@ -47,6 +49,7 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
     <ProviderExpansionSummary/>
     <ProviderExpansionTwoSummary readiness={expansionTwoReadiness} assets={providerAssets??[]} metaConnectionId={metaConnectionId}/>
     {metaConnectionId&&<MetaAssetSelection connectionId={metaConnectionId}/>}
+    <ProviderExpansionThreeSummary readiness={expansionThreeReadiness} connections={(socialConnections??[]).filter(connection=>["x","linkedin","threads"].includes(connection.platform))}/>
     <YouTubeAutomationPanel connection={youtube} activity={activity ?? []} drafts={drafts ?? []}
       status={typeof params.youtube === "string" ? params.youtube : undefined}/>
   </>;

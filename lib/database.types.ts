@@ -4990,6 +4990,90 @@ export type Database = {
           },
         ]
       }
+      provider_product_entitlements: {
+        Row: {
+          access_tier: string | null
+          capability: string
+          created_at: string
+          effective_at: string | null
+          expires_at: string | null
+          id: string
+          notes_code: string | null
+          product: string
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_tier?: string | null
+          capability: string
+          created_at?: string
+          effective_at?: string | null
+          expires_at?: string | null
+          id?: string
+          notes_code?: string | null
+          product: string
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_tier?: string | null
+          capability?: string
+          created_at?: string
+          effective_at?: string | null
+          expires_at?: string | null
+          id?: string
+          notes_code?: string | null
+          product?: string
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_stream_checkpoints: {
+        Row: {
+          checkpoint: string | null
+          consecutive_failures: number
+          created_at: string
+          id: string
+          last_event_at: string | null
+          last_heartbeat_at: string | null
+          next_reconnect_at: string | null
+          provider: string
+          status: string
+          stream_type: string
+          updated_at: string
+        }
+        Insert: {
+          checkpoint?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          last_event_at?: string | null
+          last_heartbeat_at?: string | null
+          next_reconnect_at?: string | null
+          provider?: string
+          status?: string
+          stream_type: string
+          updated_at?: string
+        }
+        Update: {
+          checkpoint?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          last_event_at?: string | null
+          last_heartbeat_at?: string | null
+          next_reconnect_at?: string | null
+          provider?: string
+          status?: string
+          stream_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       provider_verification_challenges: {
         Row: {
           asset_binding_id: string | null
@@ -6081,6 +6165,50 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "emergency_account_verifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_expansion_three_connections: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          capability_state: Json
+          connection_health: string
+          created_at: string
+          creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_account_url: string | null
+          granted_scopes: string[]
+          id: string
+          is_primary: boolean
+          is_public: boolean
+          label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          platform: string
+          poll_claimed_until: string | null
+          position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+          updated_at: string
+          url: string
+          watch_enabled: boolean
+          webhook_enabled: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "connected_accounts"
           isOneToOne: false
           isSetofReturn: true
         }

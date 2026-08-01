@@ -23,3 +23,4 @@ capabilities. It neither adds provider access nor expands auto-send permissions.
 ## Expansion II capability boundary
 
 TikTok supports OAuth identity and approved `video.list` polling. Instagram supports professional accounts through a correctly configured Instagram Login or Facebook Login mode. Facebook supports selected managed Pages. All three support manual import/verification fallbacks and approval-first drafts; none supports provider publishing.
+Stage 8.4 detection is conditional: X requires an entitled plan, LinkedIn requires restricted products and organization authority, and Threads requires its distinct reviewed product. All three offer manual fallback and disable provider publishing.

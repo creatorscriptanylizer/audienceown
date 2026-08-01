@@ -51,6 +51,7 @@ export type ProviderAccessLevel="none"|"development"|"standard"|"advanced"|"appr
 export type ProviderReviewStatus="not_required"|"not_configured"|"required"|"submitted"|"approved"|"restricted"|"rejected";
 export type ProviderReviewReadiness={configured:boolean;credentialsPresent:boolean;productConfigured:boolean;requiredScopes:string[];grantedScopes:string[];missingScopes:string[];accessLevel:ProviderAccessLevel;reviewStatus:ProviderReviewStatus;connectionAvailable:boolean;identityAvailable:boolean;assetDiscoveryAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualImportAvailable:boolean;manualVerificationAvailable:boolean;limitations:string[]};
 export type ProviderReadiness=ProviderReviewReadiness&{verificationAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[]};
+export type ProviderExpansionReadiness=ProviderReadiness&{accessTier:string;streamAvailable:boolean};
 export type LegacyProviderReadiness={configured:boolean;connectionAvailable:boolean;verificationAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[];limitations:string[]};
 export type DiscoveredProviderSource={sourceType:string;stableSourceId:string;displayName:string|null;canonicalUrl:string;metadata:Record<string,unknown>};
 
@@ -74,7 +75,7 @@ export interface SocialProviderAdapter {
   verifyWebhook?(request: Request): Promise<VerifiedWebhook>;
   normalizeWebhook?(event: VerifiedWebhook): Promise<NormalizedSocialContent[]>;
   normalizeContent?(item: unknown): NormalizedSocialContent | null;
-  readiness?():ProviderReadiness|LegacyProviderReadiness;
+  readiness?():ProviderExpansionReadiness|ProviderReadiness|LegacyProviderReadiness;
   discoverSources?(context:ProviderContext):Promise<DiscoveredProviderSource[]>;
   discoverAssets?(context:ProviderContext):Promise<DiscoveredProviderSource[]>;
   selectAsset?(value:unknown):Promise<DiscoveredProviderSource>;

@@ -38,3 +38,6 @@ Provider adapters remain the only provider-identity integration layer. Stage 6 s
 ## Stage 8.3
 
 TikTok, Instagram, and Facebook implement the shared capability/readiness contract. Instagram and Facebook reuse one Meta OAuth, Graph pagination, asset-discovery, token-security, webhook-verification, and reconciliation foundation. The generic worker contains no provider delivery behavior.
+## Stage 8.4
+
+X, LinkedIn, and Threads implement the shared readiness and normalized ingestion contracts. Their encrypted provider credentials remain in the existing credential store. Stream and webhook signals only schedule authoritative reconciliation.
