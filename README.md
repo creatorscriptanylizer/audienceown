@@ -156,3 +156,6 @@ complete deliveries.
 Stage 6.0 maintains one stable-ID-anchored identity graph for every creator, projecting verified provider connections, emergency replacements, and domains into the dashboard and public creator page. See [Creator identity graph](docs/creator-identity-graph.md), [identity synchronization](docs/identity-synchronization.md), and the [public identity API](docs/public-identity-api.md).
 Stage 8.3 extends the provider registry with review-aware TikTok Display API support and explicitly selected Instagram professional/Facebook Page assets. See [Provider Expansion II](docs/provider-expansion-two.md).
 Stage 8.4 adds plan-aware X, restricted-product LinkedIn, and distinct Threads support. See [Provider Expansion III](docs/provider-expansion-three.md).
+# Stage 8.5 provider coverage
+
+The fixed social-provider list is complete with Spotify account OAuth and verified-feed show linkage, Snapchat Login Kit with separately gated Public Profile capability, Pinterest read-only boards/Pins/claimed-site support, and SSRF-safe manual services. See [Provider Expansion IV](docs/provider-expansion-four.md). All detections remain approval-first; provider publishing is disabled.

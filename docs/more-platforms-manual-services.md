@@ -1,0 +1,3 @@
+# More platforms manual services
+
+Unsupported services use a generic public HTTPS URL, service label, category, optional handle, and verification evidence. Creation is always unverified and unofficial. Verification may use a verified domain, well-known manifest, exact public challenge, signed authenticity statement, or constrained operator review. Challenges store only hashes, expire, have bounded attempts, prevent replay, enforce exact host placement, reject redirects, validate DNS/IP destinations against private and reserved ranges, cap time and response size, and accept only safe text/JSON. Services are never scraped and automatic synchronization/publishing are unavailable.

@@ -15,3 +15,6 @@ Verification means AudienceOwn has current control and continuity signals for th
 Operations use `POST /api/internal/authenticity/issue` and `GET /api/internal/authenticity/health` with `AUTHENTICITY_WORKER_SECRET`. Public output continues unsigned when signing is unavailable.
 Verified selected TikTok profiles, Instagram professional profiles, and Facebook Pages may expose safe labels, canonical profile links, and approved update links. Stable IDs, permissions/scopes, review and token health, webhook state, provider errors, and expiring/private media URLs are never public.
 Verified Stage 8.4 accounts may expose safe labels, handles, canonical profiles, availability, verification dates, and approved content links. X IDs, LinkedIn URNs, Threads IDs, roles, tiers, scopes, cursors, rate limits, and errors remain private.
+# Expansion IV public fields
+
+Public output may include verified display labels, handles, canonical links, categories, safe availability, and verification-method labels. It excludes Spotify/Snapchat/Pinterest stable IDs, tokens, scopes, review details, errors, private board state, challenge values, and evidence.

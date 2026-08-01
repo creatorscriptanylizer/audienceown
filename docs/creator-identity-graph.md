@@ -17,3 +17,6 @@ The graph projects authoritative `connected_accounts`, provider identity fetcher
 Directional relationships preserve replacements and migrations, including `emergency_replacement_for`. Events are append-only. Stage 6.0 deliberately exposes no trust score; scoring belongs to Stage 6.1.
 TikTok `open_id`, Instagram professional account ID, and Facebook Page ID are private stable anchors. Meta app users are discovery principals, not creator assets. Safe public projections contain only category, label/handle, canonical URL, official state, and verification time.
 Stage 8.4 anchors X by numeric user ID, LinkedIn by member or organization identity, and Threads by its distinct stable user ID. Usernames and vanity identifiers remain mutable labels. Private centralized IDs stay out of public serializers.
+# Expansion IV identities
+
+Spotify account, Snapchat Login Kit, Snapchat Public Profile, Pinterest account/board, and manual-service relationships remain distinct nodes. Mutable handles never replace stable anchors, and manual services contribute strong coverage only with authoritative evidence.

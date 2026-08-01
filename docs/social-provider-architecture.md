@@ -41,3 +41,6 @@ TikTok, Instagram, and Facebook implement the shared capability/readiness contra
 ## Stage 8.4
 
 X, LinkedIn, and Threads implement the shared readiness and normalized ingestion contracts. Their encrypted provider credentials remain in the existing credential store. Stream and webhook signals only schedule authoritative reconciliation.
+# Stage 8.5 extension
+
+Spotify, Snapchat, and Pinterest use the same registry, signed OAuth state, encrypted secrets, assets, content sources, polling, detections, drafts, monitoring, identity, trust, and authenticity paths. Manual services are destinations, not speculative provider adapters. The named provider list is fixed.

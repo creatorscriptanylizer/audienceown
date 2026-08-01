@@ -11,6 +11,7 @@ import { getSocialProvider } from "@/lib/social-providers/registry";
 import { providerReadiness } from "@/lib/social-providers/readiness";
 import type { ProviderAccessLevel } from "@/lib/social-providers/types";
 import { ProviderExpansionThreeSummary } from "@/components/providers/provider-expansion-three-summary";
+import { ProviderExpansionFourSummary } from "@/components/providers/provider-expansion-four-summary";
 
 function accessLevel(value:string|null|undefined,fallback:ProviderAccessLevel):ProviderAccessLevel{return value==="none"||value==="development"||value==="standard"||value==="advanced"||value==="approved"?value:fallback;}
 
@@ -18,7 +19,7 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
   const creator = await requireCreator();
   const supabase = (await createClient())!;
   const params = await searchParams;
-  const [{ data: accounts }, { data: socialConnections }, { data: youtube }, { data: activity }, { data: drafts }, {data:providerAssets},{data:accessReviews}] = await Promise.all([
+  const [{ data: accounts }, { data: socialConnections }, { data: youtube }, { data: activity }, { data: drafts }, {data:providerAssets},{data:accessReviews},{data:manualServices}] = await Promise.all([
     supabase.from("connected_accounts").select("id,platform,account_type,label,url,is_primary,is_public,position")
       .eq("creator_id", creator.id).order("position"),
     supabase.from("connected_accounts").select("id,platform,external_account_name,connection_health,provider_status,watch_enabled,auto_send,webhook_enabled,last_sync_at,granted_scopes")
@@ -32,10 +33,12 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
       .order("updated_at", { ascending: false }).limit(8),
     supabase.from("provider_asset_bindings").select("provider,display_name,display_handle,authority_status,verification_status,detection_enabled,last_successful_sync_at").eq("creator_id",creator.id),
     supabase.from("provider_access_reviews").select("provider,capability,status,access_level,expires_at"),
+    supabase.from("manual_service_connections").select("id,service_name,service_category,canonical_url,verification_status,verification_method,public_visible,official").eq("creator_id",creator.id).is("archived_at",null),
   ]);
   const expansionTwoReadiness=Object.fromEntries((["tiktok","instagram","facebook"]as const).map(provider=>{const base=providerReadiness(getSocialProvider(provider)),grantedScopes=[...new Set((socialConnections??[]).filter(connection=>connection.platform===provider).flatMap(connection=>connection.granted_scopes))],missingScopes=base.requiredScopes.filter(scope=>!grantedScopes.includes(scope)),stored=(accessReviews??[]).filter(review=>review.provider===provider&&(!review.expires_at||review.expires_at>new Date().toISOString())).at(-1),reviewStatus=stored?.status==="approved"?"approved":stored?.status==="submitted"?"submitted":stored?.status==="restricted"?"restricted":stored?.status==="rejected"?"rejected":stored?.status==="review_required"?"required":base.reviewStatus;return[provider,{...base,grantedScopes,missingScopes,reviewStatus,accessLevel:accessLevel(stored?.access_level,base.accessLevel),contentDetectionAvailable:base.contentDetectionAvailable&&missingScopes.length===0}];}));
   const metaConnectionId=socialConnections?.find(connection=>connection.platform==="facebook"&&connection.provider_status==="asset_selection_required")?.id;
   const expansionThreeReadiness=Object.fromEntries((["x","linkedin","threads"]as const).map(provider=>[provider,providerReadiness(getSocialProvider(provider))]));
+  const expansionFourReadiness=Object.fromEntries((["spotify","snapchat","pinterest"]as const).map(provider=>[provider,providerReadiness(getSocialProvider(provider))]));
 
   return <>
     <header className="platforms-page-header">
@@ -50,6 +53,7 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
     <ProviderExpansionTwoSummary readiness={expansionTwoReadiness} assets={providerAssets??[]} metaConnectionId={metaConnectionId}/>
     {metaConnectionId&&<MetaAssetSelection connectionId={metaConnectionId}/>}
     <ProviderExpansionThreeSummary readiness={expansionThreeReadiness} connections={(socialConnections??[]).filter(connection=>["x","linkedin","threads"].includes(connection.platform))}/>
+    <ProviderExpansionFourSummary readiness={expansionFourReadiness} connections={(socialConnections??[]).filter(connection=>["spotify","snapchat","pinterest"].includes(connection.platform))} manualServices={manualServices??[]}/>
     <YouTubeAutomationPanel connection={youtube} activity={activity ?? []} drafts={drafts ?? []}
       status={typeof params.youtube === "string" ? params.youtube : undefined}/>
   </>;

@@ -2,9 +2,9 @@ import "server-only";import { randomUUID } from "node:crypto";import { createAdm
 import { decryptSocialSecret,encryptSocialSecret } from "@/lib/social-secrets";
 import { getSocialProvider } from "./registry";import { isSocialProvider,validateNormalizedContent } from "./normalize";
 import { isRetryableProviderError,SocialProviderError } from "./errors";
-export async function pollSocialConnections(limit=20,scope:"all"|"expansion-two"|"expansion-three"="all"){
+export async function pollSocialConnections(limit=20,scope:"all"|"expansion-two"|"expansion-three"|"expansion-four"="all"){
   const admin=createAdminClient();if(!admin)throw new Error("Social polling is not configured.");
-  const leaseOwner=randomUUID(),claim=scope==="expansion-two"?await admin.rpc("claim_expansion_two_connections",{p_limit:limit,p_lease_owner:leaseOwner}):scope==="expansion-three"?await admin.rpc("claim_expansion_three_connections",{p_limit:limit,p_lease_owner:leaseOwner}):await admin.rpc("claim_social_connections",{p_limit:limit,p_lease_seconds:180,p_lease_owner:leaseOwner});const{data:connections,error}=claim;
+  const leaseOwner=randomUUID(),claim=scope==="expansion-two"?await admin.rpc("claim_expansion_two_connections",{p_limit:limit,p_lease_owner:leaseOwner}):scope==="expansion-three"?await admin.rpc("claim_expansion_three_connections",{p_limit:limit,p_lease_owner:leaseOwner}):scope==="expansion-four"?await admin.rpc("claim_expansion_four_connections",{p_limit:limit,p_lease_owner:leaseOwner}):await admin.rpc("claim_social_connections",{p_limit:limit,p_lease_seconds:180,p_lease_owner:leaseOwner});const{data:connections,error}=claim;
   if(error)throw error;const summary={claimed:connections?.length??0,polled:0,detected:0,duplicates:0,drafts:0,autoPublished:0,failed:0,byProvider:{} as Record<string,{claimed:number;detected:number;failed:number}>};
   for(const connection of connections??[]){if(!isSocialProvider(connection.platform))continue;const provider=connection.platform,adapter=getSocialProvider(provider);
     const providerSummary=summary.byProvider[provider]??={claimed:0,detected:0,failed:0};providerSummary.claimed++;

@@ -4561,6 +4561,176 @@ export type Database = {
           },
         ]
       }
+      manual_service_challenges: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          creator_id: string
+          exact_url: string
+          expires_at: string
+          id: string
+          manual_service_id: string
+          max_attempts: number
+          method: string
+          status: string
+          token_hash: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          creator_id: string
+          exact_url: string
+          expires_at: string
+          id?: string
+          manual_service_id: string
+          max_attempts?: number
+          method: string
+          status?: string
+          token_hash: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          creator_id?: string
+          exact_url?: string
+          expires_at?: string
+          id?: string
+          manual_service_id?: string
+          max_attempts?: number
+          method?: string
+          status?: string
+          token_hash?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_service_challenges_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_service_challenges_manual_service_id_fkey"
+            columns: ["manual_service_id"]
+            isOneToOne: false
+            referencedRelation: "manual_service_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_service_connections: {
+        Row: {
+          archived_at: string | null
+          canonical_url: string
+          created_at: string
+          creator_id: string
+          current_challenge_id: string | null
+          display_name: string
+          id: string
+          identity_profile_id: string
+          last_verified_at: string | null
+          metadata: Json
+          normalized_hostname: string
+          official: boolean
+          primary_for_category: boolean
+          public_handle: string | null
+          public_visible: boolean
+          revoked_at: string | null
+          service_category: string
+          service_name: string
+          source_domain_id: string | null
+          updated_at: string
+          verification_confidence: string | null
+          verification_expires_at: string | null
+          verification_method: string | null
+          verification_status: string
+        }
+        Insert: {
+          archived_at?: string | null
+          canonical_url: string
+          created_at?: string
+          creator_id: string
+          current_challenge_id?: string | null
+          display_name: string
+          id?: string
+          identity_profile_id: string
+          last_verified_at?: string | null
+          metadata?: Json
+          normalized_hostname: string
+          official?: boolean
+          primary_for_category?: boolean
+          public_handle?: string | null
+          public_visible?: boolean
+          revoked_at?: string | null
+          service_category: string
+          service_name: string
+          source_domain_id?: string | null
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_expires_at?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Update: {
+          archived_at?: string | null
+          canonical_url?: string
+          created_at?: string
+          creator_id?: string
+          current_challenge_id?: string | null
+          display_name?: string
+          id?: string
+          identity_profile_id?: string
+          last_verified_at?: string | null
+          metadata?: Json
+          normalized_hostname?: string
+          official?: boolean
+          primary_for_category?: boolean
+          public_handle?: string | null
+          public_visible?: boolean
+          revoked_at?: string | null
+          service_category?: string
+          service_name?: string
+          source_domain_id?: string | null
+          updated_at?: string
+          verification_confidence?: string | null
+          verification_expires_at?: string | null
+          verification_method?: string | null
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_service_connections_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_service_connections_identity_profile_id_fkey"
+            columns: ["identity_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_service_connections_source_domain_id_fkey"
+            columns: ["source_domain_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_service_current_challenge_fkey"
+            columns: ["current_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "manual_service_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_webhook_subscriptions: {
         Row: {
           asset_binding_id: string
@@ -5839,6 +6009,7 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: undefined
       }
+      archive_manual_service: { Args: { p_id: string }; Returns: undefined }
       broadcast_audience_rule_for_target: {
         Args: {
           affected_platform_connection_id: string
@@ -6165,6 +6336,50 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "emergency_account_verifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_expansion_four_connections: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          capability_state: Json
+          connection_health: string
+          created_at: string
+          creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_account_url: string | null
+          granted_scopes: string[]
+          id: string
+          is_primary: boolean
+          is_public: boolean
+          label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          platform: string
+          poll_claimed_until: string | null
+          position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+          updated_at: string
+          url: string
+          watch_enabled: boolean
+          webhook_enabled: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "connected_accounts"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -6577,6 +6792,17 @@ export type Database = {
           p_severity: string
           p_title: string
           p_type: string
+        }
+        Returns: string
+      }
+      create_manual_service: {
+        Args: {
+          p_canonical_url: string
+          p_category: string
+          p_display_name: string
+          p_hostname: string
+          p_public_handle: string
+          p_service_name: string
         }
         Returns: string
       }
@@ -7226,6 +7452,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_manual_service_presentation: {
+        Args: { p_id: string; p_public_visible: boolean }
+        Returns: undefined
+      }
       update_monitoring_incident: {
         Args: {
           p_action: string
@@ -7259,6 +7489,15 @@ export type Database = {
           p_url: string
         }
         Returns: string
+      }
+      verify_manual_service: {
+        Args: {
+          p_challenge_id: string
+          p_confidence: string
+          p_id: string
+          p_method: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

@@ -34,3 +34,6 @@ Replacement ownership now uses stable provider identity through the existing enc
 The identity graph is a projection and cannot upgrade emergency verification. Revocation removes official/public identity presentation, while Stage 5 remains authoritative for critical activation and public emergency badges.
 Provider Expansion II is isolated from emergency activation. TikTok/Meta lifecycle changes may create private alerts and monitoring incidents but cannot start an emergency, authorize recovery, or dispatch Recovery Pass delivery.
 X, LinkedIn, and Threads monitoring is isolated from emergency activation and Recovery Pass dispatch. Authority loss produces private monitoring state only; emergency preparation remains a separate creator-authorized workflow.
+# Provider Expansion IV isolation
+
+Spotify, Snapchat, Pinterest, and manual-service workflows cannot activate emergencies, modify emergency authority, publish provider content, or enqueue follower delivery. Provider authority loss only invokes existing alerts and reevaluation.
