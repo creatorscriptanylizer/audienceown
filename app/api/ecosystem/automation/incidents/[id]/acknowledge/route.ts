@@ -1,0 +1,1 @@
+import{incidentAutomationMutation}from"@/lib/ecosystem/automation-api";export async function POST(r:Request,{params}:{params:Promise<{id:string}>}){return incidentAutomationMutation(r,(await params).id,"acknowledge");}

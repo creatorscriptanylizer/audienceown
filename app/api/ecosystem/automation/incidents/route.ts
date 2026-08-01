@@ -1,0 +1,2 @@
+import{getCreator}from"@/lib/dal";import{createClient}from"@/lib/supabase/server";export async function GET(){const c=await getCreator(),db=await createClient();if(!c||!db)return Response.json({error:"Unauthorized"},{status:401});const{data,error}=await db.from("ecosystem_automation_incidents").select("*").eq("creator_id",c.id).order("created_at",{ascending:false});return error?Response.json({error:"Incidents unavailable"},{status:500}):Response.json({incidents:data??[]},{headers:{"cache-control":"private, no-store"}});}
+ 

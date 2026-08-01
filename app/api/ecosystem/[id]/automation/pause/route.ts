@@ -1,0 +1,1 @@
+import{destinationAutomationMutation}from"@/lib/ecosystem/automation-api";export async function POST(r:Request,{params}:{params:Promise<{id:string}>}){return destinationAutomationMutation(r,(await params).id,"pause");}

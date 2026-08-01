@@ -2,7 +2,7 @@ import type{EcosystemCapabilities,EcosystemProvider}from"./types";
 export type EcosystemProviderDefinition={provider:EcosystemProvider;displayName:string;availability:"available"|"credentials_required"|"review_required"|"manual_only";capabilities:EcosystemCapabilities;credentialNames:string[];hosts:string[]};
 const base={webhookSupported:false,pollingSupported:true,manualImportSupported:true,revalidationSupported:true};
 const providers:EcosystemProviderDefinition[]=[
- {provider:"github",displayName:"GitHub",availability:"credentials_required",capabilities:{...base,connectionSupported:true,identityVerificationSupported:true,organizationVerificationSupported:true,destinationDiscoverySupported:true,stableExternalIdSupported:true},credentialNames:["GITHUB_CLIENT_ID","GITHUB_CLIENT_SECRET"],hosts:["github.com"]},
+ {provider:"github",displayName:"GitHub",availability:"credentials_required",capabilities:{...base,webhookSupported:true,connectionSupported:true,identityVerificationSupported:true,organizationVerificationSupported:true,destinationDiscoverySupported:true,stableExternalIdSupported:true},credentialNames:["GITHUB_CLIENT_ID","GITHUB_CLIENT_SECRET"],hosts:["github.com"]},
  {provider:"discord",displayName:"Discord",availability:"credentials_required",capabilities:{...base,connectionSupported:true,identityVerificationSupported:true,organizationVerificationSupported:true,destinationDiscoverySupported:true,stableExternalIdSupported:true},credentialNames:["DISCORD_CLIENT_ID","DISCORD_CLIENT_SECRET"],hosts:["discord.com","discord.gg"]},
  {provider:"patreon",displayName:"Patreon",availability:"review_required",capabilities:{...base,connectionSupported:true,identityVerificationSupported:true,organizationVerificationSupported:false,destinationDiscoverySupported:true,stableExternalIdSupported:true},credentialNames:["PATREON_CLIENT_ID","PATREON_CLIENT_SECRET"],hosts:["patreon.com"]},
  {provider:"website",displayName:"Verified website",availability:"available",capabilities:{...base,connectionSupported:false,identityVerificationSupported:true,organizationVerificationSupported:false,destinationDiscoverySupported:true,stableExternalIdSupported:false},credentialNames:[],hosts:[]},
@@ -14,4 +14,3 @@ const providers:EcosystemProviderDefinition[]=[
 ];
 export function getEcosystemProvider(value:string){return providers.find(x=>x.provider===value)??null;}
 export function listEcosystemProviders(){return providers.map(p=>({...p,enabled:p.credentialNames.every(name=>Boolean(process.env[name]))}));}
-

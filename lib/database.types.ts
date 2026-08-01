@@ -1257,10 +1257,16 @@ export type Database = {
       creator_ecosystem_destinations: {
         Row: {
           archived_at: string | null
+          auto_apply_safe_changes: boolean
+          automation_enabled: boolean
+          automation_pause_reason: string | null
+          automation_paused_at: string | null
           canonical_url: string
           capabilities: Json
+          consecutive_failures: number
           created_at: string
           creator_id: string
+          current_fingerprint: string | null
           destination_type: string
           display_handle: string | null
           display_name: string
@@ -1268,7 +1274,13 @@ export type Database = {
           hostname: string
           id: string
           identity_profile_id: string
+          last_attempted_sync_at: string | null
+          last_authoritative_event_at: string | null
+          last_failure_class: string | null
+          last_failure_code: string | null
+          last_observed_fingerprint: string | null
           last_revalidated_at: string | null
+          last_successful_sync_at: string | null
           last_sync_error_code: string | null
           last_synced_at: string | null
           last_verified_at: string | null
@@ -1276,6 +1288,7 @@ export type Database = {
           lease_owner: string | null
           metadata: Json
           next_revalidation_at: string | null
+          next_sync_at: string | null
           official: boolean
           primary_for_type: boolean
           provider: string
@@ -1285,6 +1298,10 @@ export type Database = {
           source_identity_account_id: string | null
           stable_external_id: string | null
           sync_attempts: number
+          sync_lease_expires_at: string | null
+          sync_lease_owner: string | null
+          sync_priority: string
+          sync_revision: number
           sync_status: string
           updated_at: string
           verification_confidence: string | null
@@ -1294,10 +1311,16 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          auto_apply_safe_changes?: boolean
+          automation_enabled?: boolean
+          automation_pause_reason?: string | null
+          automation_paused_at?: string | null
           canonical_url: string
           capabilities?: Json
+          consecutive_failures?: number
           created_at?: string
           creator_id: string
+          current_fingerprint?: string | null
           destination_type: string
           display_handle?: string | null
           display_name: string
@@ -1305,7 +1328,13 @@ export type Database = {
           hostname: string
           id?: string
           identity_profile_id: string
+          last_attempted_sync_at?: string | null
+          last_authoritative_event_at?: string | null
+          last_failure_class?: string | null
+          last_failure_code?: string | null
+          last_observed_fingerprint?: string | null
           last_revalidated_at?: string | null
+          last_successful_sync_at?: string | null
           last_sync_error_code?: string | null
           last_synced_at?: string | null
           last_verified_at?: string | null
@@ -1313,6 +1342,7 @@ export type Database = {
           lease_owner?: string | null
           metadata?: Json
           next_revalidation_at?: string | null
+          next_sync_at?: string | null
           official?: boolean
           primary_for_type?: boolean
           provider: string
@@ -1322,6 +1352,10 @@ export type Database = {
           source_identity_account_id?: string | null
           stable_external_id?: string | null
           sync_attempts?: number
+          sync_lease_expires_at?: string | null
+          sync_lease_owner?: string | null
+          sync_priority?: string
+          sync_revision?: number
           sync_status?: string
           updated_at?: string
           verification_confidence?: string | null
@@ -1331,10 +1365,16 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          auto_apply_safe_changes?: boolean
+          automation_enabled?: boolean
+          automation_pause_reason?: string | null
+          automation_paused_at?: string | null
           canonical_url?: string
           capabilities?: Json
+          consecutive_failures?: number
           created_at?: string
           creator_id?: string
+          current_fingerprint?: string | null
           destination_type?: string
           display_handle?: string | null
           display_name?: string
@@ -1342,7 +1382,13 @@ export type Database = {
           hostname?: string
           id?: string
           identity_profile_id?: string
+          last_attempted_sync_at?: string | null
+          last_authoritative_event_at?: string | null
+          last_failure_class?: string | null
+          last_failure_code?: string | null
+          last_observed_fingerprint?: string | null
           last_revalidated_at?: string | null
+          last_successful_sync_at?: string | null
           last_sync_error_code?: string | null
           last_synced_at?: string | null
           last_verified_at?: string | null
@@ -1350,6 +1396,7 @@ export type Database = {
           lease_owner?: string | null
           metadata?: Json
           next_revalidation_at?: string | null
+          next_sync_at?: string | null
           official?: boolean
           primary_for_type?: boolean
           provider?: string
@@ -1359,6 +1406,10 @@ export type Database = {
           source_identity_account_id?: string | null
           stable_external_id?: string | null
           sync_attempts?: number
+          sync_lease_expires_at?: string | null
+          sync_lease_owner?: string | null
+          sync_priority?: string
+          sync_revision?: number
           sync_status?: string
           updated_at?: string
           verification_confidence?: string | null
@@ -2707,6 +2758,179 @@ export type Database = {
           },
         ]
       }
+      ecosystem_automation_actions: {
+        Row: {
+          action_type: string
+          actor_type: string
+          actor_user_id: string | null
+          created_at: string
+          creator_id: string
+          destination_id: string
+          id: string
+          incident_id: string | null
+          metadata: Json
+          observation_id: string | null
+          result_code: string | null
+          status: string
+        }
+        Insert: {
+          action_type: string
+          actor_type: string
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id: string
+          destination_id: string
+          id?: string
+          incident_id?: string | null
+          metadata?: Json
+          observation_id?: string | null
+          result_code?: string | null
+          status: string
+        }
+        Update: {
+          action_type?: string
+          actor_type?: string
+          actor_user_id?: string | null
+          created_at?: string
+          creator_id?: string
+          destination_id?: string
+          id?: string
+          incident_id?: string | null
+          metadata?: Json
+          observation_id?: string | null
+          result_code?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecosystem_automation_actions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_actions_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_actions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "ecosystem_automation_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_actions_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "ecosystem_sync_observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ecosystem_automation_incidents: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          correlation_key: string
+          created_at: string
+          creator_id: string
+          destination_id: string
+          id: string
+          incident_type: string
+          observation_id: string
+          resolution_code: string | null
+          resolved_at: string | null
+          security_alert_id: string | null
+          severity: string
+          status: string
+          summary: string
+          title: string
+          trust_evaluation_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          correlation_key: string
+          created_at?: string
+          creator_id: string
+          destination_id: string
+          id?: string
+          incident_type: string
+          observation_id: string
+          resolution_code?: string | null
+          resolved_at?: string | null
+          security_alert_id?: string | null
+          severity: string
+          status?: string
+          summary: string
+          title: string
+          trust_evaluation_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          correlation_key?: string
+          created_at?: string
+          creator_id?: string
+          destination_id?: string
+          id?: string
+          incident_type?: string
+          observation_id?: string
+          resolution_code?: string | null
+          resolved_at?: string | null
+          security_alert_id?: string | null
+          severity?: string
+          status?: string
+          summary?: string
+          title?: string
+          trust_evaluation_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecosystem_automation_incidents_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_incidents_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_incidents_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "ecosystem_sync_observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_incidents_security_alert_id_fkey"
+            columns: ["security_alert_id"]
+            isOneToOne: false
+            referencedRelation: "creator_security_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_automation_incidents_trust_evaluation_id_fkey"
+            columns: ["trust_evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "creator_trust_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ecosystem_events: {
         Row: {
           actor_user_id: string | null
@@ -2781,6 +3005,78 @@ export type Database = {
             columns: ["verification_id"]
             isOneToOne: false
             referencedRelation: "ecosystem_verification_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ecosystem_sync_observations: {
+        Row: {
+          authoritative: boolean
+          created_at: string
+          creator_id: string
+          current_fingerprint: string | null
+          destination_id: string
+          id: string
+          normalized_changes: Json
+          observation_type: string
+          observed_at: string
+          previous_fingerprint: string | null
+          processed_at: string | null
+          provider: string
+          severity: string
+          source: string
+          source_event_id: string | null
+          status: string
+        }
+        Insert: {
+          authoritative: boolean
+          created_at?: string
+          creator_id: string
+          current_fingerprint?: string | null
+          destination_id: string
+          id?: string
+          normalized_changes?: Json
+          observation_type: string
+          observed_at?: string
+          previous_fingerprint?: string | null
+          processed_at?: string | null
+          provider: string
+          severity: string
+          source: string
+          source_event_id?: string | null
+          status?: string
+        }
+        Update: {
+          authoritative?: boolean
+          created_at?: string
+          creator_id?: string
+          current_fingerprint?: string | null
+          destination_id?: string
+          id?: string
+          normalized_changes?: Json
+          observation_type?: string
+          observed_at?: string
+          previous_fingerprint?: string | null
+          processed_at?: string | null
+          provider?: string
+          severity?: string
+          source?: string
+          source_event_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecosystem_sync_observations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecosystem_sync_observations_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
             referencedColumns: ["id"]
           },
         ]
@@ -5105,14 +5401,20 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      claim_ecosystem_sync: {
+      claim_ecosystem_automation_destinations: {
         Args: { p_lease_owner?: string; p_limit?: number }
         Returns: {
           archived_at: string | null
+          auto_apply_safe_changes: boolean
+          automation_enabled: boolean
+          automation_pause_reason: string | null
+          automation_paused_at: string | null
           canonical_url: string
           capabilities: Json
+          consecutive_failures: number
           created_at: string
           creator_id: string
+          current_fingerprint: string | null
           destination_type: string
           display_handle: string | null
           display_name: string
@@ -5120,7 +5422,13 @@ export type Database = {
           hostname: string
           id: string
           identity_profile_id: string
+          last_attempted_sync_at: string | null
+          last_authoritative_event_at: string | null
+          last_failure_class: string | null
+          last_failure_code: string | null
+          last_observed_fingerprint: string | null
           last_revalidated_at: string | null
+          last_successful_sync_at: string | null
           last_sync_error_code: string | null
           last_synced_at: string | null
           last_verified_at: string | null
@@ -5128,6 +5436,7 @@ export type Database = {
           lease_owner: string | null
           metadata: Json
           next_revalidation_at: string | null
+          next_sync_at: string | null
           official: boolean
           primary_for_type: boolean
           provider: string
@@ -5137,6 +5446,73 @@ export type Database = {
           source_identity_account_id: string | null
           stable_external_id: string | null
           sync_attempts: number
+          sync_lease_expires_at: string | null
+          sync_lease_owner: string | null
+          sync_priority: string
+          sync_revision: number
+          sync_status: string
+          updated_at: string
+          verification_confidence: string | null
+          verification_expires_at: string | null
+          verification_method: string | null
+          verification_status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "creator_ecosystem_destinations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_ecosystem_sync: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          archived_at: string | null
+          auto_apply_safe_changes: boolean
+          automation_enabled: boolean
+          automation_pause_reason: string | null
+          automation_paused_at: string | null
+          canonical_url: string
+          capabilities: Json
+          consecutive_failures: number
+          created_at: string
+          creator_id: string
+          current_fingerprint: string | null
+          destination_type: string
+          display_handle: string | null
+          display_name: string
+          first_verified_at: string | null
+          hostname: string
+          id: string
+          identity_profile_id: string
+          last_attempted_sync_at: string | null
+          last_authoritative_event_at: string | null
+          last_failure_class: string | null
+          last_failure_code: string | null
+          last_observed_fingerprint: string | null
+          last_revalidated_at: string | null
+          last_successful_sync_at: string | null
+          last_sync_error_code: string | null
+          last_synced_at: string | null
+          last_verified_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          metadata: Json
+          next_revalidation_at: string | null
+          next_sync_at: string | null
+          official: boolean
+          primary_for_type: boolean
+          provider: string
+          public_visible: boolean
+          revoked_at: string | null
+          source_connection_id: string | null
+          source_identity_account_id: string | null
+          stable_external_id: string | null
+          sync_attempts: number
+          sync_lease_expires_at: string | null
+          sync_lease_owner: string | null
+          sync_priority: string
+          sync_revision: number
           sync_status: string
           updated_at: string
           verification_confidence: string | null
@@ -5722,6 +6098,21 @@ export type Database = {
         }
         Returns: string
       }
+      ingest_ecosystem_observation: {
+        Args: {
+          p_authoritative: boolean
+          p_current_fingerprint: string
+          p_destination_id: string
+          p_normalized_changes: Json
+          p_observation_type: string
+          p_observed_at?: string
+          p_previous_fingerprint: string
+          p_severity: string
+          p_source: string
+          p_source_event_id: string
+        }
+        Returns: string
+      }
       ingest_identity_observation: {
         Args: {
           p_account_id?: string
@@ -5823,9 +6214,29 @@ export type Database = {
         Args: { p_destination_hash: string; p_reason: string }
         Returns: number
       }
+      pause_ecosystem_automation: {
+        Args: { p_destination_id: string; p_reason?: string }
+        Returns: undefined
+      }
       prepare_monitoring_emergency: {
         Args: { p_incident_id: string }
         Returns: string
+      }
+      process_ecosystem_observation: {
+        Args: {
+          p_alert_required: boolean
+          p_classification: string
+          p_incident_required: boolean
+          p_needs_attention: boolean
+          p_observation_id: string
+          p_policy_version: string
+          p_retry_at?: string
+          p_retry_required: boolean
+          p_revoke: boolean
+          p_safe_auto_apply: boolean
+          p_suppress: boolean
+        }
+        Returns: Json
       }
       process_identity_observation: {
         Args: { p_observation_id: string }
@@ -5843,6 +6254,10 @@ export type Database = {
           p_update_id: string
         }
         Returns: Json
+      }
+      queue_ecosystem_resync: {
+        Args: { p_destination_id: string }
+        Returns: undefined
       }
       queue_identity_account_sync: {
         Args: { p_account_id: string }
@@ -5893,6 +6308,10 @@ export type Database = {
       }
       request_authenticity_assertion_refresh: {
         Args: never
+        Returns: undefined
+      }
+      resume_ecosystem_automation: {
+        Args: { p_destination_id: string }
         Returns: undefined
       }
       retry_failed_delivery: {
@@ -6011,6 +6430,14 @@ export type Database = {
           p_qr_enabled: boolean
           p_show_relationship_history: boolean
           p_show_verified_timestamps: boolean
+        }
+        Returns: undefined
+      }
+      update_ecosystem_automation_incident: {
+        Args: {
+          p_action: string
+          p_incident_id: string
+          p_resolution_code?: string
         }
         Returns: undefined
       }

@@ -1,0 +1,1 @@
+import{destinationAutomationMutation}from"@/lib/ecosystem/automation-api";export async function PATCH(r:Request,{params}:{params:Promise<{id:string}>}){return destinationAutomationMutation(r,(await params).id,"settings");}
