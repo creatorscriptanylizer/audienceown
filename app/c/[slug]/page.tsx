@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { CreatorRecord } from "@/lib/public-creators";
 import { applyPublicEmergency, type PublicEmergency } from "@/lib/emergency/public-banner";
 import { parsePublicIdentityGraph, parsePublicTrust } from "@/lib/identity/public";
+import { parseAuthenticityRecord } from "@/lib/authenticity/public";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -70,8 +71,8 @@ export default async function Page({ params, searchParams }: Props) {
     ? await supabase.from("creator_updates").select("id,title,content,cta_url,media_url,sent_at")
       .eq("creator_id", databaseCreator.id).eq("status", "sent").order("sent_at", { ascending: false }).limit(10)
     : { data: [] };
-  const [{data:identityData},{data:trustData}]=supabase?await Promise.all([supabase.rpc("get_public_creator_identity_graph",{p_slug:slug}),supabase.rpc("get_public_creator_trust",{p_slug:slug})]):[{data:null},{data:null}];
+  const [{data:identityData},{data:trustData},{data:authenticityData}]=supabase?await Promise.all([supabase.rpc("get_public_creator_identity_graph",{p_slug:slug}),supabase.rpc("get_public_creator_trust",{p_slug:slug}),supabase.rpc("get_public_creator_authenticity",{p_slug:slug})]):[{data:null},{data:null},{data:null}];
   const parsedIdentity=parsePublicIdentityGraph(identityData),trust=parsePublicTrust(trustData),identityGraph=parsedIdentity?{...parsedIdentity,trust:trust??undefined}:null;
   return <PublicCreatorExperience fallback={creator} source={src} canUseDevTools={canUseDevTools}
-    publicUpdates={publicUpdates ?? []} identityGraph={identityGraph} />;
+    publicUpdates={publicUpdates ?? []} identityGraph={identityGraph} authenticity={parseAuthenticityRecord(authenticityData)} />;
 }

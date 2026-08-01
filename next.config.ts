@@ -31,7 +31,16 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        source: "/(.*)",
+        source: "/embed/verify/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
+        source: "/((?!embed/verify).*)",
         headers: [
           {
             key: "Content-Security-Policy",

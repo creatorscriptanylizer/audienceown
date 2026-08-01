@@ -1,0 +1,11 @@
+# Public authenticity
+
+Stage 7.0 adds a presentation layer over the Creator Identity Graph. It does not copy or replace identity, trust, monitoring, or emergency truth. A public record is available only when the creator page and authenticity profile are enabled, the identity is not archived, and policy permits display.
+
+States are `strongly_verified_identity`, `verified_identity`, `verification_needs_attention`, `identity_unverified`, `verification_restricted`, and `emergency_recovery_active`. Emergency recovery takes presentation priority. Restricted state removes accounts, domains, relationships, and verified badges without publishing the internal reason.
+
+Verification means AudienceOwn has current control and continuity signals for the displayed accounts and domains. It does not certify character, content quality, legality, financial safety, or permanence. The safe serializer never emits scores, weights, provider identifiers, connection identifiers, evidence, errors, recommendations, monitoring incidents, alerts, or follower data.
+
+`GET /api/public/creators/:slug/authenticity` is deterministic, uses ETags, and uses short caches. Restricted and active-emergency output is `no-store`. `GET /verify/:slug` is canonical. QR codes contain only that canonical URL. Aggregate analytics are creator-scoped and contain no IP, fingerprint, or follower identifier.
+
+Operations use `POST /api/internal/authenticity/issue` and `GET /api/internal/authenticity/health` with `AUTHENTICITY_WORKER_SECRET`. Public output continues unsigned when signing is unavailable.

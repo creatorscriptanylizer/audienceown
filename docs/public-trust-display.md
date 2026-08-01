@@ -1,5 +1,7 @@
 # Public trust display
 
+Verified Creator Cards use this derivation. Restricted state suppresses claims; emergency recovery is presented first without changing the trust evaluation.
+
 The public identity API adds a reduced `trust` object with a state, human label, concise summary, safe family-level signal labels, and last evaluation time. It never includes score, weights, source revision, reason codes, raw metadata, provider errors, evidence, tokens, secrets, hashes, or reviewer details.
 
 Verified and strongly verified states may display verified destinations. Needs-attention copy remains neutral and useful. Restricted trust suppresses verified badges and evidence summaries and displays a neutral safety message; active emergency guidance remains authoritative.

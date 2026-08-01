@@ -21,6 +21,7 @@ describe("emergency workspace", () => {
       ["Audience", "/dashboard/audience"],
       ["Platforms", "/dashboard/platforms"],
       ["Identity", "/dashboard/identity"],
+      ["Authenticity", "/dashboard/authenticity"],
       ["Recovery Analytics", "/dashboard/analytics/recovery"],
       ["Emergency", "/dashboard/emergency"],
       ["Settings", "/dashboard/settings"],

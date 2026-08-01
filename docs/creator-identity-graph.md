@@ -1,5 +1,7 @@
 # Creator identity graph
 
+Stage 7.0 consumes this graph through the safe public authenticity serializer; authenticity profiles control presentation only and are not a second identity model.
+
 Stage 6.1 adds a monotonic `identity_revision`. Account, domain, and relationship mutations advance it and invalidate cached trust without creating a parallel identity model. See [Explainable identity trust](./identity-trust-engine.md).
 
 Stage 6.2 adds normalized observations around this same graph. Stable-ID mismatches never overwrite an existing identity; safe handle, name, and URL changes preserve it.

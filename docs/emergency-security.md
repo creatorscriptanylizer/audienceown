@@ -1,5 +1,7 @@
 # Emergency security boundaries
 
+Authenticity presentation cannot activate an emergency, verify a replacement, or bypass authorization and monitoring restrictions.
+
 Public trust never overrides emergency safety. Restricted trust suppresses verified badges while preserving neutral active-emergency guidance; authorization-session and private verification details never enter trust records.
 
 Continuous monitoring never activates emergencies or sends follower alerts. Draft preparation is an explicit creator action and retains every Stage 5 security gate.

@@ -1,5 +1,7 @@
 # Explainable identity trust engine
 
+Public authenticity maps the current safe trust state to a fixed label. It never exports the internal score, signal weights, evidence, or recommendations.
+
 Stage 6.1 derives creator trust from the Stage 6.0 canonical identity graph. It does not introduce a second identity record or an editable score. `creator_identity_profiles.identity_revision` changes whenever an account, domain, or relationship changes; evaluations record that source revision and become stale when it advances.
 
 The `identity-trust-v1` evaluator runs transactionally through `evaluate_creator_trust`. It writes an immutable evaluation, deduplicated signals, deterministic recommendations, and a state-transition event. Browser roles cannot evaluate or write trust data. A bounded worker claims only profiles whose evaluation expired or whose revision changed.

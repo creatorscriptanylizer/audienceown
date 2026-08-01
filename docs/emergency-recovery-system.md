@@ -1,5 +1,7 @@
 # Verified Emergency Mode
 
+An active emergency takes priority on authenticity surfaces. Only an active, official, verified replacement may appear; resolution returns to the current derived state.
+
 High-risk identity monitoring incidents may prepare a creator-requested draft only. Monitoring cannot submit, approve, authorize, activate, publish, or deliver an emergency.
 
 Verified Emergency Mode records a creator incident separately from delivery. An incident begins as a draft, captures the affected official account,

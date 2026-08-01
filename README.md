@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Stage 7.0 adds Verified Creator Cards, canonical `/verify/:slug` records, safe embeds and QR links, and optional Ed25519 assertions on top of the existing identity graph. See [public authenticity](docs/public-authenticity.md) and [authenticity assertions](docs/authenticity-assertions.md).
+
 Creator identity now includes deterministic explainable trust (`identity-trust-v1`) with independent provider families, freshness decay, actionable recommendations, creator-only history/analytics, and a reduced public projection. Raw scores remain server-side. See [the trust engine guide](docs/identity-trust-engine.md).
 
 Continuous identity monitoring (`identity-monitoring-v1`) detects authoritative changes, safely updates the canonical graph, queues trust response, and raises private creator incidents without automatically activating emergencies or notifying followers. See [the monitoring guide](docs/identity-monitoring.md).

@@ -1,5 +1,7 @@
 # Continuous identity monitoring
 
+Monitoring restrictions flow into authenticity through current policy. Observations, incidents, alerts, provider errors, and internal timestamps are never public.
+
 Stage 6.2 monitors the Stage 6.0 identity graph and feeds Stage 6.1 trust. It does not create another identity, trust, or emergency model. Authoritative worker observations are normalized, fingerprinted, correlated into incidents, and processed through safe graph mutations. Creator reports remain explicitly unverified and cannot revoke verification.
 
 The `identity-monitoring-v1` policy distinguishes handle, display-name, URL, stable-ID, availability, grant, verification, domain, sync, and emergency-replacement changes. Same-stable-ID presentation changes update the existing account. A stable-ID mismatch never overwrites the canonical stable ID; it suppresses official/public/primary presentation and requires review.

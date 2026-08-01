@@ -27,6 +27,8 @@ import {
 } from "@/lib/browser-push-client";
 import { normaliseSource } from "@/lib/recovery-pass";
 import type { PublicIdentityGraph } from "@/lib/identity/types";
+import type { AuthenticityRecord } from "@/lib/authenticity/types";
+import { VerifiedCreatorCard } from "@/components/authenticity/verified-creator-card";
 
 type AlertMethod = "Email" | "SMS" | "WhatsApp" | "Browser notification";
 const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
@@ -780,12 +782,13 @@ function EmergencyPage({ creator }: { creator: CreatorRecord }) {
   </>;
 }
 
-export function PublicCreatorExperience({ fallback, source, canUseDevTools = false, publicUpdates = [], identityGraph = null }: {
+export function PublicCreatorExperience({ fallback, source, canUseDevTools = false, publicUpdates = [], identityGraph = null, authenticity = null }: {
   fallback: CreatorRecord;
   source?: string;
   canUseDevTools?: boolean;
   publicUpdates?: Array<{ id: string; title: string; content: string; cta_url: string | null; media_url: string | null; sent_at: string | null }>;
   identityGraph?: PublicIdentityGraph | null;
+  authenticity?: AuthenticityRecord | null;
 }) {
   const [creator, setCreator] = useState(fallback);
   const [pass, setPass] = useState<SavedRecoveryPass | null>(null);
@@ -815,7 +818,7 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
   return <div className={`fan-page ${creator.emergencyMode ? "fan-page-emergency" : ""}`}>
     <Header />
     {creator.emergencyMode ? <EmergencyPage creator={creator} /> : <HealthyPage creator={creator} pass={pass} onSave={() => setModal(true)} onManage={setManageMode} onDeactivate={() => deactivatePass()} />}
-    {identityGraph && <VerifiedIdentity graph={identityGraph} emergency={creator.emergencyMode}/>}
+    {authenticity?<section className="mx-auto my-8 max-w-3xl px-5"><VerifiedCreatorCard record={authenticity} compact/></section>:identityGraph&&<VerifiedIdentity graph={identityGraph} emergency={creator.emergencyMode}/>}
     {publicUpdates.length > 0 && <section className="mx-auto my-8 max-w-3xl px-5">
       <p className="fan-kicker">Latest updates</p>
       <div className="mt-3 grid gap-3">{publicUpdates.map((update) => <article key={update.id} className="surface rounded-xl p-5">
