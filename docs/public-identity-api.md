@@ -1,5 +1,7 @@
 # Public identity API
 
+Stage 7.1 adds exact lookup and portable manifest endpoints without exposing stable provider identity.
+
 The Stage 7.0 authenticity API reuses this graph while applying presentation settings, trust freshness, monitoring suppression, and emergency priority.
 
 The response includes a safe `trust` projection documented in [Public trust display](./public-trust-display.md). Score, weights, revision, raw metadata, and private reasons are never serialized.

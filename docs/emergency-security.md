@@ -1,5 +1,7 @@
 # Emergency security boundaries
 
+Neither discovery, lookup, continuity issuance, nor webhook delivery can activate emergencies or follower notifications.
+
 Authenticity presentation cannot activate an emergency, verify a replacement, or bypass authorization and monitoring restrictions.
 
 Public trust never overrides emergency safety. Restricted trust suppresses verified badges while preserving neutral active-emergency guidance; authorization-session and private verification details never enter trust records.

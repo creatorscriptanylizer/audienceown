@@ -1,5 +1,7 @@
 # Creator identity graph
 
+Continuity statements derive only from this graph's authoritative relationships and revisions.
+
 Stage 7.0 consumes this graph through the safe public authenticity serializer; authenticity profiles control presentation only and are not a second identity model.
 
 Stage 6.1 adds a monotonic `identity_revision`. Account, domain, and relationship mutations advance it and invalidate cached trust without creating a parallel identity model. See [Explainable identity trust](./identity-trust-engine.md).

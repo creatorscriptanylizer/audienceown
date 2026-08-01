@@ -1,5 +1,7 @@
 # Public authenticity
 
+Stage 7.1 reuses this exact serializer for network manifests, lookups, feeds, and proofs; those projections never become identity truth.
+
 Stage 7.0 adds a presentation layer over the Creator Identity Graph. It does not copy or replace identity, trust, monitoring, or emergency truth. A public record is available only when the creator page and authenticity profile are enabled, the identity is not archived, and policy permits display.
 
 States are `strongly_verified_identity`, `verified_identity`, `verification_needs_attention`, `identity_unverified`, `verification_restricted`, and `emergency_recovery_active`. Emergency recovery takes presentation priority. Restricted state removes accounts, domains, relationships, and verified badges without publishing the internal reason.

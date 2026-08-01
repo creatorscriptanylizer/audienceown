@@ -1,5 +1,7 @@
 # Verified Emergency Mode
 
+Network outputs may link to safe replacement information but cannot activate or resolve an emergency.
+
 An active emergency takes priority on authenticity surfaces. Only an active, official, verified replacement may appear; resolution returns to the current derived state.
 
 High-risk identity monitoring incidents may prepare a creator-requested draft only. Monitoring cannot submit, approve, authorize, activate, publish, or deliver an emergency.
