@@ -1,4 +1,5 @@
-import { createHmac,timingSafeEqual } from "node:crypto";import { SocialProviderError } from "./errors";
+import { createHmac,timingSafeEqual } from "node:crypto";import{z}from"zod";import { SocialProviderError } from "./errors";
+const safeScalar=z.union([z.string(),z.number(),z.boolean(),z.null()]);const twitchPayloadSchema=z.object({challenge:z.string().optional(),subscription:z.object({id:z.string().optional(),type:z.string(),version:z.string(),status:z.string().optional(),condition:z.record(z.string(),z.string()).optional()}).optional(),event:z.record(z.string(),safeScalar).optional()}).strict();
 function safeEqual(a:string,b:string){const left=Buffer.from(a),right=Buffer.from(b);return left.length===right.length&&timingSafeEqual(left,right);}
 export async function verifyTwitchWebhook(request:Request){
   const secret=process.env.TWITCH_EVENTSUB_SECRET;if(!secret)throw new SocialProviderError("provider_not_configured","twitch","EventSub secret unavailable.");
@@ -7,6 +8,5 @@ export async function verifyTwitchWebhook(request:Request){
     throw new SocialProviderError("webhook_replay","twitch","Webhook timestamp is outside the replay window.");
   const body=await request.text();const expected=`sha256=${createHmac("sha256",secret).update(id+timestamp+body).digest("hex")}`;
   if(!safeEqual(expected,signature))throw new SocialProviderError("webhook_verification_failed","twitch","Invalid EventSub signature.");
-  const payload=JSON.parse(body) as Record<string,unknown>;payload._provider_event_timestamp=timestamp;
-  return{eventId:id,eventType:request.headers.get("twitch-eventsub-subscription-type")??"unknown",payload};
+  let value:unknown;try{value=JSON.parse(body);}catch{throw new SocialProviderError("webhook_verification_failed","twitch","Malformed EventSub payload.");}const parsed=twitchPayloadSchema.safeParse(value);if(!parsed.success)throw new SocialProviderError("webhook_verification_failed","twitch","Malformed EventSub payload.");const headerType=request.headers.get("twitch-eventsub-subscription-type"),eventType=parsed.data.subscription?.type??headerType??"unknown";if(headerType&&headerType!==eventType)throw new SocialProviderError("webhook_verification_failed","twitch","EventSub type mismatch.");if(parsed.data.subscription&&!['1','2'].includes(parsed.data.subscription.version))throw new SocialProviderError("webhook_verification_failed","twitch","Unsupported EventSub version.");const payload:Record<string,unknown>={...parsed.data,_provider_event_timestamp:timestamp};return{eventId:id,eventType,payload};
 }

@@ -1,0 +1,1 @@
+import{POST as handleSocialWebhook}from"@/app/api/webhooks/social/[provider]/route";export const runtime="nodejs";export async function POST(request:Request){return handleSocialWebhook(request,{params:Promise.resolve({provider:"twitch"})});}

@@ -1,6 +1,6 @@
 export const socialProviders = [
   "youtube", "instagram", "tiktok", "x", "spotify", "twitch", "linkedin",
-  "facebook", "snapchat", "threads", "pinterest", "discord",
+  "facebook", "snapchat", "threads", "pinterest", "discord", "podcast", "rss",
 ] as const;
 export type SocialProvider = typeof socialProviders[number];
 
@@ -47,6 +47,8 @@ export type ProviderContext = {
 export type AuthorizationContext = { state: string; codeChallenge?: string };
 export type ExchangeContext = { code: string; codeVerifier?: string };
 export type VerifiedWebhook = { eventId: string; eventType: string; payload: Record<string, unknown> };
+export type ProviderReadiness={configured:boolean;connectionAvailable:boolean;verificationAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[];limitations:string[]};
+export type DiscoveredProviderSource={sourceType:string;stableSourceId:string;displayName:string|null;canonicalUrl:string;metadata:Record<string,unknown>};
 
 export interface SocialProviderAdapter {
   provider: SocialProvider;
@@ -68,4 +70,13 @@ export interface SocialProviderAdapter {
   verifyWebhook?(request: Request): Promise<VerifiedWebhook>;
   normalizeWebhook?(event: VerifiedWebhook): Promise<NormalizedSocialContent[]>;
   normalizeContent?(item: unknown): NormalizedSocialContent | null;
+  readiness?():ProviderReadiness;
+  discoverSources?(context:ProviderContext):Promise<DiscoveredProviderSource[]>;
+  fetchContent?(context:ProviderContext):Promise<ProviderPollResult>;
+  fetchAuthoritativeDestinationState?(context:ProviderContext):Promise<Record<string,unknown>>;
+  verifyOwnership?(context:ProviderContext):Promise<{verified:boolean;method:string;confidence:"low"|"medium"|"high"}>;
+  calculateNextSync?(result:ProviderPollResult|Error):Date;
+  classifyError?(error:unknown):{code:string;retryable:boolean;retryAfterSeconds?:number};
+  manualImport?(value:unknown):Promise<NormalizedSocialContent|null>;
+  manualVerification?(value:unknown):Promise<{verified:false;reason:string}>;
 }

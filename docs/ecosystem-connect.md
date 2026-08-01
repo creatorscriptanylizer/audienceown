@@ -1,5 +1,7 @@
 # Ecosystem Connect
 
+Twitch channels, Discord guild/channel authority, and podcast/RSS feeds project into this same graph through [Provider Expansion I](provider-expansion-one.md).
+
 Stage 8.1 extends this canonical graph with [continuous ecosystem automation](ecosystem-automation.md); it does not replace or duplicate it.
 
 Stage 8.0 projects verified ecosystem destinations into the existing creator identity graph. It does not create a second identity or trust system. Destinations cover communities, developer profiles and organizations, repositories and packages, memberships, newsletters, websites, applications, podcasts and feeds, commerce, booking, contact, donation, event, and other official services.

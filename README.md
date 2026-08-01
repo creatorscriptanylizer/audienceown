@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Stage 8.2 adds first-class Twitch, Discord, and podcast/RSS sources through the existing identity and content systems. See [Provider Expansion I](docs/provider-expansion-one.md).
+
 Stage 8.1 adds continuous maintenance of verified ecosystem destinations. See [ecosystem automation](docs/ecosystem-automation.md), the [versioned policy](docs/ecosystem-automation-policy.md), and [operations guide](docs/ecosystem-automation-operations.md).
 
 Stage 8.0 adds Ecosystem Connect: verified communities, developer and organization presences, memberships, newsletters, podcasts, applications, and official services projected into the canonical identity graph. See [Ecosystem Connect](docs/ecosystem-connect.md) and the [public ecosystem API](docs/public-ecosystem-api.md).

@@ -4599,6 +4599,163 @@ export type Database = {
           },
         ]
       }
+      podcast_feed_ownership_challenges: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          creator_id: string
+          ecosystem_destination_id: string
+          expires_at: string
+          id: string
+          placement_method: string
+          status: string
+          token_hash: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          creator_id: string
+          ecosystem_destination_id: string
+          expires_at: string
+          id?: string
+          placement_method: string
+          status?: string
+          token_hash: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          creator_id?: string
+          ecosystem_destination_id?: string
+          expires_at?: string
+          id?: string
+          placement_method?: string
+          status?: string
+          token_hash?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_feed_ownership_challenges_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podcast_feed_ownership_challenges_ecosystem_destination_id_fkey"
+            columns: ["ecosystem_destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_content_sources: {
+        Row: {
+          approval_required: boolean
+          authority_state: string
+          canonical_url: string | null
+          configuration: Json
+          connected_account_id: string | null
+          consecutive_failures: number
+          created_at: string
+          creator_id: string
+          detection_enabled: boolean
+          display_name: string | null
+          ecosystem_destination_id: string | null
+          id: string
+          last_cursor: string | null
+          last_detected_at: string | null
+          last_failure_class: string | null
+          last_successful_sync_at: string | null
+          next_sync_at: string | null
+          provider: string
+          source_type: string
+          stable_source_id: string
+          sync_lease_expires_at: string | null
+          sync_lease_owner: string | null
+          updated_at: string
+          verification_state: string
+        }
+        Insert: {
+          approval_required?: boolean
+          authority_state?: string
+          canonical_url?: string | null
+          configuration?: Json
+          connected_account_id?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          creator_id: string
+          detection_enabled?: boolean
+          display_name?: string | null
+          ecosystem_destination_id?: string | null
+          id?: string
+          last_cursor?: string | null
+          last_detected_at?: string | null
+          last_failure_class?: string | null
+          last_successful_sync_at?: string | null
+          next_sync_at?: string | null
+          provider: string
+          source_type: string
+          stable_source_id: string
+          sync_lease_expires_at?: string | null
+          sync_lease_owner?: string | null
+          updated_at?: string
+          verification_state?: string
+        }
+        Update: {
+          approval_required?: boolean
+          authority_state?: string
+          canonical_url?: string | null
+          configuration?: Json
+          connected_account_id?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          creator_id?: string
+          detection_enabled?: boolean
+          display_name?: string | null
+          ecosystem_destination_id?: string | null
+          id?: string
+          last_cursor?: string | null
+          last_detected_at?: string | null
+          last_failure_class?: string | null
+          last_successful_sync_at?: string | null
+          next_sync_at?: string | null
+          provider?: string
+          source_type?: string
+          stable_source_id?: string
+          sync_lease_expires_at?: string | null
+          sync_lease_owner?: string | null
+          updated_at?: string
+          verification_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_content_sources_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_content_sources_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_content_sources_ecosystem_destination_id_fkey"
+            columns: ["ecosystem_destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_verification_sessions: {
         Row: {
           attempt_count: number
@@ -4784,6 +4941,66 @@ export type Database = {
           signature_verified?: boolean
         }
         Relationships: []
+      }
+      twitch_eventsub_subscriptions: {
+        Row: {
+          connected_account_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          last_event_at: string | null
+          last_reconciled_at: string | null
+          next_reconcile_at: string | null
+          provider_subscription_id: string
+          status: string
+          subscription_type: string
+          subscription_version: string
+          updated_at: string
+        }
+        Insert: {
+          connected_account_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          last_event_at?: string | null
+          last_reconciled_at?: string | null
+          next_reconcile_at?: string | null
+          provider_subscription_id: string
+          status: string
+          subscription_type: string
+          subscription_version: string
+          updated_at?: string
+        }
+        Update: {
+          connected_account_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_event_at?: string | null
+          last_reconciled_at?: string | null
+          next_reconcile_at?: string | null
+          provider_subscription_id?: string
+          status?: string
+          subscription_type?: string
+          subscription_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "twitch_eventsub_subscriptions_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "twitch_eventsub_subscriptions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       update_deliveries: {
         Row: {
@@ -5667,6 +5884,41 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_provider_content_sources: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          approval_required: boolean
+          authority_state: string
+          canonical_url: string | null
+          configuration: Json
+          connected_account_id: string | null
+          consecutive_failures: number
+          created_at: string
+          creator_id: string
+          detection_enabled: boolean
+          display_name: string | null
+          ecosystem_destination_id: string | null
+          id: string
+          last_cursor: string | null
+          last_detected_at: string | null
+          last_failure_class: string | null
+          last_successful_sync_at: string | null
+          next_sync_at: string | null
+          provider: string
+          source_type: string
+          stable_source_id: string
+          sync_lease_expires_at: string | null
+          sync_lease_owner: string | null
+          updated_at: string
+          verification_state: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "provider_content_sources"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_social_connections: {
         Args: {
           p_lease_owner?: string
@@ -5820,6 +6072,14 @@ export type Database = {
           p_variants: Json
         }
         Returns: Json
+      }
+      complete_podcast_feed_challenge: {
+        Args: {
+          p_challenge_id: string
+          p_max_attempts?: number
+          p_token_hash: string
+        }
+        Returns: boolean
       }
       complete_whatsapp_recovery_verification: {
         Args: {
@@ -6166,6 +6426,16 @@ export type Database = {
         Args: { p_contact_id: string; p_method_id: string }
         Returns: boolean
       }
+      mark_provider_source_sync: {
+        Args: {
+          p_cursor?: string
+          p_failure_class?: string
+          p_next_sync_at?: string
+          p_source_id: string
+          p_success: boolean
+        }
+        Returns: undefined
+      }
       mark_social_connection_healthy: {
         Args: {
           p_connection_id: string
@@ -6360,6 +6630,15 @@ export type Database = {
         Args: { p_domain_id: string; p_public_visible?: boolean }
         Returns: undefined
       }
+      start_podcast_feed_challenge: {
+        Args: {
+          p_destination_id: string
+          p_placement_method: string
+          p_token_hash: string
+          p_ttl_minutes?: number
+        }
+        Returns: string
+      }
       store_authenticity_assertion: {
         Args: {
           p_expires_at: string
@@ -6404,6 +6683,19 @@ export type Database = {
           p_signature: string
           p_source_revision: number
           p_statement_type: string
+        }
+        Returns: string
+      }
+      store_provider_content_source: {
+        Args: {
+          p_canonical_url: string
+          p_configuration?: Json
+          p_connected_account_id?: string
+          p_destination_id?: string
+          p_display_name: string
+          p_provider: string
+          p_source_type: string
+          p_stable_source_id: string
         }
         Returns: string
       }

@@ -5,7 +5,8 @@ import { spotifyProvider } from "./providers/spotify"; import { twitchProvider }
 import { linkedinProvider } from "./providers/linkedin"; import { facebookProvider } from "./providers/facebook";
 import { snapchatProvider } from "./providers/snapchat"; import { threadsProvider } from "./providers/threads";
 import { pinterestProvider } from "./providers/pinterest"; import { discordProvider } from "./providers/discord";
-const adapters: SocialProviderAdapter[]=[youtubeProvider,instagramProvider,tiktokProvider,xProvider,spotifyProvider,twitchProvider,linkedinProvider,facebookProvider,snapchatProvider,threadsProvider,pinterestProvider,discordProvider];
+import{podcastProvider,rssProvider}from"./providers/feed";
+const adapters: SocialProviderAdapter[]=[youtubeProvider,instagramProvider,tiktokProvider,xProvider,spotifyProvider,twitchProvider,linkedinProvider,facebookProvider,snapchatProvider,threadsProvider,pinterestProvider,discordProvider,podcastProvider,rssProvider];
 const registry=new Map(adapters.map((adapter)=>[adapter.provider,adapter]));
 export function getSocialProvider(provider: SocialProvider){return registry.get(provider)!;}
 export function listSocialProviders(){return [...adapters];}

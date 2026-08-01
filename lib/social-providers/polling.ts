@@ -1,5 +1,5 @@
 import "server-only";import { randomUUID } from "node:crypto";import { createAdminClient } from "@/lib/supabase/admin";
-import { decryptSocialSecret,encryptSocialSecret } from "@/lib/social-secrets";import { publishDeliveryQueue } from "@/lib/update-delivery";
+import { decryptSocialSecret,encryptSocialSecret } from "@/lib/social-secrets";
 import { getSocialProvider } from "./registry";import { isSocialProvider,validateNormalizedContent } from "./normalize";
 import { isRetryableProviderError,SocialProviderError } from "./errors";
 export async function pollSocialConnections(limit=20){
@@ -13,13 +13,13 @@ export async function pollSocialConnections(limit=20){
       if(!secret)throw new SocialProviderError("access_revoked",provider,"Credentials unavailable.");let accessToken=decryptSocialSecret(secret.access_token_ciphertext);
       let refreshToken=secret.refresh_token_ciphertext?decryptSocialSecret(secret.refresh_token_ciphertext):undefined;
       if(connection.token_expires_at&&new Date(connection.token_expires_at).getTime()<Date.now()+60000&&adapter.refreshAccessToken){
-        const token=await adapter.refreshAccessToken({accessToken,refreshToken,metadata:connection.provider_metadata as Record<string,unknown>});
+        const token=await adapter.refreshAccessToken({accessToken,refreshToken,metadata:{...(connection.provider_metadata as Record<string,unknown>),externalAccountId:connection.external_account_id}});
         accessToken=token.accessToken;refreshToken=token.refreshToken??refreshToken;await admin.from("platform_connection_secrets").update({
           access_token_ciphertext:encryptSocialSecret(accessToken),refresh_token_ciphertext:refreshToken?encryptSocialSecret(refreshToken):null,
           token_scope:token.grantedScopes.join(" "),token_type:token.tokenType}).eq("platform_connection_id",connection.id);
         await admin.from("connected_accounts").update({token_expires_at:token.expiresAt,token_refreshed_at:new Date().toISOString(),granted_scopes:token.grantedScopes}).eq("id",connection.id);
       }
-      const result=await adapter.pollContent({accessToken,refreshToken,cursor:connection.last_external_cursor,metadata:connection.provider_metadata as Record<string,unknown>});
+      const result=await adapter.pollContent({accessToken,refreshToken,cursor:connection.last_external_cursor,metadata:{...(connection.provider_metadata as Record<string,unknown>),externalAccountId:connection.external_account_id}});
       for(const candidate of result.items){const item=validateNormalizedContent(candidate);if(!item){summary.failed++;providerSummary.failed++;continue;}
         const{data:ingested,error:ingestError}=await admin.rpc("ingest_social_detection",{p_connection_id:connection.id,p_provider:provider,
           p_external_object_id:item.externalObjectId,p_external_event_id:item.externalEventId??"",p_object_type:item.objectType,p_event_type:item.eventType,
@@ -28,11 +28,7 @@ export async function pollSocialConnections(limit=20){
         if(ingestError)throw ingestError;const ingestion=ingested as {event_id:string;inserted:boolean};if(!ingestion.inserted){summary.duplicates++;continue;}
         summary.detected++;providerSummary.detected++;if(connection.auto_create_drafts){const{data:draft,error:draftError}=await admin.rpc("create_social_draft",{p_event_id:ingestion.event_id});
           if(draftError)throw draftError;const created=draft as {update_id:string;created:boolean;auto_send:boolean};if(created.created)summary.drafts++;
-          if(created.auto_send){const ai=await admin.rpc("enqueue_ai_draft_enhancement",{p_update_id:created.update_id,p_prompt_version:"social-draft-v1",
-            p_requested_variants:["standard","concise","detailed","browser","sms","recovery"],p_auto_send_requested:true});
-            const queued=(ai.data as{status?:string}|null)?.status;if(queued!=="pending"&&queued!=="processing"&&queued!=="retryable_failure"){
-              try{await publishDeliveryQueue(created.update_id,connection.creator_id,null,admin);summary.autoPublished++;}
-              catch{summary.failed++;providerSummary.failed++;}}}}}
+          if(created.auto_send&&adapter.capabilities.automaticPublishing)await admin.rpc("enqueue_ai_draft_enhancement",{p_update_id:created.update_id,p_prompt_version:"social-draft-v1",p_requested_variants:["standard","concise","detailed","browser","sms","recovery"],p_auto_send_requested:true});}}
       const cadence=Number(process.env.SOCIAL_POLL_INTERVAL_MINUTES??5);await admin.rpc("mark_social_connection_healthy",{p_connection_id:connection.id,p_cursor:result.cursor??connection.last_external_cursor??"",
         p_next_sync_at:new Date(Date.now()+Math.max(1,cadence)*60000).toISOString()});summary.polled++;
     }catch(error){summary.failed++;providerSummary.failed++;const permanent=error instanceof SocialProviderError&&!isRetryableProviderError(error);

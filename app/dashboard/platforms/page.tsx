@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { YouTubeAutomationPanel } from "@/components/youtube-automation-panel";
 import { SocialProviderGrid } from "@/components/social-provider-grid";
 import { listSocialProviders } from "@/lib/social-providers/registry";
+import { ProviderExpansionSummary } from "@/components/providers/provider-expansion-summary";
 
 export default async function Page({ searchParams }: PageProps<"/dashboard/platforms">) {
   const creator = await requireCreator();
@@ -32,6 +33,7 @@ export default async function Page({ searchParams }: PageProps<"/dashboard/platf
     <PlatformsManager accounts={accounts ?? []}/>
     <SocialProviderGrid providers={listSocialProviders().map(({provider,displayName,availability,unavailableReason,capabilities})=>({
       provider,displayName,availability,unavailableReason,capabilities}))} connections={socialConnections ?? []}/>
+    <ProviderExpansionSummary/>
     <YouTubeAutomationPanel connection={youtube} activity={activity ?? []} drafts={drafts ?? []}
       status={typeof params.youtube === "string" ? params.youtube : undefined}/>
   </>;

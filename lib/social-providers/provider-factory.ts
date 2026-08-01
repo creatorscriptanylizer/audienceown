@@ -30,5 +30,14 @@ export function oauthProvider(input: {
     verifyWebhook: input.capabilities.webhooks ? input.adapter?.verifyWebhook : async () => unsupported(config.provider,"webhooks"),
     normalizeWebhook: input.capabilities.webhooks ? input.adapter?.normalizeWebhook : async () => unsupported(config.provider,"webhooks"),
     normalizeContent: input.adapter?.normalizeContent,
+    readiness:input.adapter?.readiness,
+    discoverSources:input.adapter?.discoverSources,
+    fetchContent:input.adapter?.fetchContent,
+    fetchAuthoritativeDestinationState:input.adapter?.fetchAuthoritativeDestinationState,
+    verifyOwnership:input.adapter?.verifyOwnership,
+    calculateNextSync:input.adapter?.calculateNextSync,
+    classifyError:input.adapter?.classifyError,
+    manualImport:input.adapter?.manualImport,
+    manualVerification:input.adapter?.manualVerification,
   };
 }

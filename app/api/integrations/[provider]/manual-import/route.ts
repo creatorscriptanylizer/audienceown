@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";import { getCreator } from "@/lib/dal";import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";import { getSocialProvider } from "@/lib/social-providers/registry";
 import { isSocialProvider,providerHosts } from "@/lib/social-providers/normalize";
+import { requireSameOrigin } from "@/lib/emergency/request-security";
 export async function POST(request:Request,{params}:{params:Promise<{provider:string}>}){const{provider}=await params;
+  if(!requireSameOrigin(request))return Response.json({error:"Cross-origin request rejected"},{status:403});
   if(!isSocialProvider(provider))return Response.json({error:"Unknown provider"},{status:404});const adapter=getSocialProvider(provider);
   if(!adapter.capabilities.manualImport)return Response.json({error:"provider_capability_not_supported"},{status:409});const creator=await getCreator();
   if(!creator)return Response.json({error:"Unauthorized"},{status:401});let body:{url?:unknown;title?:unknown;thumbnailUrl?:unknown};
