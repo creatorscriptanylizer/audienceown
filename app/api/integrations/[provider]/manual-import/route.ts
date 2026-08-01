@@ -19,8 +19,10 @@ export async function POST(request:Request,{params}:{params:Promise<{provider:st
       label:`${adapter.displayName} manual imports`,url:`https://${providerHosts[provider][0]}`,is_primary:false,is_public:false,
       provider_status:"automatic_detection_unavailable"}).select("id").single();connection=inserted.data;}
   if(!connection)return Response.json({error:"Connection unavailable"},{status:500});const admin=createAdminClient();if(!admin)return Response.json({error:"Not configured"},{status:503});
-  const externalId=`manual:${createHash("sha256").update(url).digest("hex")}`;const ingested=await admin.rpc("ingest_social_detection",{p_connection_id:connection.id,p_provider:provider,
-    p_external_object_id:externalId,p_external_event_id:"",p_object_type:"post",p_event_type:"published",p_source_payload:{title,canonical_url:url,thumbnail_url:thumbnail||null},
-    p_source_published_at:sourcePublishedAt,p_detection_source:"manual_provider_import"});if(ingested.error)return Response.json({error:"Import failed"},{status:500});
+  const normalized=adapter.manualImport?await adapter.manualImport({url,title,publishedAt:sourcePublishedAt}):null;
+  if(adapter.manualImport&&!normalized)return Response.json({error:"The URL is not a supported public provider object"},{status:400});
+  const externalId=normalized?.externalObjectId??`manual:${createHash("sha256").update(url).digest("hex")}`;const ingested=await admin.rpc("ingest_social_detection",{p_connection_id:connection.id,p_provider:provider,
+    p_external_object_id:externalId,p_external_event_id:"",p_object_type:normalized?.objectType??"post",p_event_type:"published",p_source_payload:{...(normalized?.rawMetadata??{}),title,canonical_url:normalized?.canonicalUrl??url,thumbnail_url:thumbnail||null,source:"manual_import",ownershipEstablished:false,trustEligible:false,approvalRequired:true},
+    p_source_published_at:normalized?.sourcePublishedAt??sourcePublishedAt,p_detection_source:"manual_provider_import"});if(ingested.error)return Response.json({error:"Import failed"},{status:500});
   const draft=await admin.rpc("create_social_draft",{p_event_id:(ingested.data as{event_id:string}).event_id});if(draft.error)return Response.json({error:"Draft failed"},{status:500});
   return Response.json({status:"draft_ready",updateId:(draft.data as{update_id:string}).update_id},{status:201});}

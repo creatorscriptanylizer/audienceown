@@ -15,7 +15,7 @@ export type ProviderAvailability =
   | "connection_only" | "manual_import_only" | "unsupported_official_api";
 export type ProviderTokenSet = {
   accessToken: string; refreshToken?: string; expiresAt: string | null;
-  grantedScopes: string[]; tokenType: string;
+  grantedScopes: string[]; tokenType: string; stableIdentityId?: string;
 };
 export type ProviderIdentity = {
   id: string; name: string; url: string; metadata: Record<string, unknown>;
@@ -47,7 +47,11 @@ export type ProviderContext = {
 export type AuthorizationContext = { state: string; codeChallenge?: string };
 export type ExchangeContext = { code: string; codeVerifier?: string };
 export type VerifiedWebhook = { eventId: string; eventType: string; payload: Record<string, unknown> };
-export type ProviderReadiness={configured:boolean;connectionAvailable:boolean;verificationAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[];limitations:string[]};
+export type ProviderAccessLevel="none"|"development"|"standard"|"advanced"|"approved";
+export type ProviderReviewStatus="not_required"|"not_configured"|"required"|"submitted"|"approved"|"restricted"|"rejected";
+export type ProviderReviewReadiness={configured:boolean;credentialsPresent:boolean;productConfigured:boolean;requiredScopes:string[];grantedScopes:string[];missingScopes:string[];accessLevel:ProviderAccessLevel;reviewStatus:ProviderReviewStatus;connectionAvailable:boolean;identityAvailable:boolean;assetDiscoveryAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualImportAvailable:boolean;manualVerificationAvailable:boolean;limitations:string[]};
+export type ProviderReadiness=ProviderReviewReadiness&{verificationAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[]};
+export type LegacyProviderReadiness={configured:boolean;connectionAvailable:boolean;verificationAvailable:boolean;contentDetectionAvailable:boolean;webhookAvailable:boolean;pollingAvailable:boolean;manualFallbackAvailable:boolean;missingConfiguration:string[];limitations:string[]};
 export type DiscoveredProviderSource={sourceType:string;stableSourceId:string;displayName:string|null;canonicalUrl:string;metadata:Record<string,unknown>};
 
 export interface SocialProviderAdapter {
@@ -70,9 +74,12 @@ export interface SocialProviderAdapter {
   verifyWebhook?(request: Request): Promise<VerifiedWebhook>;
   normalizeWebhook?(event: VerifiedWebhook): Promise<NormalizedSocialContent[]>;
   normalizeContent?(item: unknown): NormalizedSocialContent | null;
-  readiness?():ProviderReadiness;
+  readiness?():ProviderReadiness|LegacyProviderReadiness;
   discoverSources?(context:ProviderContext):Promise<DiscoveredProviderSource[]>;
+  discoverAssets?(context:ProviderContext):Promise<DiscoveredProviderSource[]>;
+  selectAsset?(value:unknown):Promise<DiscoveredProviderSource>;
   fetchContent?(context:ProviderContext):Promise<ProviderPollResult>;
+  fetchAuthoritativeState?(context:ProviderContext):Promise<Record<string,unknown>>;
   fetchAuthoritativeDestinationState?(context:ProviderContext):Promise<Record<string,unknown>>;
   verifyOwnership?(context:ProviderContext):Promise<{verified:boolean;method:string;confidence:"low"|"medium"|"high"}>;
   calculateNextSync?(result:ProviderPollResult|Error):Date;

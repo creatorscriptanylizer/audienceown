@@ -20,3 +20,6 @@ Connection-only and manual-import-only states never expose an automation toggle.
 
 AI enhancement is a provider-neutral optional layer after these detection
 capabilities. It neither adds provider access nor expands auto-send permissions.
+## Expansion II capability boundary
+
+TikTok supports OAuth identity and approved `video.list` polling. Instagram supports professional accounts through a correctly configured Instagram Login or Facebook Login mode. Facebook supports selected managed Pages. All three support manual import/verification fallbacks and approval-first drafts; none supports provider publishing.

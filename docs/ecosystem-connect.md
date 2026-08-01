@@ -11,3 +11,4 @@ Authoritative verification is service-role only. Creators may import an HTTPS de
 Provider stable IDs are preferred. URLs are fallback identity anchors only when no authoritative stable ID exists. Rename events preserve a destination; stable-ID conflicts suppress it and require attention. Revocation and archive clear public, official, and primary presentation and advance the canonical identity revision.
 
 Public resources are `/api/public/creators/{slug}/ecosystem`, `/verify/{slug}/ecosystem.json`, and exact lookup at `/api/public/ecosystem/lookup`. Only current verified, official, public destinations are serialized.
+Selected TikTok, Instagram professional, and Facebook Page assets reuse connected accounts and provider content sources. A Meta authorization alone never creates public ecosystem destinations; explicit asset selection and authority are required.

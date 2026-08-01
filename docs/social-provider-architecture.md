@@ -35,3 +35,6 @@ social ingestion transactions or polling leases. See `ai-draft-enhancement.md`.
 # Identity graph projection
 
 Provider adapters remain the only provider-identity integration layer. Stage 6 synchronization reuses their identity fetchers and encrypted connection credentials, then projects safe stable identity into `creator_identity_accounts`. It does not add OAuth implementations or token storage.
+## Stage 8.3
+
+TikTok, Instagram, and Facebook implement the shared capability/readiness contract. Instagram and Facebook reuse one Meta OAuth, Graph pagination, asset-discovery, token-security, webhook-verification, and reconciliation foundation. The generic worker contains no provider delivery behavior.

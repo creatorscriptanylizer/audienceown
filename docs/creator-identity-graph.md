@@ -15,3 +15,4 @@ Stage 6.0 adds one normalized identity profile per creator. Accounts are keyed b
 The graph projects authoritative `connected_accounts`, provider identity fetchers, verified emergency replacements, and verified domains. It never stores OAuth credentials, provider responses, challenge material, or verification evidence. Multiple accounts per provider are allowed, but only one verified account may be primary. Only verified, current identities may be official or public.
 
 Directional relationships preserve replacements and migrations, including `emergency_replacement_for`. Events are append-only. Stage 6.0 deliberately exposes no trust score; scoring belongs to Stage 6.1.
+TikTok `open_id`, Instagram professional account ID, and Facebook Page ID are private stable anchors. Meta app users are discovery principals, not creator assets. Safe public projections contain only category, label/handle, canonical URL, official state, and verification time.

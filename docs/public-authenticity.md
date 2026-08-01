@@ -13,3 +13,4 @@ Verification means AudienceOwn has current control and continuity signals for th
 `GET /api/public/creators/:slug/authenticity` is deterministic, uses ETags, and uses short caches. Restricted and active-emergency output is `no-store`. `GET /verify/:slug` is canonical. QR codes contain only that canonical URL. Aggregate analytics are creator-scoped and contain no IP, fingerprint, or follower identifier.
 
 Operations use `POST /api/internal/authenticity/issue` and `GET /api/internal/authenticity/health` with `AUTHENTICITY_WORKER_SECRET`. Public output continues unsigned when signing is unavailable.
+Verified selected TikTok profiles, Instagram professional profiles, and Facebook Pages may expose safe labels, canonical profile links, and approved update links. Stable IDs, permissions/scopes, review and token health, webhook state, provider errors, and expiring/private media URLs are never public.

@@ -2,9 +2,9 @@ import "server-only";import { randomUUID } from "node:crypto";import { createAdm
 import { decryptSocialSecret,encryptSocialSecret } from "@/lib/social-secrets";
 import { getSocialProvider } from "./registry";import { isSocialProvider,validateNormalizedContent } from "./normalize";
 import { isRetryableProviderError,SocialProviderError } from "./errors";
-export async function pollSocialConnections(limit=20){
+export async function pollSocialConnections(limit=20,expansionTwoOnly=false){
   const admin=createAdminClient();if(!admin)throw new Error("Social polling is not configured.");
-  const{data:connections,error}=await admin.rpc("claim_social_connections",{p_limit:limit,p_lease_seconds:180,p_lease_owner:randomUUID()});
+  const claim=expansionTwoOnly?await admin.rpc("claim_expansion_two_connections",{p_limit:limit,p_lease_owner:randomUUID()}):await admin.rpc("claim_social_connections",{p_limit:limit,p_lease_seconds:180,p_lease_owner:randomUUID()});const{data:connections,error}=claim;
   if(error)throw error;const summary={claimed:connections?.length??0,polled:0,detected:0,duplicates:0,drafts:0,autoPublished:0,failed:0,byProvider:{} as Record<string,{claimed:number;detected:number;failed:number}>};
   for(const connection of connections??[]){if(!isSocialProvider(connection.platform))continue;const provider=connection.platform,adapter=getSocialProvider(provider);
     const providerSummary=summary.byProvider[provider]??={claimed:0,detected:0,failed:0};providerSummary.claimed++;
@@ -29,11 +29,11 @@ export async function pollSocialConnections(limit=20){
         summary.detected++;providerSummary.detected++;if(connection.auto_create_drafts){const{data:draft,error:draftError}=await admin.rpc("create_social_draft",{p_event_id:ingestion.event_id});
           if(draftError)throw draftError;const created=draft as {update_id:string;created:boolean;auto_send:boolean};if(created.created)summary.drafts++;
           if(created.auto_send&&adapter.capabilities.automaticPublishing)await admin.rpc("enqueue_ai_draft_enhancement",{p_update_id:created.update_id,p_prompt_version:"social-draft-v1",p_requested_variants:["standard","concise","detailed","browser","sms","recovery"],p_auto_send_requested:true});}}
-      const cadence=Number(process.env.SOCIAL_POLL_INTERVAL_MINUTES??5);await admin.rpc("mark_social_connection_healthy",{p_connection_id:connection.id,p_cursor:result.cursor??connection.last_external_cursor??"",
-        p_next_sync_at:new Date(Date.now()+Math.max(1,cadence)*60000).toISOString()});summary.polled++;
-    }catch(error){summary.failed++;providerSummary.failed++;const permanent=error instanceof SocialProviderError&&!isRetryableProviderError(error);
-      const attempts=Math.max(1,providerSummary.failed),backoff=permanent?24*3600:Math.min(3600,30*2**Math.min(attempts,6))+Math.floor(Math.random()*30);
-      await admin.rpc("mark_social_connection_unhealthy",{p_connection_id:connection.id,p_health:error instanceof SocialProviderError&&error.code==="access_revoked"?"revoked":"degraded",
-        p_error:error instanceof SocialProviderError?error.code:"provider_failure",p_next_sync_at:new Date(Date.now()+backoff*1000).toISOString()});
+      const cadence=Number(process.env.SOCIAL_POLL_INTERVAL_MINUTES??5),nextSync=adapter.calculateNextSync?.(result)??new Date(Date.now()+Math.max(1,cadence)*60000);await admin.rpc("mark_social_connection_healthy",{p_connection_id:connection.id,p_cursor:result.cursor??connection.last_external_cursor??"",
+        p_next_sync_at:nextSync.toISOString()});summary.polled++;
+    }catch(error){summary.failed++;providerSummary.failed++;const classified=adapter.classifyError?.(error),permanent=classified?!classified.retryable:error instanceof SocialProviderError&&!isRetryableProviderError(error);
+      const maxAttempts=Math.max(1,Math.min(Number(process.env.PROVIDER_EXPANSION_TWO_MAX_ATTEMPTS??6),10)),attempts=Math.max(1,providerSummary.failed),backoff=permanent?24*3600:Math.min(3600,30*2**Math.min(attempts,maxAttempts))+Math.floor(Math.random()*30);
+      await admin.rpc("mark_social_connection_unhealthy",{p_connection_id:connection.id,p_health:classified?.code==="authentication_revoked"||error instanceof SocialProviderError&&error.code==="access_revoked"?"revoked":"degraded",
+        p_error:classified?.code??(error instanceof SocialProviderError?error.code:"provider_failure"),p_next_sync_at:new Date(Date.now()+backoff*1000).toISOString()});
     }}return summary;
 }

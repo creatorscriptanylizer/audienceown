@@ -7,7 +7,7 @@ export async function GET(request:Request,{params}:{params:Promise<{provider:str
   const adapter=getSocialProvider(raw);if(!adapter.capabilities.oauth||!adapter.createAuthorizationUrl)
     return Response.json({error:"provider_capability_not_supported"},{status:409});
   const[user,creator]=await Promise.all([getViewer(),getCreator()]);if(!user||!creator)return NextResponse.redirect(new URL("/login?next=/dashboard/platforms",request.url));
-  const nonce=randomBytes(24).toString("base64url");const pkce=["x","tiktok","pinterest"].includes(raw)?createPkce():null;
+  const nonce=randomBytes(24).toString("base64url");const pkce=["x","pinterest"].includes(raw)?createPkce():null;
   const state=createOAuthState({creatorId:creator.id,userId:user.id,provider:raw,nonce,expiresAt:Date.now()+600000,codeChallenge:pkce?.challenge});
   const store=await cookies();store.set(`social_oauth_${raw}`,JSON.stringify({nonce,verifier:pkce?.verifier}),{httpOnly:true,
     secure:process.env.NODE_ENV==="production",sameSite:"lax",path:`/api/integrations/${raw}/callback`,maxAge:600});

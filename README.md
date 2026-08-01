@@ -154,3 +154,4 @@ complete deliveries.
 ## Creator identity graph
 
 Stage 6.0 maintains one stable-ID-anchored identity graph for every creator, projecting verified provider connections, emergency replacements, and domains into the dashboard and public creator page. See [Creator identity graph](docs/creator-identity-graph.md), [identity synchronization](docs/identity-synchronization.md), and the [public identity API](docs/public-identity-api.md).
+Stage 8.3 extends the provider registry with review-aware TikTok Display API support and explicitly selected Instagram professional/Facebook Page assets. See [Provider Expansion II](docs/provider-expansion-two.md).

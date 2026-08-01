@@ -4561,6 +4561,63 @@ export type Database = {
           },
         ]
       }
+      meta_webhook_subscriptions: {
+        Row: {
+          asset_binding_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          last_event_at: string | null
+          last_reconciled_at: string | null
+          next_reconcile_at: string | null
+          object_type: string
+          status: string
+          subscribed_fields: string[]
+          updated_at: string
+        }
+        Insert: {
+          asset_binding_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          last_event_at?: string | null
+          last_reconciled_at?: string | null
+          next_reconcile_at?: string | null
+          object_type: string
+          status?: string
+          subscribed_fields?: string[]
+          updated_at?: string
+        }
+        Update: {
+          asset_binding_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_event_at?: string | null
+          last_reconciled_at?: string | null
+          next_reconcile_at?: string | null
+          object_type?: string
+          status?: string
+          subscribed_fields?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_webhook_subscriptions_asset_binding_id_fkey"
+            columns: ["asset_binding_id"]
+            isOneToOne: false
+            referencedRelation: "provider_asset_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_webhook_subscriptions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_connection_secrets: {
         Row: {
           access_token_ciphertext: string
@@ -4649,6 +4706,183 @@ export type Database = {
             columns: ["ecosystem_destination_id"]
             isOneToOne: false
             referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_access_reviews: {
+        Row: {
+          access_level: string | null
+          capability: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          notes_code: string | null
+          provider: string
+          reviewed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string | null
+          capability: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes_code?: string | null
+          provider: string
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string | null
+          capability?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes_code?: string | null
+          provider?: string
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_asset_bindings: {
+        Row: {
+          approval_required: boolean
+          asset_type: string
+          authority_status: string
+          canonical_url: string
+          connected_account_id: string
+          created_at: string
+          creator_id: string
+          detection_enabled: boolean
+          display_handle: string | null
+          display_name: string
+          id: string
+          last_successful_sync_at: string | null
+          metadata: Json
+          next_sync_at: string | null
+          parent_asset_id: string | null
+          provider: string
+          public_visible: boolean
+          revoked_at: string | null
+          stable_asset_id: string
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          approval_required?: boolean
+          asset_type: string
+          authority_status?: string
+          canonical_url: string
+          connected_account_id: string
+          created_at?: string
+          creator_id: string
+          detection_enabled?: boolean
+          display_handle?: string | null
+          display_name: string
+          id?: string
+          last_successful_sync_at?: string | null
+          metadata?: Json
+          next_sync_at?: string | null
+          parent_asset_id?: string | null
+          provider: string
+          public_visible?: boolean
+          revoked_at?: string | null
+          stable_asset_id: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          approval_required?: boolean
+          asset_type?: string
+          authority_status?: string
+          canonical_url?: string
+          connected_account_id?: string
+          created_at?: string
+          creator_id?: string
+          detection_enabled?: boolean
+          display_handle?: string | null
+          display_name?: string
+          id?: string
+          last_successful_sync_at?: string | null
+          metadata?: Json
+          next_sync_at?: string | null
+          parent_asset_id?: string | null
+          provider?: string
+          public_visible?: boolean
+          revoked_at?: string | null
+          stable_asset_id?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_asset_bindings_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_asset_bindings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_asset_secrets: {
+        Row: {
+          asset_binding_id: string
+          created_at: string
+          creator_id: string
+          credential_ciphertext: string
+          credential_type: string
+          expires_at: string | null
+          granted_permissions: string[]
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          asset_binding_id: string
+          created_at?: string
+          creator_id: string
+          credential_ciphertext: string
+          credential_type: string
+          expires_at?: string | null
+          granted_permissions?: string[]
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          asset_binding_id?: string
+          created_at?: string
+          creator_id?: string
+          credential_ciphertext?: string
+          credential_type?: string
+          expires_at?: string | null
+          granted_permissions?: string[]
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_asset_secrets_asset_binding_id_fkey"
+            columns: ["asset_binding_id"]
+            isOneToOne: true
+            referencedRelation: "provider_asset_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_asset_secrets_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
             referencedColumns: ["id"]
           },
         ]
@@ -4752,6 +4986,69 @@ export type Database = {
             columns: ["ecosystem_destination_id"]
             isOneToOne: false
             referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_verification_challenges: {
+        Row: {
+          asset_binding_id: string | null
+          attempt_count: number
+          canonical_url: string
+          created_at: string
+          creator_id: string
+          expires_at: string
+          id: string
+          max_attempts: number
+          placement_method: string
+          provider: string
+          status: string
+          token_hash: string
+          verified_at: string | null
+        }
+        Insert: {
+          asset_binding_id?: string | null
+          attempt_count?: number
+          canonical_url: string
+          created_at?: string
+          creator_id: string
+          expires_at: string
+          id?: string
+          max_attempts?: number
+          placement_method: string
+          provider: string
+          status?: string
+          token_hash: string
+          verified_at?: string | null
+        }
+        Update: {
+          asset_binding_id?: string | null
+          attempt_count?: number
+          canonical_url?: string
+          created_at?: string
+          creator_id?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          placement_method?: string
+          provider?: string
+          status?: string
+          token_hash?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_verification_challenges_asset_binding_id_fkey"
+            columns: ["asset_binding_id"]
+            isOneToOne: false
+            referencedRelation: "provider_asset_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_verification_challenges_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
             referencedColumns: ["id"]
           },
         ]
@@ -5788,6 +6085,50 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_expansion_two_connections: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_type: string
+          auto_create_drafts: boolean
+          auto_send: boolean
+          capability_state: Json
+          connection_health: string
+          created_at: string
+          creator_id: string
+          external_account_id: string | null
+          external_account_name: string | null
+          external_account_url: string | null
+          granted_scopes: string[]
+          id: string
+          is_primary: boolean
+          is_public: boolean
+          label: string
+          last_connection_error: string | null
+          last_external_cursor: string | null
+          last_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          platform: string
+          poll_claimed_until: string | null
+          position: number
+          provider_metadata: Json
+          provider_status: string
+          requested_scopes: string[]
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+          updated_at: string
+          url: string
+          watch_enabled: boolean
+          webhook_enabled: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "connected_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_identity_accounts: {
         Args: { p_lease_owner?: string; p_limit?: number }
         Returns: {
@@ -6604,6 +6945,20 @@ export type Database = {
       select_ai_draft_variant: {
         Args: { p_update_id: string; p_variant_id: string }
         Returns: Json
+      }
+      select_provider_asset: {
+        Args: {
+          p_asset_type: string
+          p_canonical_url: string
+          p_connected_account_id: string
+          p_display_handle: string
+          p_display_name: string
+          p_metadata?: Json
+          p_parent_asset_id: string
+          p_provider: string
+          p_stable_asset_id: string
+        }
+        Returns: string
       }
       set_ecosystem_destination_presentation: {
         Args: {
