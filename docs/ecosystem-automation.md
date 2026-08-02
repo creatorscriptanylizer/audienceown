@@ -1,5 +1,7 @@
 # Ecosystem automation
 
+Active automation and unresolved incident counts feed the command dashboard without exposing raw observations or provider failures.
+
 Stage 8.2 provider sources feed normalized lifecycle changes into this observation, incident, trust, and authenticity refresh system.
 
 Stage 8.1 continuously maintains the Stage 8.0 destination graph. Polling and normalized provider webhooks produce observations, then `ecosystem-automation-v1` classifies them before mutation. Stable external IDs remain the identity anchor.

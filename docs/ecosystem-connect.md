@@ -1,5 +1,7 @@
 # Ecosystem Connect
 
+The command dashboard summarizes verified destinations and last successful sync from existing creator-scoped records.
+
 Twitch channels, Discord guild/channel authority, and podcast/RSS feeds project into this same graph through [Provider Expansion I](provider-expansion-one.md).
 
 Stage 8.1 extends this canonical graph with [continuous ecosystem automation](ecosystem-automation.md); it does not replace or duplicate it.

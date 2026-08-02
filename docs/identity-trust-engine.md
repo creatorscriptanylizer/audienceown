@@ -1,5 +1,7 @@
 # Explainable identity trust engine
 
+The command dashboard displays the explainable trust state only. Private numeric trust scores are excluded from the protection formula and UI.
+
 Ecosystem signals are grouped by provider family (`github`, `discord`, `patreon`, `domain`, newsletter, podcast, application store, or other). Multiple destinations in one family cannot inflate independent-signal strength; popularity, revenue, membership, stars, and engagement are excluded.
 
 Public authenticity maps the current safe trust state to a fixed label. It never exports the internal score, signal weights, evidence, or recommendations.

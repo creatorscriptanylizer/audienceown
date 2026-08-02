@@ -1,5 +1,7 @@
 # Public authenticity
 
+The command dashboard reports whether verified authenticity presentation is enabled without exposing assertion internals.
+
 Public authenticity may include verified official ecosystem destinations. Serializers exclude stable/internal IDs, permissions, scopes, evidence, errors, private communities, and private membership data.
 
 Stage 7.1 reuses this exact serializer for network manifests, lookups, feeds, and proofs; those projections never become identity truth.

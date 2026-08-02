@@ -1,5 +1,7 @@
 # Creator identity graph
 
+The command dashboard exposes only safe aggregate identity state and verified-account count, never stable provider identifiers.
+
 Stage 8 ecosystem destinations are projections attached through verified accounts, domains, or creator identity. Stable provider IDs preserve continuity; ecosystem records never duplicate social accounts already represented here.
 
 Continuity statements derive only from this graph's authoritative relationships and revisions.

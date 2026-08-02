@@ -12,6 +12,21 @@ import type { LiveRecoveryAnalytics } from "@/lib/live-recovery-analytics";
 
 export type RecoveryIncidentOption = { id: string; title: string; severity: string; lifecycle_status: string; activated_at: string | null; resolved_at: string | null; updated_at: string };
 
+export type RecoveryAnalyticsOverview = RecoveryCoverage & {
+  availability: "available" | "empty";
+};
+
+export const emptyRecoveryAnalyticsOverview = (): RecoveryAnalyticsOverview => ({
+  total_relationships: 0,
+  recovery_ready_relationships: 0,
+  uncovered_relationships: 0,
+  partially_configured_relationships: 0,
+  recovery_coverage_rate: null,
+  change_vs_previous_snapshot: null,
+  last_snapshot_at: null,
+  availability: "empty",
+});
+
 export async function recoveryIncidents() {
   const client = await createClient();
   if (!client) throw new Error("analytics_unavailable");
@@ -35,17 +50,30 @@ function duration(started: number) {
   return Math.round(performance.now() - started);
 }
 
-export async function recoveryAnalyticsOverview() {
+export async function recoveryAnalyticsOverview(): Promise<RecoveryAnalyticsOverview> {
   const started = performance.now();
   const client = await createClient();
   if (!client) throw new Error("analytics_unavailable");
   const { data, error } = await client.rpc("get_creator_recovery_coverage");
-  if (error || !data?.[0]) throw new Error("analytics_unavailable");
+  if (error) {
+    console.warn(JSON.stringify({
+      event: "recovery_analytics_overview_unavailable",
+      category: "database_error",
+    }));
+    throw new Error("analytics_unavailable");
+  }
+  if (!data?.[0]) {
+    console.info(JSON.stringify({
+      event: "recovery_analytics_overview_completed",
+      result_row_count: 0, duration_ms: duration(started),
+    }));
+    return emptyRecoveryAnalyticsOverview();
+  }
   console.info(JSON.stringify({
     event: "recovery_analytics_overview_completed",
     result_row_count: 1, duration_ms: duration(started),
   }));
-  return data[0] as unknown as RecoveryCoverage;
+  return { ...(data[0] as unknown as RecoveryCoverage), availability: "available" };
 }
 
 export async function recoveryTransportBreakdown() {

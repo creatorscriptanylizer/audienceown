@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+The authenticated home route is the data-driven [Creator Command Dashboard](docs/creator-command-dashboard.md), with documented [metrics](docs/dashboard-metric-definitions.md) and a versioned [Audience Protection Score](docs/audience-protection-score.md).
+
 Active and historical emergencies have a canonical Live Recovery Analytics panel at `/dashboard/analytics/recovery`; see [live analytics](docs/live-recovery-analytics.md).
 
 Stage 8.2 adds first-class Twitch, Discord, and podcast/RSS sources through the existing identity and content systems. See [Provider Expansion I](docs/provider-expansion-one.md).

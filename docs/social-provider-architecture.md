@@ -1,5 +1,7 @@
 # Social provider architecture
 
+Platform dashboard tiles use connection health only. Audience counts remain unavailable until approved authoritative counts and source timestamps are stored.
+
 Stage 8.2 extends this registry with shared provider readiness, source discovery, authority verification, constrained manual fallback, and destination synchronization. See [Provider Expansion I](provider-expansion-one.md).
 
 Stage 4.1 uses one registered, typed provider subsystem under `lib/social-providers`.

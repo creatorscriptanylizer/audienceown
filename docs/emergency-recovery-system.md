@@ -1,5 +1,7 @@
 # Verified Emergency Mode
 
+The command dashboard presents existing incident and drill state but links all emergency actions through the secured Emergency Center.
+
 Incident delivery outcomes are exposed through the creator-scoped [Live Recovery Analytics](live-recovery-analytics.md) panel; the Emergency Center does not duplicate it.
 
 Network outputs may link to safe replacement information but cannot activate or resolve an emergency.

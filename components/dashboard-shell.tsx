@@ -16,7 +16,7 @@ export function DashboardShell({ creator, children }: { creator: Creator; childr
     </aside>
     <div className="min-w-0 lg:col-start-2">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-[#08080a]/95 px-5 backdrop-blur lg:px-8"><div><span className="text-sm font-medium">{creator.display_name}</span><span className="ml-2 text-xs text-zinc-500">@{creator.public_slug}</span></div><Link href={`/c/${creator.public_slug}`} target="_blank" className="button button-secondary min-h-9 py-1.5 text-xs">View public page <ExternalLink size={14}/></Link></header>
-      <main className="mx-auto max-w-[1380px] p-5 lg:p-10 xl:p-12">{children}</main>
+      <main className="mx-auto max-w-[1560px] p-5 lg:p-10 xl:p-12">{children}</main>
     </div>
   </div>;
 }

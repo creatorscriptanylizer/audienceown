@@ -3,7 +3,7 @@ export type RecoveryCoverage = {
   recovery_ready_relationships: number;
   uncovered_relationships: number;
   partially_configured_relationships: number;
-  recovery_coverage_rate: number;
+  recovery_coverage_rate: number | null;
   change_vs_previous_snapshot: number | null;
   last_snapshot_at: string | null;
 };
@@ -87,7 +87,7 @@ export function buildRecoveryOpportunities(
     }];
   }
   const insights: RecoveryOpportunity[] = [];
-  if (coverage.recovery_coverage_rate < thresholds.lowCoveragePercent) {
+  if (coverage.recovery_coverage_rate !== null && coverage.recovery_coverage_rate < thresholds.lowCoveragePercent) {
     insights.push({
       type: "low_overall_coverage", severity: "warning",
       title: "Recovery coverage is below your configured threshold",

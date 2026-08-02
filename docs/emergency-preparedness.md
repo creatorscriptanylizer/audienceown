@@ -1,5 +1,7 @@
 # Emergency preparedness
 
+Dashboard recovery readiness displays the latest canonical plan readiness state; it does not introduce a second readiness percentage.
+
 Stage 5.1 adds private emergency templates and saved plans without changing the Stage 5.0 real-incident safety model.
 
 ## Templates and plans
