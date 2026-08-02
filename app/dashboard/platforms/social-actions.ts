@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireCreator } from "@/lib/dal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { decryptSocialSecret } from "@/lib/social-secrets";
+import { revalidateCreatorAccounts } from "@/lib/social-providers/creator-account-revalidation";
 
 const idSchema = z.string().uuid();
 
@@ -24,7 +24,7 @@ export async function updateYouTubeAutomation(formData: FormData) {
     watch_enabled: watchEnabled, auto_create_drafts: autoCreateDrafts, auto_send: autoSend,
   }).eq("id", id).eq("creator_id", creator.id).eq("platform", "youtube");
   if (error) redirect("/dashboard/platforms?youtube=save_failed");
-  revalidatePath("/dashboard/platforms");
+  revalidateCreatorAccounts(creator.id);
   redirect("/dashboard/platforms?youtube=saved");
 }
 
@@ -53,6 +53,6 @@ export async function disconnectYouTube(formData: FormData) {
     }
   }
   await admin?.from("platform_connection_secrets").delete().eq("platform_connection_id", id);
-  revalidatePath("/dashboard/platforms");
+  revalidateCreatorAccounts(creator.id);
   redirect("/dashboard/platforms?youtube=disconnected");
 }

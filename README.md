@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Stage 8.8 separates authoritative public **Main Audience** metrics from private, deduplicated **Recovery Destination** opt-ins. See [main audience and recovery destinations](docs/main-audience-and-recovery-destinations.md), [recovery destination analytics](docs/recovery-destination-analytics.md), and [provider audience metrics](docs/platform-audience-metrics.md).
+
 The authenticated home route is the data-driven [Creator Command Dashboard](docs/creator-command-dashboard.md), with documented [metrics](docs/dashboard-metric-definitions.md) and a versioned [Audience Protection Score](docs/audience-protection-score.md).
 
 Active and historical emergencies have a canonical Live Recovery Analytics panel at `/dashboard/analytics/recovery`; see [live analytics](docs/live-recovery-analytics.md).
@@ -163,3 +165,6 @@ Stage 8.4 adds plan-aware X, restricted-product LinkedIn, and distinct Threads s
 # Stage 8.5 provider coverage
 
 The fixed social-provider list is complete with Spotify account OAuth and verified-feed show linkage, Snapchat Login Kit with separately gated Public Profile capability, Pinterest read-only boards/Pins/claimed-site support, and SSRF-safe manual services. See [Provider Expansion IV](docs/provider-expansion-four.md). All detections remain approval-first; provider publishing is disabled.
+# Stage 8.8 audience metrics
+
+The creator dashboard supports privacy-preserving authoritative platform audience totals, daily snapshots, and provider-aware freshness. See [platform audience metrics](docs/platform-audience-metrics.md) and [operations](docs/platform-audience-metrics-operations.md).

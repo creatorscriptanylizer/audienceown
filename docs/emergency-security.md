@@ -41,3 +41,7 @@ X, LinkedIn, and Threads monitoring is isolated from emergency activation and Re
 # Provider Expansion IV isolation
 
 Spotify, Snapchat, Pinterest, and manual-service workflows cannot activate emergencies, modify emergency authority, publish provider content, or enqueue follower delivery. Provider authority loss only invokes existing alerts and reevaluation.
+Platform audience synchronization cannot activate emergencies, enqueue recovery deliveries, or publish provider content.
+# Audience analytics security boundary
+
+Official audience counts and aggregate destination opt-ins contain no follower identities and grant no emergency authority. Provider popularity never increases trust or authenticity. Metric workers cannot publish, activate emergencies, or send follower deliveries.

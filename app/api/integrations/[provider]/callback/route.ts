@@ -4,6 +4,7 @@ import { verifyOAuthState } from "@/lib/social-providers/oauth";import { getSoci
 import { isSocialProvider } from "@/lib/social-providers/normalize";
 import type { Json } from "@/lib/database.types";
 import { providerReadiness } from "@/lib/social-providers/readiness";
+import { revalidateCreatorAccounts } from "@/lib/social-providers/creator-account-revalidation";
 export const runtime="nodejs";
 export async function GET(request:Request,{params}:{params:Promise<{provider:string}>}){
   const{provider:raw}=await params;if(!isSocialProvider(raw))return Response.json({error:"Unknown provider"},{status:404});
@@ -31,6 +32,7 @@ export async function GET(request:Request,{params}:{params:Promise<{provider:str
     if(raw==="spotify"||raw==="snapchat"||raw==="pinterest"){const assetType=raw==="spotify"?"spotify_user":raw==="snapchat"?"snapchat_user":"pinterest_user",handle=typeof identity.metadata.username==="string"?identity.metadata.username:"",selected=await admin.rpc("select_provider_asset",{p_connected_account_id:result.data.id,p_provider:raw,p_asset_type:assetType,p_stable_asset_id:identity.id,p_parent_asset_id:"",p_display_name:identity.name,p_display_handle:handle,p_canonical_url:identity.url,p_metadata:{oauthAuthority:true,accountIdentityOnly:true,creatorAssetAuthority:false}});if(selected.error)throw selected.error;}
     if(raw==="twitch"){const hostname=new URL(identity.url).hostname,{data:destinationId,error:destinationError}=await admin.rpc("ensure_ecosystem_destination",{p_provider:"twitch",p_destination_type:"livestream",p_stable_external_id:identity.id,p_display_name:identity.name,p_display_handle:typeof identity.metadata.login==="string"?identity.metadata.login:identity.name,p_canonical_url:identity.url,p_hostname:hostname,p_source_connection_id:result.data.id,p_metadata:{oauthAuthority:true}});if(destinationError||!destinationId)throw destinationError??new Error("twitch_destination_failed");const verified=await admin.rpc("verify_ecosystem_destination",{p_destination_id:destinationId,p_method:"twitch_oauth",p_confidence:"high",p_stable_external_id:identity.id});if(verified.error)throw verified.error;}
     console.info("social_automation",{event:"connection_established",provider:raw,connectionId:result.data.id});
+    revalidateCreatorAccounts(creator.id);
     return NextResponse.redirect(new URL(`/dashboard/platforms?social=${raw}:connected`,request.url));
   }catch{return NextResponse.redirect(new URL(`/dashboard/platforms?social=${raw}:${adapter.availability}`,request.url));}
 }

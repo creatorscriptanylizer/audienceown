@@ -46,3 +46,9 @@ X, LinkedIn, and Threads implement the shared readiness and normalized ingestion
 # Stage 8.5 extension
 
 Spotify, Snapchat, and Pinterest use the same registry, signed OAuth state, encrypted secrets, assets, content sources, polling, detections, drafts, monitoring, identity, trust, and authenticity paths. Manual services are destinations, not speculative provider adapters. The named provider list is fixed.
+## Aggregate audience metrics
+
+Audience synchronization reuses provider adapters, encrypted credentials, connected accounts, and selected asset bindings. The separate metric snapshot is aggregate-only and does not create a parallel OAuth or identity system. See `platform-audience-metric-capabilities.md`.
+# Official audience capability registry
+
+Main-account audience rules live in `lib/platform-audience/capabilities.ts`: official field availability, unit, selected-asset and scope requirements, review state, approximation and hidden-count behavior, sync interval, and rate-limit class. Provider adapters runtime-validate responses and persist aggregate integers only.

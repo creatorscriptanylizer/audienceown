@@ -20,3 +20,4 @@ Stage 8.4 monitoring covers X protection, username, grant, and tier changes; Lin
 # Expansion IV monitoring
 
 Revocation, refresh failure, stable-ID conflict, asset loss/restoration, allowlist loss, board privacy changes, feed/show mismatch, claimed-domain mismatch, and repeated provider failure suppress unsafe authority and use the existing incident, alert, trust, and authenticity refresh workflows.
+Audience synchronization reports normalized authorization, permission, review, selected-asset, hidden/restored, repeated-failure, and suspicious-drop observations through the existing monitoring boundary. Ordinary zero growth is not an incident, and counts never influence identity trust.

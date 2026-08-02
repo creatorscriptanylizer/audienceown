@@ -34,3 +34,6 @@ Prepared replacement records are verified by authoritative provider identity bef
 # Identity continuity
 
 Active emergency replacements remain governed by Stage 5 policy and public snapshot rules. Stage 6 adds continuity context without changing activation, authorization, snapshots, or Recovery Pass delivery.
+# Recovery destination analytics boundary
+
+Destination analytics is read-only with respect to emergencies: selecting a destination or synchronizing public audience totals cannot activate an emergency or enqueue delivery. Emergency replacements appear only through verified canonical identity relationships.

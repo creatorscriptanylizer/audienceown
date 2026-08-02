@@ -26,3 +26,7 @@ Provider families include X, LinkedIn, and Meta for Threads, Instagram, and Face
 # Expansion IV families
 
 Spotify uses the Spotify family, Login Kit and Public Profile share Snap, and Pinterest accounts/boards/Pins/claims share Pinterest. Multiple services proved by one domain remain one domain family. Unverified/manual URLs and popularity metrics contribute no trust.
+Audience counts are analytics only and never contribute to trust, verification, authenticity, or official-account status.
+# Popularity independence
+
+Public audience counts are analytics only. They never contribute to identity trust, authenticity, account verification, or emergency authorization. Official, backup, emergency replacement, and recovery destination roles remain tied to canonical identity relationships rather than follower totals.

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSocialSecret } from "@/lib/social-secrets";
 import { exchangeYouTubeCode, verifyYouTubeOAuthState } from "@/lib/youtube-oauth";
 import { getYouTubeChannel } from "@/lib/youtube-watcher";
+import { revalidateCreatorAccounts } from "@/lib/social-providers/creator-account-revalidation";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
       token_scope: tokens.scope ?? null, token_type: tokens.token_type ?? "Bearer",
     });
     console.info("social_automation", { event: "connection_established", provider: "youtube", connectionId: connection.id });
+    revalidateCreatorAccounts(creator.id);
     return dashboard(request, "connected");
   } catch (error) {
     console.warn("social_automation", { event: "provider_failure", provider: "youtube", phase: "oauth_callback",

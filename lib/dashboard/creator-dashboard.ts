@@ -5,8 +5,13 @@ import { calculateProtectionScore } from "./protection-score";
 import { platformPresentation } from "./platform-presentation";
 import type { Creator } from "@/lib/database.helpers";
 import type { LiveRecoveryAnalytics } from "@/lib/live-recovery-analytics";
+import { providerAudienceCapabilities } from "@/lib/platform-audience/capabilities";
+import type { PlatformAudienceMetricStatus } from "@/lib/platform-audience/types";
+import { resolveProviderConnection } from "./provider-connections";
+import { createCreatorAccountProjection } from "@/lib/social-providers/creator-account-projection";
 
-export type CreatorDashboardData = Awaited<ReturnType<typeof getCreatorDashboard>>;
+type CreatorDashboardResult = Awaited<ReturnType<typeof getCreatorDashboard>>;
+export type CreatorDashboardData = Omit<CreatorDashboardResult, "mainAudience" | "estimatedMainAudienceProtection" | "recoveryDestinations"> & Partial<Pick<CreatorDashboardResult, "mainAudience" | "estimatedMainAudienceProtection" | "recoveryDestinations">>;
 
 type QueryResult<T> = { data: T | null; error: unknown };
 type DashboardRecoveryOverview = RecoveryAnalyticsOverview | {
@@ -44,14 +49,17 @@ export async function safeDashboardSection<T>(
 export async function getCreatorDashboard(creator: Creator) {
   const db = await createClient(); if (!db) throw new Error("dashboard_unavailable");
   const unavailableCoverage = { total_relationships: null, recovery_ready_relationships: null, uncovered_relationships: null, partially_configured_relationships: null, recovery_coverage_rate: null, change_vs_previous_snapshot: null, last_snapshot_at: null, availability: "unavailable" as const };
-  const [coverage, trend, accounts, providerAssets, optIns, identityProfile, identityAccounts, trust, authenticity, monitoring, destinations, ecosystemIncidents, emergencies, plans, drills] = await Promise.all([
+  const [coverage, trend, accounts, providerAssets, audienceMetrics, recoveryDestinations, protectedDestinationFans, optIns, identityProfile, identityAccounts, trust, authenticity, monitoring, destinations, ecosystemIncidents, emergencies, plans, drills] = await Promise.all([
     safeDashboardSection<DashboardRecoveryOverview>("recovery_analytics", recoveryAnalyticsOverview, unavailableCoverage),
     safeDashboardSection("recovery_trend", () => recoveryTrend(30), []),
-    safeDashboardSection("platform_metrics", async () => dashboardQueryData(await db.from("connected_accounts").select("id,platform,account_type,label,connection_health,provider_status,last_sync_at,created_at").eq("creator_id", creator.id).order("position").limit(20)) ?? [], []),
+    safeDashboardSection("platform_metrics", async () => dashboardQueryData(await db.from("connected_accounts").select("id,platform,account_type,label,url,is_primary,connection_health,provider_status,last_sync_at,created_at").eq("creator_id", creator.id).order("position").limit(20)) ?? [], []),
     safeDashboardSection("provider_assets", async () => dashboardQueryData(await db.from("provider_asset_bindings").select("connected_account_id,provider,verification_status,authority_status,last_successful_sync_at").eq("creator_id", creator.id).limit(50)) ?? [], []),
-    safeDashboardSection("recent_opt_ins", async () => dashboardQueryData(await db.from("follower_connections").select("id,created_at,source_platform,status").eq("creator_id", creator.id).eq("status", "active").order("created_at", { ascending: false }).limit(5)) ?? [], []),
+    safeDashboardSection("audience_metrics", async () => dashboardQueryData(await db.rpc("get_creator_platform_audience_metrics")) ?? [], []),
+    safeDashboardSection("recovery_destinations", async () => dashboardQueryData(await db.rpc("get_creator_recovery_destination_breakdown")) ?? [], []),
+    safeDashboardSection<number | null>("protected_destination_fans", async () => dashboardQueryData(await db.rpc("get_creator_protected_fan_count")), null),
+    safeDashboardSection("recent_opt_ins", async () => dashboardQueryData(await db.rpc("get_creator_recent_recovery_opt_ins", { p_limit: 5 })) ?? [], []),
     safeDashboardSection<{ identity_status: string; identity_revision: number } | null>("identity_profile", async () => dashboardQueryData(await db.from("creator_identity_profiles").select("identity_status,identity_revision").eq("creator_id", creator.id).maybeSingle()), null),
-    safeDashboardSection("identity_accounts", async () => dashboardQueryData(await db.from("creator_identity_accounts").select("provider,verification_status,official,account_kind").eq("creator_id", creator.id)) ?? [], []),
+    safeDashboardSection("identity_accounts", async () => dashboardQueryData(await db.from("creator_identity_accounts").select("provider,verification_status,official,primary_for_provider,account_kind,display_name,display_handle,source_connection_id,last_synced_at").eq("creator_id", creator.id)) ?? [], []),
     safeDashboardSection("identity_trust", async () => dashboardQueryData(await db.from("creator_trust_evaluations").select("trust_state,evaluated_at").eq("creator_id", creator.id).order("evaluated_at", { ascending: false }).limit(1)) ?? [], []),
     safeDashboardSection<{ display_enabled: boolean; updated_at: string } | null>("authenticity", async () => dashboardQueryData(await db.from("creator_authenticity_profiles").select("display_enabled,updated_at").eq("creator_id", creator.id).maybeSingle()), null),
     safeDashboardSection("identity_monitoring", async () => dashboardQueryData(await db.from("identity_monitoring_incidents").select("status,created_at").eq("creator_id", creator.id).order("created_at", { ascending: false }).limit(20)) ?? [], []),
@@ -61,11 +69,12 @@ export async function getCreatorDashboard(creator: Creator) {
     safeDashboardSection("emergency_plan", async () => dashboardQueryData(await db.from("emergency_plans").select("readiness_status,last_validated_at").eq("creator_id", creator.id).order("updated_at", { ascending: false }).limit(1)) ?? [], []),
     safeDashboardSection("emergency_drills", async () => dashboardQueryData(await db.from("emergency_drills").select("status,completed_at,created_at").eq("creator_id", creator.id).order("created_at", { ascending: false }).limit(1)) ?? [], []),
   ]);
+  const accountProjection = createCreatorAccountProjection(creator.id, accounts, providerAssets, identityAccounts);
   const verifiedOfficial = identityAccounts.some((account) => account.official && account.verification_status === "verified");
   const verifiedBackup = identityAccounts.some((account) => account.account_kind === "backup" && account.verification_status === "verified");
   const protection = calculateProtectionScore({ recoveryCoveragePercent: Number(coverage.recovery_coverage_rate ?? 0), recoveryPagePublished: creator.public_profile_enabled, recoveryPassEnabled: creator.recovery_pass_enabled, verifiedOfficialAccount: verifiedOfficial, verifiedBackupAccount: verifiedBackup });
   const knownTotal = coverage.total_relationships === null ? null : Number(coverage.total_relationships);
-  const protectedFans = coverage.recovery_ready_relationships === null ? null : Number(coverage.recovery_ready_relationships);
+  const protectedFans = protectedDestinationFans === null ? null : Number(protectedDestinationFans);
   const fansAtRisk = coverage.uncovered_relationships === null || coverage.partially_configured_relationships === null
     ? null
     : Number(coverage.uncovered_relationships) + Number(coverage.partially_configured_relationships);
@@ -88,15 +97,46 @@ export async function getCreatorDashboard(creator: Creator) {
   const platforms = platformKeys.map((provider) => {
     const account = accounts.find((row) => row.platform === provider);
     const asset = providerAssets.find((row) => row.provider === provider);
-    const identity = identityAccounts.find((row) => row.provider === provider);
     const presentation = platformPresentation[provider];
-    const verified = asset?.verification_status === "verified" || identity?.verification_status === "verified";
-    const connected = Boolean(account || asset || identity);
+    const audienceMetric = audienceMetrics.find((row) => row.provider === provider);
+    const capability = providerAudienceCapabilities[provider as keyof typeof providerAudienceCapabilities];
+    const projectedAccounts = accountProjection.filter((row) => row.provider === provider && !row.archived);
+    const projectedConnected = projectedAccounts.some((row) => row.connected);
+    const projectedVerified = projectedAccounts.some((row) => row.verified);
+    const projectedAttention = projectedAccounts.some((row) => row.needsAttention);
+    const projectedRevoked = projectedAccounts.length > 0 && projectedAccounts.every((row) => row.revoked);
+    const connection = projectedAccounts.length ? { provider: provider as keyof typeof providerAudienceCapabilities, connected: projectedConnected, verified: projectedVerified, selectedAsset: projectedAccounts.some((row) => providerAssets.some((asset) => asset.connected_account_id === accounts.find((account) => account.platform === row.provider)?.id)), status: !projectedConnected ? projectedRevoked ? "revoked" as const : "not_connected" as const : projectedAttention ? "attention" as const : projectedVerified ? "verified" as const : "connected" as const } : resolveProviderConnection(provider as keyof typeof providerAudienceCapabilities, accounts, providerAssets, identityAccounts);
+    const { verified, connected } = connection;
     const accessLimited = asset?.authority_status === "insufficient" || asset?.authority_status === "unavailable";
-    return { provider, label: presentation.label, audienceCount: null as number | null, audienceUnit: presentation.unit,
+    const metricStatus: PlatformAudienceMetricStatus = audienceMetric?.status as PlatformAudienceMetricStatus ?? (!connected ? "not_connected" : capability.requiresSelectedAsset && !asset ? "not_selected" : !capability.supported ? "unsupported" : accessLimited ? "permission_required" : capability.accessRequirement === "review" ? "review_required" : "unsupported");
+    return { provider, label: presentation.label, audienceCount: audienceMetric?.audience_count === null || audienceMetric?.audience_count === undefined ? null : Number(audienceMetric.audience_count), audienceUnit: audienceMetric?.audience_unit ?? capability.audienceUnit,
       verified, connected, accessLimited, health: account?.connection_health === "healthy" ? "healthy" as const : account?.connection_health === "degraded" ? "attention" as const : connected ? "unavailable" as const : "not_configured" as const,
-      growthPercent: null, trend: null as number[] | null, updatedAt: account?.last_sync_at ?? asset?.last_successful_sync_at ?? null, color: presentation.color };
+      metricStatus, approximate: audienceMetric?.approximate ?? false, synchronizedAt: audienceMetric?.synchronized_at ?? null,
+      growthPercent: audienceMetric?.growth_percent === null || audienceMetric?.growth_percent === undefined ? null : Number(audienceMetric.growth_percent) * 100,
+      trend: audienceMetric?.trend?.map(Number) ?? null, href: "/dashboard/platforms", updatedAt: audienceMetric?.synchronized_at ?? account?.last_sync_at ?? asset?.last_successful_sync_at ?? null, color: presentation.color };
   });
+  const projectedOfficial = accountProjection.find((row) => row.role === "official" && row.primary && row.connected && !row.archived) ?? accountProjection.find((row) => row.role === "official" && row.connected && !row.archived) ?? null;
+  const officialAccount = projectedOfficial ? accounts.find((row) => row.platform === projectedOfficial.provider && row.label === projectedOfficial.displayName) ?? accounts.find((row) => row.platform === projectedOfficial.provider && row.account_type === "official") ?? null : accounts.find((row) => row.account_type === "official" && row.is_primary) ?? accounts.find((row) => row.account_type === "official") ?? null;
+  const officialIdentity = officialAccount
+    ? identityAccounts.find((row) => row.source_connection_id === officialAccount.id)
+    : identityAccounts.find((row) => row.official && row.primary_for_provider) ?? identityAccounts.find((row) => row.official) ?? null;
+  const mainProvider = (officialAccount?.platform ?? officialIdentity?.provider) as keyof typeof providerAudienceCapabilities | undefined;
+  const mainPlatform = mainProvider ? platforms.find((row) => row.provider === mainProvider) ?? null : null;
+  const mainAudience = mainProvider && mainPlatform ? {
+    provider: mainProvider,
+    displayName: officialIdentity?.display_name ?? officialAccount?.label ?? platformPresentation[mainProvider].label,
+    handle: officialIdentity?.display_handle ?? null,
+    audienceCount: mainPlatform.audienceCount,
+    audienceUnit: mainPlatform.audienceUnit,
+    status: mainPlatform.metricStatus,
+    approximate: mainPlatform.approximate,
+    synchronizedAt: mainPlatform.synchronizedAt,
+    connection: resolveProviderConnection(mainProvider, accounts, providerAssets, identityAccounts),
+    href: "/dashboard/platforms",
+  } : null;
+  const estimatedMainAudienceProtection = mainAudience?.audienceCount && protectedFans !== null
+    ? protectedFans * 100 / mainAudience.audienceCount
+    : null;
   const nextAction = !creator.public_profile_enabled ? { label: "Publish your Recovery Page", description: "Make your verified recovery destination available to fans.", href: "/dashboard/creator-page", tone: "primary" as const }
     : !platforms.some((platform) => platform.connected) ? { label: "Connect your first platform", description: "Link an official account to establish your audience protection foundation.", href: "/dashboard/platforms", tone: "primary" as const }
     : !verifiedOfficial ? { label: "Verify an official account", description: "Confirm an authoritative identity your audience can trust.", href: "/dashboard/identity", tone: "warning" as const }
@@ -109,8 +149,9 @@ export async function getCreatorDashboard(creator: Creator) {
   return { calculatedAt: new Date().toISOString(), creator: { displayName: creator.display_name, handle: creator.public_slug }, protection,
     audience: { protectedFans, fansAtRisk, protectedRatio: knownTotal && protectedFans !== null ? protectedFans * 100 / knownTotal : null, trend: trend.map((row) => ({ date: row.snapshot_date, protected: Number(row.recovery_ready_relationships), atRisk: Number(row.total_relationships) - Number(row.recovery_ready_relationships) })) },
     recoveryReadiness: { score: null as number | null, state: plan?.readiness_status ?? "Not configured", checklist },
-    platforms,
-    recentOptIns: optIns.map((row) => ({ id: row.id, displayLabel: "New protected fan", sourceLabel: row.source_platform, occurredAt: row.created_at })),
+    platforms, mainAudience, estimatedMainAudienceProtection,
+    recoveryDestinations: recoveryDestinations.map((row) => ({ destinationId: row.destination_id, provider: row.provider, displayName: row.display_name, handle: row.display_handle as string | null, role: row.role as "backup" | "emergency_replacement" | "recovery_destination", verificationState: row.verification_state as "verified" | "needs_attention" | "unverified" | "revoked", optedInFanCount: Number(row.opted_in_fan_count), coveragePercent: row.coverage_percent === null ? null : Number(row.coverage_percent), synchronizedAt: row.synchronized_at as string | null, href: row.href })),
+    recentOptIns: optIns.map((row) => ({ id: row.preference_id, displayLabel: "New protected fan", sourceLabel: Number(row.destination_count) === 1 && row.provider ? `Selected ${platformPresentation[row.provider]?.label ?? row.provider} backup` : `Selected ${Number(row.destination_count)} recovery destinations`, occurredAt: row.selected_at })),
     identity: { trustState: trust[0]?.trust_state ?? (identityProfile?.identity_status === "verified" ? "Verified" : "Not verified"), authenticityState: authenticity?.display_enabled ? "Issued" : "Not issued", monitoringState: monitoring.some((row) => !["resolved", "dismissed"].includes(row.status)) ? "Needs attention" : "Healthy", verifiedAccounts: identityAccounts.filter((account) => account.verification_status === "verified").length, revision: identityProfile?.identity_revision ?? null },
     ecosystem: { verifiedDestinations: destinations.filter((row) => row.verification_status === "verified").length, activeAutomations: destinations.filter((row) => row.automation_enabled && !row.automation_paused_at).length, openIncidents: openEcosystem, lastSyncAt, health: openEcosystem ? "Needs attention" : destinations.length ? "Healthy" : "Setup available" },
     emergency: { activeEmergencyId: activeEmergency?.id ?? null, activeEmergencyCount: activeEmergency ? 1 : 0, status: activeEmergency ? "Active incident" : "No active emergency", severity: activeEmergency?.severity ?? null, activatedAt: activeEmergency?.activated_at ?? null, recoveryPassActive: creator.recovery_pass_enabled, lastDrillAt: drill?.completed_at ?? null, readinessState: plan?.readiness_status ?? "Not configured" }, liveRecovery, nextAction };

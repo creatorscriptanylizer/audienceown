@@ -27,7 +27,7 @@ function query(result: { data: unknown; error: unknown }) {
 }
 
 function database(results: Record<string, unknown[]> = {}) {
-  return { from: vi.fn((table: string) => query({ data: results[table] ?? [], error: null })) };
+  return { from: vi.fn((table: string) => query({ data: results[table] ?? [], error: null })), rpc: vi.fn((name: string) => Promise.resolve({ data: name === "get_creator_protected_fan_count" ? 0 : [], error: null })) };
 }
 
 const creator = {
@@ -55,7 +55,7 @@ describe("creator dashboard data isolation", () => {
     mocks.recoveryAnalyticsOverview.mockRejectedValue(new Error("analytics_unavailable"));
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const result = await getCreatorDashboard(creator);
-    expect(result.audience).toMatchObject({ protectedFans: null, fansAtRisk: null, protectedRatio: null, trend: [] });
+    expect(result.audience).toMatchObject({ protectedFans: 0, fansAtRisk: null, protectedRatio: null, trend: [] });
     expect(result.recentOptIns).toEqual([]);
     expect(result.recoveryReadiness.checklist.length).toBeGreaterThan(0);
     expect(warning.mock.calls.flat().join(" ")).not.toContain("analytics_unavailable");

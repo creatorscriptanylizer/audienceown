@@ -32,3 +32,6 @@ Stage 8.4 detection is conditional: X requires an entitled plan, LinkedIn requir
 | Snapchat | Login Kit | Public Profile separately allowlisted | Only when approved API data is durable | Yes | Disabled |
 | Pinterest | Account | Explicit public boards; claimed site corroboration | Selected public Pins | Yes | Disabled |
 | More platforms | None | Domain/challenge/manifest/review | Unavailable | Required | Disabled |
+## Audience capability
+
+Audience fields, units, access requirements, and polling intervals are centralized in `lib/platform-audience/capabilities.ts`. Restricted product access defaults to blocked, and manual services receive no audience metric.

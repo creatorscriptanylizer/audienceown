@@ -4158,6 +4158,81 @@ export type Database = {
           },
         ]
       }
+      follower_recovery_destination_preferences: {
+        Row: {
+          connected_account_id: string | null
+          creator_id: string
+          ecosystem_destination_id: string | null
+          follower_connection_id: string
+          id: string
+          identity_account_id: string | null
+          opted_out_at: string | null
+          selected_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          connected_account_id?: string | null
+          creator_id: string
+          ecosystem_destination_id?: string | null
+          follower_connection_id: string
+          id?: string
+          identity_account_id?: string | null
+          opted_out_at?: string | null
+          selected_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          connected_account_id?: string | null
+          creator_id?: string
+          ecosystem_destination_id?: string | null
+          follower_connection_id?: string
+          id?: string
+          identity_account_id?: string | null
+          opted_out_at?: string | null
+          selected_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follower_recovery_destination_pre_ecosystem_destination_id_fkey"
+            columns: ["ecosystem_destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_ecosystem_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_recovery_destination_prefe_follower_connection_id_fkey"
+            columns: ["follower_connection_id"]
+            isOneToOne: false
+            referencedRelation: "follower_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_recovery_destination_prefere_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_recovery_destination_preferen_identity_account_id_fkey"
+            columns: ["identity_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_identity_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_recovery_destination_preferences_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follower_recovery_methods: {
         Row: {
           consent_purpose: string | null
@@ -5050,6 +5125,151 @@ export type Database = {
           },
           {
             foreignKeyName: "provider_asset_secrets_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_audience_metric_snapshots: {
+        Row: {
+          approximate: boolean
+          audience_count: number
+          audience_unit: string
+          created_at: string
+          creator_id: string
+          id: string
+          metric_id: string
+          observed_on: string
+          provider: string
+          source_observed_at: string | null
+        }
+        Insert: {
+          approximate?: boolean
+          audience_count: number
+          audience_unit: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          metric_id: string
+          observed_on: string
+          provider: string
+          source_observed_at?: string | null
+        }
+        Update: {
+          approximate?: boolean
+          audience_count?: number
+          audience_unit?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          metric_id?: string
+          observed_on?: string
+          provider?: string
+          source_observed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_audience_metric_snapshots_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_audience_metric_snapshots_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "provider_audience_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_audience_metrics: {
+        Row: {
+          account_category: string
+          approximate: boolean
+          asset_binding_id: string | null
+          audience_count: number | null
+          audience_unit: string | null
+          connection_id: string | null
+          consecutive_failures: number
+          created_at: string
+          creator_id: string
+          error_code: string | null
+          id: string
+          last_success_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          provider: string
+          source_observed_at: string | null
+          status: string
+          synchronized_at: string
+          updated_at: string
+        }
+        Insert: {
+          account_category: string
+          approximate?: boolean
+          asset_binding_id?: string | null
+          audience_count?: number | null
+          audience_unit?: string | null
+          connection_id?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          creator_id: string
+          error_code?: string | null
+          id?: string
+          last_success_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          next_sync_at?: string | null
+          provider: string
+          source_observed_at?: string | null
+          status: string
+          synchronized_at?: string
+          updated_at?: string
+        }
+        Update: {
+          account_category?: string
+          approximate?: boolean
+          asset_binding_id?: string | null
+          audience_count?: number | null
+          audience_unit?: string | null
+          connection_id?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          creator_id?: string
+          error_code?: string | null
+          id?: string
+          last_success_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          next_sync_at?: string | null
+          provider?: string
+          source_observed_at?: string | null
+          status?: string
+          synchronized_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_audience_metrics_asset_binding_id_fkey"
+            columns: ["asset_binding_id"]
+            isOneToOne: false
+            referencedRelation: "provider_asset_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_audience_metrics_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_audience_metrics_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
@@ -5961,6 +6181,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      append_provider_audience_snapshot: {
+        Args: { p_metric_id: string }
+        Returns: boolean
+      }
       apply_emergency_revalidation: {
         Args: {
           p_error?: string
@@ -6568,6 +6792,37 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_provider_audience_metrics: {
+        Args: { p_lease_owner?: string; p_limit?: number }
+        Returns: {
+          account_category: string
+          approximate: boolean
+          asset_binding_id: string | null
+          audience_count: number | null
+          audience_unit: string | null
+          connection_id: string | null
+          consecutive_failures: number
+          created_at: string
+          creator_id: string
+          error_code: string | null
+          id: string
+          last_success_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          next_sync_at: string | null
+          provider: string
+          source_observed_at: string | null
+          status: string
+          synchronized_at: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "provider_audience_metrics"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_provider_content_sources: {
         Args: { p_lease_owner?: string; p_limit?: number }
         Returns: {
@@ -6904,6 +7159,32 @@ export type Database = {
       get_ai_usage_summary: { Args: never; Returns: Json }
       get_creator_ecosystem_graph: { Args: never; Returns: Json }
       get_creator_identity_graph: { Args: never; Returns: Json }
+      get_creator_platform_audience_metrics: {
+        Args: never
+        Returns: {
+          account_category: string
+          approximate: boolean
+          audience_count: number
+          audience_unit: string
+          growth_percent: number
+          next_sync_at: string
+          provider: string
+          source_observed_at: string
+          status: string
+          synchronized_at: string
+          trend: number[]
+        }[]
+      }
+      get_creator_protected_fan_count: { Args: never; Returns: number }
+      get_creator_recent_recovery_opt_ins: {
+        Args: { p_limit?: number }
+        Returns: {
+          destination_count: number
+          preference_id: string
+          provider: string
+          selected_at: string
+        }[]
+      }
       get_creator_recovery_broadcast_performance: {
         Args: { p_before?: string; p_limit?: number }
         Returns: {
@@ -6951,6 +7232,21 @@ export type Database = {
           recovery_ready_relationships: number
           snapshot_date: string
           total_relationships: number
+        }[]
+      }
+      get_creator_recovery_destination_breakdown: {
+        Args: never
+        Returns: {
+          coverage_percent: number
+          destination_id: string
+          display_handle: string
+          display_name: string
+          href: string
+          opted_in_fan_count: number
+          provider: string
+          role: string
+          synchronized_at: string
+          verification_state: string
         }[]
       }
       get_creator_recovery_funnel: {
@@ -7471,6 +7767,23 @@ export type Database = {
       update_security_alert: {
         Args: { p_action: string; p_alert_id: string }
         Returns: undefined
+      }
+      upsert_provider_audience_metric: {
+        Args: {
+          p_account_category: string
+          p_approximate: boolean
+          p_asset_binding_id: string
+          p_connection_id: string
+          p_count: number
+          p_creator_id: string
+          p_error_code?: string
+          p_next_sync_at: string
+          p_provider: string
+          p_source_observed_at: string
+          p_status: string
+          p_unit: string
+        }
+        Returns: string
       }
       verify_ecosystem_destination: {
         Args: {
