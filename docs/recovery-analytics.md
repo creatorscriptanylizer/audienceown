@@ -1,5 +1,7 @@
 # Recovery Analytics
 
+The incident-scoped Stage 8.6 panel lives near the top of `/dashboard/analytics/recovery`. See [Live Recovery Analytics](live-recovery-analytics.md), [metric definitions](recovery-metric-definitions.md), and [privacy](recovery-analytics-privacy.md). Unsupported signals remain unavailable rather than being inferred.
+
 Recovery Analytics is creator-scoped aggregate reporting built from the
 authoritative creator–follower relationship, selected Recovery Pass, update,
 delivery snapshot, and delivery lifecycle records.

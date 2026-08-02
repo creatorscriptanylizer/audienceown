@@ -8,6 +8,28 @@ import {
   suppressCount,
   type RecoveryCoverage,
 } from "@/lib/recovery-analytics";
+import type { LiveRecoveryAnalytics } from "@/lib/live-recovery-analytics";
+
+export type RecoveryIncidentOption = { id: string; title: string; severity: string; lifecycle_status: string; activated_at: string | null; resolved_at: string | null; updated_at: string };
+
+export async function recoveryIncidents() {
+  const client = await createClient();
+  if (!client) throw new Error("analytics_unavailable");
+  const { data, error } = await client.from("creator_emergencies")
+    .select("id,title,severity,lifecycle_status,activated_at,resolved_at,updated_at")
+    .in("lifecycle_status", ["active", "resolved", "cancelled"])
+    .order("updated_at", { ascending: false }).limit(50);
+  if (error) throw new Error("analytics_unavailable");
+  return (data ?? []).sort((a, b) => Number(b.lifecycle_status === "active") - Number(a.lifecycle_status === "active")) as RecoveryIncidentOption[];
+}
+
+export async function liveRecoveryAnalytics(id: string) {
+  const client = await createClient();
+  if (!client) throw new Error("analytics_unavailable");
+  const { data, error } = await client.rpc("get_live_recovery_analytics", { p_emergency_id: id });
+  if (error || !data) throw new Error(error?.code === "P0002" ? "not_found" : "analytics_unavailable");
+  return data as unknown as LiveRecoveryAnalytics;
+}
 
 function duration(started: number) {
   return Math.round(performance.now() - started);

@@ -1,5 +1,7 @@
 # Delivery operations
 
+Live incident analytics excludes queued-only records and deduplicates recipients across transports and retries. See [metric definitions](recovery-metric-definitions.md).
+
 AudienceOwn operates one delivery queue and one canonical lifecycle:
 `queued → sending → accepted → delivered`, with `bounced`, `complained`,
 `failed`, `skipped`, and `cancelled` terminal outcomes as defined by the

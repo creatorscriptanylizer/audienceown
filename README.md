@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Active and historical emergencies have a canonical Live Recovery Analytics panel at `/dashboard/analytics/recovery`; see [live analytics](docs/live-recovery-analytics.md).
+
 Stage 8.2 adds first-class Twitch, Discord, and podcast/RSS sources through the existing identity and content systems. See [Provider Expansion I](docs/provider-expansion-one.md).
 
 Stage 8.1 adds continuous maintenance of verified ecosystem destinations. See [ecosystem automation](docs/ecosystem-automation.md), the [versioned policy](docs/ecosystem-automation-policy.md), and [operations guide](docs/ecosystem-automation-operations.md).

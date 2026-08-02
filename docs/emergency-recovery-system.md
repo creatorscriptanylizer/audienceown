@@ -1,5 +1,7 @@
 # Verified Emergency Mode
 
+Incident delivery outcomes are exposed through the creator-scoped [Live Recovery Analytics](live-recovery-analytics.md) panel; the Emergency Center does not duplicate it.
+
 Network outputs may link to safe replacement information but cannot activate or resolve an emergency.
 
 An active emergency takes priority on authenticity surfaces. Only an active, official, verified replacement may appear; resolution returns to the current derived state.

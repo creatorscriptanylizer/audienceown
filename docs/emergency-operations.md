@@ -1,5 +1,7 @@
 # Emergency operations
 
+Operators monitor incident-scoped freshness and availability at `/dashboard/analytics/recovery`. See [Live Recovery Analytics](live-recovery-analytics.md).
+
 Monitor active incidents, their canonical `creator_update_id`, `update_deliveries`, and append-only `emergency_events`. Activation is synchronous through
 `POST /api/emergencies/:id/activate`: the lifecycle RPC creates the snapshot and update, then the existing Recovery Pass delivery resolver queues recipients.
 
@@ -21,4 +23,3 @@ npm run test
 npm run build
 git diff --check
 ```
-

@@ -1,5 +1,7 @@
 # Emergency security boundaries
 
+Live analytics returns only fixed-search-path, creator-scoped aggregates and no recipient or visitor rows. See [analytics privacy](recovery-analytics-privacy.md).
+
 Ecosystem verification, synchronization, monitoring, and presentation cannot create or activate emergencies, publish provider content, or send Recovery Pass notifications.
 
 Neither discovery, lookup, continuity issuance, nor webhook delivery can activate emergencies or follower notifications.

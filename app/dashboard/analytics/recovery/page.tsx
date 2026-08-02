@@ -4,7 +4,10 @@ import { RecoveryFunnel } from "@/components/recovery-funnel";
 import { RecoveryOpportunityCard } from "@/components/recovery-opportunity-card";
 import { RecoveryTransportBreakdown } from "@/components/recovery-transport-breakdown";
 import { RecoveryUpdatePerformance } from "@/components/recovery-update-performance";
+import { LiveRecoveryAnalytics } from "@/components/recovery/live-recovery-analytics";
 import {
+  liveRecoveryAnalytics,
+  recoveryIncidents,
   recoveryAnalyticsOverview,
   recoveryFunnel,
   recoveryOpportunities,
@@ -13,7 +16,12 @@ import {
   recoveryUpdates,
 } from "@/lib/recovery-analytics-server";
 
-export default async function RecoveryAnalyticsPage() {
+export default async function RecoveryAnalyticsPage({ searchParams }: { searchParams: Promise<{ incident?: string }> }) {
+  const requestedIncident = (await searchParams).incident;
+  const incidents = await recoveryIncidents().catch(() => []);
+  const selectedIncident = incidents.find((incident) => incident.id === requestedIncident)
+    ?? incidents.find((incident) => incident.lifecycle_status === "active") ?? incidents[0] ?? null;
+  const live = selectedIncident ? await liveRecoveryAnalytics(selectedIncident.id).catch(() => null) : null;
   const results = await Promise.allSettled([
     recoveryAnalyticsOverview(),
     recoveryTransportBreakdown(),
@@ -42,9 +50,10 @@ export default async function RecoveryAnalyticsPage() {
       </div>
       {overview.total_relationships === 0 && <p className="mt-4 text-sm text-zinc-500">Your active audience is empty, so coverage is currently 0%.</p>}
     </section>
-    {trendResult.status === "fulfilled" && <RecoveryCoverageTrend rows={trendResult.value} />}
-    {transportsResult.status === "fulfilled" && <RecoveryTransportBreakdown rows={transportsResult.value} />}
+    <LiveRecoveryAnalytics key={selectedIncident?.id ?? "empty"} incidents={incidents} initial={live} selectedId={selectedIncident?.id ?? null}/>
     {funnelResult.status === "fulfilled" && <RecoveryFunnel rows={funnelResult.value} />}
+    {transportsResult.status === "fulfilled" && <RecoveryTransportBreakdown rows={transportsResult.value} />}
+    {trendResult.status === "fulfilled" && <RecoveryCoverageTrend rows={trendResult.value} />}
     {updatesResult.status === "fulfilled" && <RecoveryUpdatePerformance rows={updatesResult.value} />}
     {opportunitiesResult.status === "fulfilled" && <section><h2 className="text-xl font-semibold">Recovery opportunities</h2>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">{opportunitiesResult.value.map((insight) =>
