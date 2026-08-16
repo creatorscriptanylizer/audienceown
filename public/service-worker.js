@@ -22,8 +22,8 @@ function notificationPayload(event) {
   return {
     title: typeof value.title === "string" && value.title.trim() ? value.title.slice(0, 100) : DEFAULT_TITLE,
     body: typeof value.body === "string" && value.body.trim() ? value.body.slice(0, 240) : DEFAULT_BODY,
-    icon: typeof value.icon === "string" && value.icon.startsWith("/") ? value.icon : "/favicon.ico",
-    badge: typeof value.badge === "string" && value.badge.startsWith("/") ? value.badge : "/favicon.ico",
+    icon: typeof value.icon === "string" && value.icon.startsWith("/") ? value.icon : "/brand/audienceown-icon-192.png",
+    badge: typeof value.badge === "string" && value.badge.startsWith("/") ? value.badge : "/brand/audienceown-icon-192.png",
     tag: typeof value.tag === "string" && value.tag.trim() ? value.tag.slice(0, 120) : `audienceown:${updateId}`,
     url: safePath(value.url),
     updateId,

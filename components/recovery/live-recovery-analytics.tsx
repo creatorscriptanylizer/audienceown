@@ -8,7 +8,7 @@ import { RecoveryKpiCard } from "./recovery-kpi-card";
 import { LiveRecoveryFunnel } from "./recovery-funnel";
 
 const STALE_MS = 45_000;
-export function LiveRecoveryAnalytics({ incidents, initial, selectedId }: { incidents: RecoveryIncidentOption[]; initial: Snapshot | null; selectedId: string | null }) {
+export function LiveRecoveryAnalytics({ incidents, incidentsAvailable = true, initial, selectedId }: { incidents: RecoveryIncidentOption[]; incidentsAvailable?: boolean; initial: Snapshot | null; selectedId: string | null }) {
   const [data, setData] = useState(initial), [warning, setWarning] = useState<string | null>(null), [refreshing, setRefreshing] = useState(false), [clock, setClock] = useState(() => initial ? new Date(initial.calculatedAt).getTime() : 0);
   const abort = useRef<AbortController | null>(null), busy = useRef(false), failures = useRef(0);
   const refresh = useCallback(async () => {
@@ -25,6 +25,7 @@ export function LiveRecoveryAnalytics({ incidents, initial, selectedId }: { inci
     schedule(); document.addEventListener("visibilitychange", visibility); const staleClock = setInterval(() => setClock(Date.now()), 15_000);
     return () => { clearTimeout(timer); clearInterval(staleClock); document.removeEventListener("visibilitychange", visibility); abort.current?.abort(); };
   }, [active, refresh]);
+  if (!incidentsAvailable) return <section aria-labelledby="live-heading" className="rounded-2xl border border-white/10 p-6"><h2 id="live-heading" className="text-2xl font-semibold">Live Recovery Analytics</h2><p className="mt-3 text-zinc-400">Recovery incident activity unavailable. Other recovery analytics remain available.</p></section>;
   if (!incidents.length) return <section aria-labelledby="live-heading" className="rounded-2xl border border-white/10 p-6"><h2 id="live-heading" className="text-2xl font-semibold">Live Recovery Analytics</h2><p className="mt-3 text-zinc-400">Live recovery metrics will appear after Emergency Mode is activated.</p><Link className="mt-4 inline-block underline" href="/dashboard/emergency">Open Emergency Center</Link></section>;
   const stale = data ? clock - new Date(data.calculatedAt).getTime() > STALE_MS && data.status === "active" : false;
   return <section aria-labelledby="live-heading" className="space-y-6"><div className="rounded-2xl border border-white/10 p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">Incident-scoped</p><h2 id="live-heading" className="mt-2 text-2xl font-semibold">Live Recovery Analytics</h2>{data && <p className="mt-2 text-sm text-zinc-400">{data.title} · {data.severity} · {data.status}</p>}</div>

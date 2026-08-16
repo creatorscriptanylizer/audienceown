@@ -3,6 +3,8 @@ import { z } from "zod";
 export const RESERVED_SLUGS = new Set([
   "admin", "api", "auth", "c", "dashboard", "login", "logout", "register",
   "settings", "support", "pricing", "about",
+  "signup", "terms", "privacy", "onboarding", "contact", "cookies", "cookie-policy",
+  "data-deletion", "refund-policy", "trust", "legal",
 ]);
 
 export const slugSchema = z

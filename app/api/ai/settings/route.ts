@@ -1,7 +1,8 @@
 import{getCreator}from"@/lib/dal";import{createClient}from"@/lib/supabase/server";import{aiSettingsSchema}from"@/lib/ai/schemas";
 import{aiConfiguration,modelBackedAiAvailable}from"@/lib/ai/configuration";
+import{requiredQueryResults}from"@/lib/api-unavailable";
 export async function GET(){const creator=await getCreator();if(!creator)return Response.json({error:"Unauthorized"},{status:401});const client=await createClient();
-const[{data:settings},{data:usage}]=await Promise.all([client!.from("creator_ai_settings").select("*").eq("creator_id",creator.id).maybeSingle(),client!.rpc("get_ai_usage_summary")]);
+const checked=await requiredQueryResults("GET /api/ai/settings",["creator_ai_settings","get_ai_usage_summary"],Promise.all([client!.from("creator_ai_settings").select("*").eq("creator_id",creator.id).maybeSingle(),client!.rpc("get_ai_usage_summary")]));if(checked.response)return checked.response;const[{data:settings},{data:usage}]=checked.results;
 return Response.json({settings:settings??{creator_id:creator.id,enabled:false,provider:"openai",preferred_model:aiConfiguration().model,preferred_variant:"standard",
 tone:"natural",audience_description:"",preferred_terminology:"",phrases_to_avoid:"",cta_style:"",custom_voice_instructions:"",
 include_emojis:false,include_hashtags:false,preserve_source_title:true,approval_required:true,ai_auto_send_enabled:false,ai_required:false,

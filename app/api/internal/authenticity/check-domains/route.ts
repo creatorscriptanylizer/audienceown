@@ -22,11 +22,13 @@ export async function POST(request: Request) {
   for (const row of domains ?? []) {
     let slug: string | null = null;
     try {
-      const { data: creator } = await db.from("creators").select("public_slug").eq("id", row.creator_id).single();
+      const { data: creator, error: creatorError } = await db.from("creators").select("public_slug").eq("id", row.creator_id).single();
+      if (creatorError) throw creatorError;
       slug = creator?.public_slug ?? null;
       if (!slug) throw new Error("creator unavailable");
-      const record = await getPublicAuthenticity(slug);
-      if (!record) throw new Error("record unavailable");
+      const result = await getPublicAuthenticity(slug);
+      if (result.status !== "available") throw new Error("record unavailable");
+      const record = result.data;
       const expected = domainDiscoveryDocument(buildAuthenticityManifest(record));
       const { response, body } = await boundedNetworkFetch(new URL(`https://${row.hostname}/.well-known/audienceown.json`), { headers: { accept: "application/json" } }, {
         timeoutMs: Number(process.env.AUTHENTICITY_DOMAIN_DISCOVERY_TIMEOUT_MS ?? 4000), maxBytes: Number(process.env.AUTHENTICITY_DOMAIN_DISCOVERY_MAX_BYTES ?? 32768),

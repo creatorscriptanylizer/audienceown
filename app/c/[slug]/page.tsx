@@ -1,78 +1,93 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicCreatorExperience } from "@/components/public-creator-experience";
-import { getDemoCreator } from "@/lib/public-creators";
 import { getCreator, getViewer } from "@/lib/dal";
 import { canAccessRecoveryDeveloperTools } from "@/lib/recovery-access";
 import { createClient } from "@/lib/supabase/server";
-import type { CreatorRecord } from "@/lib/public-creators";
-import { applyPublicEmergency, type PublicEmergency } from "@/lib/emergency/public-banner";
+import { getPublicCreatorPage } from "@/lib/public-creator-page";
 import { parsePublicIdentityGraph, parsePublicTrust } from "@/lib/identity/public";
 import { parseAuthenticityRecord } from "@/lib/authenticity/public";
+import { appUrl } from "@/lib/app-url";
 
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ src?: string }>;
 };
 
+function metadataImage(value: string | null) {
+  if (!value) return undefined;
+  if (value.startsWith("/")) return appUrl(value);
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const creator = getDemoCreator(slug);
-  if (!creator) return { title: "Creator not found", robots: { index: false } };
+  const page = await getPublicCreatorPage(slug);
+  if (!page || !page.creator.recoveryPassPublished) {
+    return { title: "Creator not found", robots: { index: false, follow: false } };
+  }
+  const image = metadataImage(page.bannerImagePath ?? page.creator.avatar ?? null);
+  const title = `${page.creator.displayName} — Recovery Pass`;
+  const description = page.bio?.trim() || `The verified AudienceOwn recovery page for ${page.creator.displayName}.`;
   return {
-    title: `${creator.displayName} — Recovery Pass`,
-    description: `The verified AudienceOwn recovery page for ${creator.displayName}.`,
+    title,
+    description,
+    alternates: { canonical: appUrl(`/c/${page.creator.handle}`) },
+    openGraph: {
+      title,
+      description,
+      url: appUrl(`/c/${page.creator.handle}`),
+      type: "profile",
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
   };
 }
 
 export default async function Page({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { src } = await searchParams;
+  const [{ slug }, { src }] = await Promise.all([params, searchParams]);
+  const publicPage = await getPublicCreatorPage(slug);
+  if (!publicPage || !publicPage.creator.recoveryPassPublished) notFound();
+
   const supabase = await createClient();
-  const [{ data: profile }, { data: links }, { data: databaseCreator }] = supabase ? await Promise.all([
-    supabase.from("public_creator_profiles").select("*").eq("public_slug", slug).maybeSingle(),
-    supabase.from("public_connected_accounts").select("*").eq("public_slug", slug).order("position"),
-    supabase.from("creators").select("id,owner_user_id").eq("public_slug", slug).eq("public_profile_enabled", true).maybeSingle(),
-  ]) : [{ data: null }, { data: [] }, { data: null }];
-  const demo = getDemoCreator(slug);
-  const baseCreator: CreatorRecord | null = demo ?? (profile && profile.display_name && profile.public_slug ? {
-    handle: profile.public_slug,
-    displayName: profile.display_name,
-    avatar: profile.profile_image_path ?? undefined,
-    verified: true,
-    recoveryPassPublished: profile.recovery_pass_enabled ?? true,
-    emergencyMode: false,
-    lastVerifiedAt: profile.updated_at ?? new Date().toISOString(),
-    recoveryCoreFans: 0,
-    officialLinks: (links ?? []).map((link, index) => ({
-      id: `${link.platform ?? "website"}-${index}`, platform: link.platform ?? "Website",
-      label: link.label ?? link.url ?? "Official link", url: link.url ?? "#",
-      action: link.platform === "youtube" ? "Subscribe" : link.platform === "website" ? "Visit" : "Follow",
-    })),
-    recoveryRoutes: {},
-  } : null);
-  const {data:activeEmergency}=supabase&&databaseCreator?await supabase.from("creator_emergencies")
-    .select("emergency_type,severity,title,message,updated_at,emergency_affected_accounts(provider,display_handle,canonical_profile_url),emergency_replacement_accounts(provider,display_handle,canonical_profile_url,verified_at,verification_state,official)")
-    .eq("creator_id",databaseCreator.id).eq("lifecycle_status","active").maybeSingle():{data:null};
-  const emergency=activeEmergency?{...activeEmergency,affected:activeEmergency.emergency_affected_accounts?.[0]??null,
-    replacement:activeEmergency.emergency_replacement_accounts?.find((replacement)=>replacement.verification_state==="verified"&&replacement.official===true)??null}as PublicEmergency:null;
-  const creator=baseCreator?(databaseCreator?applyPublicEmergency(baseCreator,emergency):baseCreator):null;
-  if (!creator || !creator.recoveryPassPublished) notFound();
-  const [viewer, ownedCreator] = await Promise.all([getViewer(), getCreator()]);
+  const [viewer, ownedCreator, identityResults] = await Promise.all([
+    getViewer(),
+    getCreator(),
+    supabase
+      ? Promise.all([
+        supabase.rpc("get_public_creator_identity_graph", { p_slug: publicPage.creator.handle }),
+        supabase.rpc("get_public_creator_trust", { p_slug: publicPage.creator.handle }),
+        supabase.rpc("get_public_creator_authenticity", { p_slug: publicPage.creator.handle }),
+      ])
+      : Promise.resolve([{ data: null, error: new Error("database unavailable") }, { data: null, error: new Error("database unavailable") }, { data: null, error: new Error("database unavailable") }]),
+  ]);
+
   const metadataRole = viewer?.app_metadata?.role ?? viewer?.user_metadata?.role;
   const isAdmin = metadataRole === "admin" || viewer?.app_metadata?.is_admin === true;
-  const isOwner = Boolean(viewer && ownedCreator?.owner_user_id === viewer.id && ownedCreator.public_slug === slug);
+  const isOwner = Boolean(viewer && ownedCreator?.owner_user_id === viewer.id
+    && ownedCreator.public_slug === publicPage.creator.handle);
   const canUseDevTools = canAccessRecoveryDeveloperTools({
     isDevelopment: process.env.NODE_ENV === "development",
     isAdmin,
     isOwner,
   });
-  const { data: publicUpdates } = supabase && databaseCreator
-    ? await supabase.from("creator_updates").select("id,title,content,cta_url,media_url,sent_at")
-      .eq("creator_id", databaseCreator.id).eq("status", "sent").order("sent_at", { ascending: false }).limit(10)
-    : { data: [] };
-  const [{data:identityData},{data:trustData},{data:authenticityData}]=supabase?await Promise.all([supabase.rpc("get_public_creator_identity_graph",{p_slug:slug}),supabase.rpc("get_public_creator_trust",{p_slug:slug}),supabase.rpc("get_public_creator_authenticity",{p_slug:slug})]):[{data:null},{data:null},{data:null}];
-  const parsedIdentity=parsePublicIdentityGraph(identityData),trust=parsePublicTrust(trustData),identityGraph=parsedIdentity?{...parsedIdentity,trust:trust??undefined}:null;
-  return <PublicCreatorExperience fallback={creator} source={src} canUseDevTools={canUseDevTools}
-    publicUpdates={publicUpdates ?? []} identityGraph={identityGraph} authenticity={parseAuthenticityRecord(authenticityData)} />;
+  const [{ data: identityData, error: identityError }, { data: trustData, error: trustError }, { data: authenticityData, error: authenticityError }] = identityResults;
+  if (identityError || trustError || authenticityError)
+    throw new Error("public_creator_supporting_data_unavailable", { cause: identityError ?? trustError ?? authenticityError });
+  const parsedIdentity = parsePublicIdentityGraph(identityData);
+  const trust = parsePublicTrust(trustData);
+  const identityGraph = parsedIdentity ? { ...parsedIdentity, trust: trust ?? undefined } : null;
+
+  return <PublicCreatorExperience
+    fallback={publicPage.creator}
+    source={src}
+    canUseDevTools={canUseDevTools}
+    publicUpdates={publicPage.updates}
+    identityGraph={identityGraph}
+    authenticity={parseAuthenticityRecord(authenticityData)}
+  />;
 }

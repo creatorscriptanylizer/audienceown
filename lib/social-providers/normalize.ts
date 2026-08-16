@@ -16,6 +16,6 @@ export const providerHosts: Record<SocialProvider, string[]> = {
   youtube:["youtube.com","youtu.be"], instagram:["instagram.com"], tiktok:["tiktok.com"],
   x:["x.com","twitter.com"], spotify:["spotify.com"], twitch:["twitch.tv"],
   linkedin:["linkedin.com"], facebook:["facebook.com","fb.watch"], snapchat:["snapchat.com"],
-  threads:["threads.net"], pinterest:["pinterest.com","pin.it"], discord:["discord.com","discordapp.com"],
+  pinterest:["pinterest.com","pin.it"], discord:["discord.com","discordapp.com"],
   podcast:[],rss:[],
 };

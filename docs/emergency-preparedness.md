@@ -1,6 +1,6 @@
 # Emergency preparedness
 
-Dashboard recovery readiness displays the latest canonical plan readiness state; it does not introduce a second readiness percentage.
+Dashboard Recovery Readiness is recovery-setup completion, not emergency-plan state. Its percentage, progress ring, label, checklist, and readiness insights all use the five-check contract documented in `dashboard-metric-definitions.md`.
 
 Stage 5.1 adds private emergency templates and saved plans without changing the Stage 5.0 real-incident safety model.
 
@@ -15,6 +15,12 @@ Proposed replacement provider, handle, and URL fields are private planning notes
 ## Readiness
 
 A plan is ready only when its official affected account exists, content is valid, Recovery Pass and the public page are enabled, emergency management and activation roles are available, and critical plans have a separate eligible approver. Proposed replacement URLs must be canonical HTTPS. Validation stores the check time, blockers, and warnings; changes reset readiness until the next validation.
+
+These product concepts are intentionally separate:
+
+- **Recovery setup:** the five-check configuration percentage shown on Dashboard and Emergency.
+- **Plan validation status (`emergency_plans.readiness_status`):** server-maintained execution validation for one prepared incident plan (`incomplete`, `needs_attention`, or `ready`). It contributes one check to Recovery setup but never labels the setup percentage directly.
+- **Incident lifecycle:** the current real incident state, such as draft, pending approval, active, or resolved. It does not alter the setup percentage.
 
 ## Creator workflow
 

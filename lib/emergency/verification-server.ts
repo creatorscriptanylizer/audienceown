@@ -5,15 +5,16 @@ function provider(value:string):SocialProvider{if(!socialProviders.includes(valu
 function confidence(method:string){return["provider_oauth","existing_connected_account","provider_api","domain_challenge"].includes(method)?"high":method==="profile_challenge"?"medium":"low";}
 export async function verifyFromConnectedAccount(input:{creatorId:string;userId:string;emergencyId:string;replacementId:string;connectionId:string}){
  const db=createAdminClient();if(!db)throw new EmergencyVerificationError("verification_not_configured");
- const{data:replacement}=await db.from("emergency_replacement_accounts").select("*").eq("id",input.replacementId).eq("emergency_id",input.emergencyId).eq("creator_id",input.creatorId).single();
- const{data:connection}=await db.from("connected_accounts").select("*").eq("id",input.connectionId).eq("creator_id",input.creatorId).single();
+ const{data:replacement,error:replacementError}=await db.from("emergency_replacement_accounts").select("*").eq("id",input.replacementId).eq("emergency_id",input.emergencyId).eq("creator_id",input.creatorId).single();
+ const{data:connection,error:connectionError}=await db.from("connected_accounts").select("*").eq("id",input.connectionId).eq("creator_id",input.creatorId).single();
+ if((replacementError&&replacementError.code!=="PGRST116")||(connectionError&&connectionError.code!=="PGRST116"))throw replacementError??connectionError;
  if(!replacement||!connection)throw new EmergencyVerificationError("replacement_or_connection_not_found");
  if(connection.platform!==replacement.provider)throw new EmergencyVerificationError("provider_identity_mismatch");
  if(!["healthy","degraded"].includes(connection.connection_health)||connection.provider_status!=="ready"||!connection.external_account_id)throw new EmergencyVerificationError("connected_account_unhealthy");
- const{data:affected}=await db.from("emergency_affected_accounts").select("stable_provider_account_id,provider").eq("emergency_id",input.emergencyId);
+ const{data:affected,error:affectedError}=await db.from("emergency_affected_accounts").select("stable_provider_account_id,provider").eq("emergency_id",input.emergencyId);if(affectedError)throw affectedError;
  if(affected?.some((a)=>a.provider===connection.platform&&a.stable_provider_account_id===connection.external_account_id))throw new EmergencyVerificationError("replacement_matches_affected_account");
  const adapter=getSocialProvider(provider(connection.platform));if(!adapter.emergencyVerification.connectedAccountVerification||!adapter.fetchEmergencyAccountIdentity)throw new EmergencyVerificationError(adapter.availability==="provider_review_required"?"provider_review_required":"provider_verification_unavailable");
- const{data:secret}=await db.from("platform_connection_secrets").select("access_token_ciphertext,refresh_token_ciphertext").eq("platform_connection_id",connection.id).single();
+ const{data:secret,error:secretError}=await db.from("platform_connection_secrets").select("access_token_ciphertext,refresh_token_ciphertext").eq("platform_connection_id",connection.id).single();if(secretError&&secretError.code!=="PGRST116")throw secretError;
  if(!secret)throw new EmergencyVerificationError("provider_scope_required");const providerMetadata=connection.provider_metadata;const identity=await adapter.fetchEmergencyAccountIdentity({accessToken:decryptSocialSecret(secret.access_token_ciphertext),refreshToken:secret.refresh_token_ciphertext?decryptSocialSecret(secret.refresh_token_ciphertext):undefined,metadata:providerMetadata&&typeof providerMetadata==="object"&&!Array.isArray(providerMetadata)?providerMetadata:undefined});
  if(!identity.id||identity.id!==connection.external_account_id)throw new EmergencyVerificationError("provider_identity_mismatch");
  const{data,error}=await db.rpc("record_emergency_verification",{p_replacement_id:replacement.id,p_method:"existing_connected_account",p_confidence:confidence("existing_connected_account"),p_external_id:identity.id,p_external_name:identity.name,p_canonical_url:identity.url,p_connected_account_id:connection.id,p_evidence:{source:"connected_account",requested_by:input.userId}});

@@ -14,8 +14,10 @@ function Breakdown({ title, values }: {
 export default async function RecoveryUpdateAnalyticsPage({
   params,
 }: { params: Promise<{ id: string }> }) {
-  const update = await recoveryUpdate((await params).id);
-  if (!update) notFound();
+  const result = await recoveryUpdate((await params).id);
+  if (result.status === "unavailable") return <section><p className="eyebrow">Recovery update analytics</p><h1 className="mt-2 text-3xl font-semibold">Recovery analytics unavailable</h1><p className="mt-3 text-zinc-400">This update’s analytics could not be loaded safely. Try again later.</p></section>;
+  if (result.status === "absent") notFound();
+  const update = result.data;
   const row = update as Record<string, unknown>;
   const lifecycle = ["queued", "sending", "accepted", "delivered", "failed", "skipped", "cancelled"];
   return <div className="space-y-9">

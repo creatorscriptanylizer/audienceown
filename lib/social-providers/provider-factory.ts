@@ -9,17 +9,21 @@ export function oauthProvider(input: {
 }): SocialProviderAdapter {
   const { config } = input;
   return {
-    provider: config.provider, displayName: input.displayName, availability: input.availability,
+    provider: config.provider, pkce: config.pkce ?? false, displayName: input.displayName, availability: input.availability,
     unavailableReason: input.unavailableReason, capabilities: input.capabilities,
     requestedScopes: config.scopes,
     emergencyVerification: input.adapter?.emergencyVerification ?? {
       oauthIdentityVerification:Boolean(input.adapter?.fetchIdentity),connectedAccountVerification:Boolean(input.adapter?.fetchIdentity),
       profileChallengeVerification:false,providerApiVerification:Boolean(input.adapter?.fetchIdentity),
     },
-    async createAuthorizationUrl({ state, codeChallenge }) { return { url: authorizationUrl(config,state,codeChallenge) }; },
-    exchangeAuthorizationCode: (context) => exchangeCode(config,context),
+    async createAuthorizationUrl({ state, codeChallenge }) { return { url: authorizationUrl(config,state,config.pkce ? codeChallenge : undefined) }; },
+    exchangeAuthorizationCode: (context) => {
+      const exchange=input.adapter?.exchangeAuthorizationCode ?? ((value) => exchangeCode(config,value));
+      return exchange(config.pkce ? context : {code:context.code});
+    },
     refreshAccessToken: input.capabilities.tokenRefresh ? (input.adapter?.refreshAccessToken ?? ((context)=>refreshToken(config,context)))
       : async () => unsupported(config.provider,"token refresh"),
+    validateAccessToken: input.adapter?.validateAccessToken,
     revokeConnection: input.capabilities.tokenRevocation ? (input.adapter?.revokeConnection ?? ((context) => revoke(config,context)))
       : async () => unsupported(config.provider,"token revocation"),
     fetchIdentity: input.adapter?.fetchIdentity ?? (async () => unsupported(config.provider,"identity")),

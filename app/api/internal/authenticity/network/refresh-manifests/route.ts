@@ -16,15 +16,18 @@ export async function POST(request: Request) {
   const db = createAdminClient();
   if (!db) return Response.json({ error: "Unavailable" }, { status: 503 });
   const limit = Math.min(100, Math.max(1, Number(process.env.AUTHENTICITY_NETWORK_BATCH_SIZE ?? 20) || 20));
-  const { data: profiles } = await db.from("creator_authenticity_profiles")
+  const { data: profiles, error: profilesError } = await db.from("creator_authenticity_profiles")
     .select("id,creator_id,identity_profile_id,public_slug,presentation_revision,creator_identity_profiles(identity_revision)")
     .eq("display_enabled", true).limit(limit);
+  if (profilesError) return Response.json({ error: "Temporarily unavailable" }, { status: 503, headers: { "cache-control": "no-store" } });
   let stored = 0, skipped = 0, failed = 0, deliveries = 0;
   for (const profile of profiles ?? []) {
     try {
       const identity = Array.isArray(profile.creator_identity_profiles) ? profile.creator_identity_profiles[0] : profile.creator_identity_profiles;
-      const record = await getPublicAuthenticity(profile.public_slug);
-      if (!identity || !record) { skipped++; continue; }
+      const result = await getPublicAuthenticity(profile.public_slug);
+      if (!identity || result.status === "absent") { skipped++; continue; }
+      if (result.status === "unavailable") throw new Error("public authenticity unavailable");
+      const record = result.data;
       const manifest = buildAuthenticityManifest(record);
       const hash = assertionHash(manifest);
       const { error } = await db.rpc("store_authenticity_manifest", {

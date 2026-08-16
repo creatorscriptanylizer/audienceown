@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/.playwright/
+/playwright-report/
+/test-results/
+/.tmp/
 
 # next.js
 /.next/
@@ -19,10 +23,12 @@
 
 # production
 /build
+/backups/
 
 # misc
 .DS_Store
 *.pem
+cloudflared-diag-*.zip
 
 # debug
 npm-debug.log*
@@ -42,3 +48,4 @@ yarn-error.log*
 next-env.d.ts
 
 supabase/.branches/
+supabase/.temp/

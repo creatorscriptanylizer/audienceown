@@ -1,9 +1,20 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
+export type SocialTokenEncryptionState = "configured" | "missing" | "invalid_format";
+
+export function socialTokenEncryptionState(value = process.env.SOCIAL_TOKEN_ENCRYPTION_KEY): SocialTokenEncryptionState {
+  if (value === undefined || value.length === 0) return "missing";
+  if (value.trim().length === 0) return "invalid_format";
+  return "configured";
+}
+
 function key() {
   const value = process.env.SOCIAL_TOKEN_ENCRYPTION_KEY;
-  if (!value) throw new Error("Social token encryption is not configured.");
+  const state = socialTokenEncryptionState(value);
+  if (state === "missing") throw new Error("Social token encryption is not configured.");
+  if (state === "invalid_format") throw new Error("Social token encryption has an invalid format.");
+  if (value === undefined) throw new Error("Social token encryption is not configured.");
   return createHash("sha256").update(value).digest();
 }
 

@@ -1,0 +1,9 @@
+import{readFileSync}from"node:fs";import{describe,expect,it}from"vitest";const s=(p:string)=>readFileSync(p,"utf8");
+describe("Stripe billing",()=>{
+it("keeps the configured prices allowlisted",()=>{const checkout=s("app/api/billing/checkout/route.ts"),config=s("lib/billing/stripe.ts");expect(checkout).toContain('z.enum(["monthly","yearly"])');expect(checkout).not.toMatch(/price:\s*(?:body|parsed\.data\.price)/);expect(config).toContain("STRIPE_PRO_MONTHLY_PRICE_ID");expect(config).toContain("STRIPE_PRO_YEARLY_PRICE_ID");});
+it("uses hosted checkout and customer reuse",()=>{const x=s("app/api/billing/checkout/route.ts");expect(x).toContain('mode:"subscription"');expect(x).toContain("stripe.customers.create");expect(x).toContain("stripe_customer_id");expect(x).toContain('manage_billing');});
+it("verifies raw signed webhooks and handles required lifecycle events",()=>{const x=s("app/api/billing/stripe/webhook/route.ts");expect(x).toContain("constructEvent(await request.text()");for(const event of["checkout.session.completed","invoice.paid","invoice.payment_failed","customer.subscription."])expect(x).toContain(event);});
+it("keeps success webhook-authoritative",()=>{const x=s("components/billing-confirmation.tsx");expect(x).toContain("webhook-confirmed");expect(x).toContain("still confirming");expect(x).not.toContain("session_id");});
+it("creates only creator-owned portal sessions",()=>{const x=s("app/api/billing/portal/route.ts");expect(x).toContain("getCreator");expect(x).toContain("billingRecord(creator.id)");expect(x).not.toContain("request.json");});
+it("projects events atomically and in order",()=>{const x=s("supabase/migrations/20260901000000_stripe_billing.sql");expect(x).toContain("stripe_webhook_events");expect(x).toContain("last_stripe_event_created");expect(x).toContain("excluded.last_stripe_event_created>=");expect(x).toContain("on conflict do nothing");});
+});

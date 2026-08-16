@@ -21,13 +21,24 @@ export function YouTubeAutomationPanel({ connection, activity, drafts, status }:
         <p className="mt-2 max-w-2xl text-sm text-zinc-400">Detect new videos and livestreams, then prepare an editable AudienceOwn update.</p>
       </div>
       {!connection || connection.connection_health === "disconnected"
-        ? <Link className="button button-primary" href="/api/integrations/youtube/connect">Connect YouTube</Link>
+        ? <Link className="button button-primary" href="/api/integrations/youtube/connect?role=official">Connect YouTube</Link>
         : <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300">
           <CheckCircle2 size={15}/> {connection.external_account_name ?? "Connected channel"}
         </span>}
     </div>
     {status && <p role="status" className="mt-4 rounded-lg bg-white/5 px-4 py-3 text-sm">
       {status === "connected" ? "YouTube connected. New content will create drafts for approval."
+        : status === "connection_limit_reached" ? "You've reached your Free plan limit. Remove the current official account or upgrade to Pro to add another."
+        : status === "already_connected" ? "This Google account returned a YouTube channel that is already connected to AudienceOwn. Authorize the Google or YouTube account that owns the different channel you want to add."
+        : status === "select_channel" ? "Choose one of the YouTube channels returned by this authorization."
+        : status === "no_channel" ? "No YouTube channel was available for this Google account."
+        : status === "reconnect_mismatch" || status === "channel_mismatch" ? "This authorization belongs to a different YouTube channel. Sign in with the account connected to this AudienceOwn connection, or add the other channel separately."
+        : status === "selection_expired" ? "This YouTube channel selection expired. Connect YouTube again."
+        : status === "selection_invalid" ? "That YouTube channel selection could not be verified. Connect YouTube again."
+        : status === "authorization_failed" ? "YouTube authorization was not completed. Please try again."
+        : status === "invalid_state" ? "YouTube authorization expired or could not be verified. Please try again."
+        : status === "connection_failed" ? "AudienceOwn could not connect YouTube. Please try again."
+        : status === "invalid_connection" ? "That YouTube connection could not be verified. Refresh and try again."
         : status === "saved" ? "Automation settings saved."
         : status === "confirm_auto_send" ? "Confirm the warning before enabling automatic sending."
         : status.replaceAll("_", " ")}
@@ -36,7 +47,7 @@ export function YouTubeAutomationPanel({ connection, activity, drafts, status }:
       {["degraded","expired","revoked"].includes(connection.connection_health) && <div className="mt-5 flex gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm">
         <AlertTriangle className="shrink-0 text-amber-300" size={18}/><div><strong className="capitalize">{connection.connection_health}</strong>
           <p className="mt-1 text-zinc-400">{connection.last_connection_error ?? "Reconnect YouTube to resume detection."}</p>
-          <Link href="/api/integrations/youtube/connect" className="mt-2 inline-flex items-center gap-1 text-amber-200">Reconnect <ExternalLink size={13}/></Link></div>
+          <Link href={`/api/integrations/youtube/connect?role=official&connectionId=${encodeURIComponent(connection.id)}`} className="mt-2 inline-flex items-center gap-1 text-amber-200">Reconnect <ExternalLink size={13}/></Link></div>
       </div>}
       <form action={updateYouTubeAutomation} className="mt-6 grid gap-4">
         <input type="hidden" name="connection_id" value={connection.id}/>

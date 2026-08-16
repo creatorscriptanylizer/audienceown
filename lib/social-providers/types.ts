@@ -1,6 +1,6 @@
 export const socialProviders = [
   "youtube", "instagram", "tiktok", "x", "spotify", "twitch", "linkedin",
-  "facebook", "snapchat", "threads", "pinterest", "discord", "podcast", "rss",
+  "facebook", "snapchat", "pinterest", "discord", "podcast", "rss",
 ] as const;
 export type SocialProvider = typeof socialProviders[number];
 
@@ -10,16 +10,38 @@ export type ProviderCapabilities = {
   scheduledContentDetection: boolean; analytics: boolean; automaticDrafts: boolean;
   automaticPublishing: boolean; manualImport: boolean;
 };
+export type ProviderOAuthStatus = "available" | "review_required" | "allowlist_required" | "paid_access_required" | "not_configured" | "unsupported";
+export type ProviderManualInput = "profile_url" | "channel_url" | "handle" | "feed_url" | "invite_url" | "domain";
+export type ProviderConnectionCapability = {
+  provider: SocialProvider; displayName: string; oauthSupported: boolean; oauthStatus: ProviderOAuthStatus;
+  implementationStatus: "implemented" | "coming_soon"; configurationStatus: "configured" | "missing" | "invalid";
+  reviewStatus:"approved"|"required"|"unknown"|"not_applicable";connectable:boolean;
+  connectPath: string | null; description: string; manualSupported: boolean; manualInput: ProviderManualInput; supportsAudienceMetrics: boolean;
+  audienceUnit: "subscribers" | "followers" | "members" | "listeners" | null;
+  supportsAutomaticVerification: boolean; supportsManualVerification: boolean;
+  supportsWebhooks: boolean; supportsPolling: boolean;
+};
 export type ProviderAvailability =
   | "implemented_credentials_required" | "provider_review_required"
   | "connection_only" | "manual_import_only" | "unsupported_official_api";
-export type ProviderTokenSet = {
-  accessToken: string; refreshToken?: string; expiresAt: string | null;
-  grantedScopes: string[]; tokenType: string; stableIdentityId?: string;
+export type ProviderTokens = {
+  accessToken: string; refreshToken?: string | null; expiresAt?: string | null;
+  refreshTokenExpiresAt?: string | null;
+  tokenType?: string | null; scopes?: string[];
+  /** @deprecated Use scopes. Kept while existing provider workers migrate. */ grantedScopes: string[];
+  stableIdentityId?: string;
+};
+export type ProviderTokenSet = ProviderTokens;
+export type NormalizedProviderIdentity = {
+  externalAccountId:string;displayName:string;username?:string|null;profileUrl?:string|null;avatarUrl?:string|null;metadata:Record<string,unknown>;
 };
 export type ProviderIdentity = {
-  id: string; name: string; url: string; metadata: Record<string, unknown>;
+  externalAccountId?:string; displayName?:string; username?:string|null; profileUrl?:string|null; avatarUrl?:string|null;
+  metadata:Record<string,unknown>;
+  /** @deprecated Compatibility aliases for existing provider workers. */ id:string; name:string; url:string;
 };
+export type ProviderAudienceStatus="available"|"hidden"|"unsupported"|"permission_required"|"error";
+export type ProviderAudience={connectedAccountId:string;count:number|null;unit:string;status:ProviderAudienceStatus;approximate:boolean};
 export type EmergencyVerificationCapabilities = {
   oauthIdentityVerification: boolean;
   connectedAccountVerification: boolean;
@@ -57,6 +79,7 @@ export type DiscoveredProviderSource={sourceType:string;stableSourceId:string;di
 
 export interface SocialProviderAdapter {
   provider: SocialProvider;
+  pkce: boolean;
   displayName: string;
   availability: ProviderAvailability;
   unavailableReason?: string;
@@ -66,6 +89,7 @@ export interface SocialProviderAdapter {
   createAuthorizationUrl?(context: AuthorizationContext): Promise<{ url: string }>;
   exchangeAuthorizationCode?(context: ExchangeContext): Promise<ProviderTokenSet>;
   refreshAccessToken?(context: ProviderContext): Promise<ProviderTokenSet>;
+  validateAccessToken?(context: ProviderContext): Promise<boolean>;
   revokeConnection?(context: ProviderContext): Promise<void>;
   fetchIdentity?(context: ProviderContext): Promise<ProviderIdentity>;
   fetchEmergencyAccountIdentity?(context: EmergencyVerificationContext): Promise<ProviderIdentity>;

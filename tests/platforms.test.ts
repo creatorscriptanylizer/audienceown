@@ -8,7 +8,7 @@ describe("platform configuration", () => {
   });
 
   it("maps every platform to a Stage 1 database value", () => {
-    const databaseValues = new Set(["youtube","instagram","tiktok","x","facebook","twitch","discord","other"]);
+    const databaseValues = new Set(["youtube","instagram","tiktok","x","spotify","twitch","linkedin","facebook","snapchat","pinterest","discord","other"]);
     expect(PLATFORMS.every((platform) => databaseValues.has(platform.databaseValue))).toBe(true);
   });
 

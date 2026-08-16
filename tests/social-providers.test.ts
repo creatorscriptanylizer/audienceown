@@ -13,7 +13,7 @@ describe("social provider contracts",()=>{
   expect(!adapter.capabilities.automaticPublishing||adapter.capabilities.automaticDrafts).toBe(true);
  });
  it("binds OAuth state to creator, user, provider, nonce, and expiry",()=>{
-  const state=createOAuthState({creatorId:"c",userId:"u",provider:"x",nonce:"n",expiresAt:2000});
+  const state=createOAuthState({creatorId:"c",userId:"u",provider:"x",nonce:"n",role:"backup",connectionId:"00000000-0000-4000-8000-000000000001",expiresAt:2000});
   expect(verifyOAuthState(state,"x","n",1000)?.creatorId).toBe("c");
   expect(verifyOAuthState(state,"tiktok","n",1000)).toBeNull();expect(verifyOAuthState(state,"x","bad",1000)).toBeNull();
   expect(verifyOAuthState(state,"x","n",3000)).toBeNull();

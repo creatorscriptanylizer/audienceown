@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { formatBroadcastType, type BroadcastType } from "@/lib/updates";
+import { UnavailableState } from "@/components/product-state";
+import { logPageQueryFailure } from "@/lib/data-availability";
 
 function EmailPreview({ compact, creatorName, update }: {
   compact?: boolean;
@@ -37,10 +39,14 @@ export default async function PreviewPage({ params }: PageProps<"/dashboard/upda
   const creator = await requireCreator();
   const { id } = await params;
   const supabase = await createClient();
-  if (!supabase) notFound();
-  const { data: update } = await supabase.from("creator_updates").select(
+  if (!supabase) return <UnavailableState title="Preview unavailable" description="We could not load this update preview right now."/>;
+  const { data: update, error } = await supabase.from("creator_updates").select(
     "id,broadcast_type,subject,preview_text,content,cta_label,cta_url",
   ).eq("id", id).eq("creator_id", creator.id).maybeSingle();
+  if (error) {
+    logPageQueryFailure("dashboard/updates/[id]/preview", "creator_updates", error);
+    return <UnavailableState title="Preview unavailable" description="We could not load this update preview right now."/>;
+  }
   if (!update) notFound();
 
   return <div className="update-preview-page">

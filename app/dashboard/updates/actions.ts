@@ -146,8 +146,9 @@ async function commitPublication(
 
   const supabase = await createClient();
   if (!supabase) return mutationError("Broadcast publishing is unavailable.");
-  const { data: current } = await supabase.from("creator_updates").select("status")
+  const { data: current, error: currentError } = await supabase.from("creator_updates").select("status")
     .eq("id", id).eq("creator_id", creator.id).maybeSingle();
+  if (currentError) return mutationError("Broadcast status is temporarily unavailable.");
   const allowedStatus = scheduledFor ? ["draft", "cancelled"] : ["draft", "cancelled", "queued"];
   if (!current || !allowedStatus.includes(current.status)) {
     return mutationError(scheduledFor

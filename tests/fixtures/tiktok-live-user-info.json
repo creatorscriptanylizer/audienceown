@@ -1,0 +1,20 @@
+{
+  "data": {
+    "user": {
+      "avatar_url": "https://p16.tiktokcdn.com/live-avatar.jpeg",
+      "bio_description": "Creator bio",
+      "display_name": "Live Creator",
+      "follower_count": 0,
+      "is_verified": false,
+      "open_id": "live-sandbox-open-id",
+      "profile_deep_link": "https://www.tiktok.com/@livecreator",
+      "union_id": "live-union-id",
+      "username": "livecreator"
+    }
+  },
+  "error": {
+    "code": 0,
+    "message": "",
+    "log_id": "safe-live-log"
+  }
+}

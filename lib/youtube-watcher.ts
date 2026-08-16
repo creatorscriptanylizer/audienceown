@@ -19,6 +19,14 @@ export class YouTubeProviderError extends Error {
 
 type ApiList = { items?: Array<Record<string, unknown>>; nextPageToken?: string; error?: { errors?: Array<{ reason?: string }> } };
 
+export type YouTubeChannelIdentity = {
+  id: string;
+  title: string;
+  uploadsPlaylistId: string;
+  subscriberCount: string | null;
+  hiddenSubscriberCount: boolean;
+};
+
 function providerError(status: number, body: ApiList) {
   const reason = body.error?.errors?.[0]?.reason;
   if (status === 401) return new YouTubeProviderError("unauthorized", "YouTube authorization expired.");
@@ -42,16 +50,43 @@ async function youtubeGet(path: string, accessToken: string, fetcher: typeof fet
 function text(value: unknown) { return typeof value === "string" ? value : ""; }
 function record(value: unknown): Record<string, unknown> { return value && typeof value === "object" ? value as Record<string, unknown> : {}; }
 
-export async function getYouTubeChannel(accessToken: string, fetcher: typeof fetch = fetch) {
-  const body = await youtubeGet("channels?part=id,snippet,contentDetails&mine=true&maxResults=1", accessToken, fetcher);
-  const item = body.items![0];
-  if (!item) throw new YouTubeProviderError("malformed", "No YouTube channel is available for this account.");
+function channelIdentity(item: Record<string, unknown>): YouTubeChannelIdentity {
   const snippet = record(item.snippet);
   const playlists = record(record(item.contentDetails).relatedPlaylists);
+  const statistics = record(item.statistics);
   const id = text(item.id);
   const uploadsPlaylistId = text(playlists.uploads);
-  if (!id || !uploadsPlaylistId) throw new YouTubeProviderError("malformed", "YouTube channel metadata is incomplete.");
-  return { id, title: text(snippet.title) || "YouTube channel", uploadsPlaylistId };
+  const hiddenSubscriberCount = statistics.hiddenSubscriberCount;
+  const subscriberCount = text(statistics.subscriberCount) || null;
+  if (!id || !uploadsPlaylistId || typeof hiddenSubscriberCount !== "boolean" || (!hiddenSubscriberCount && !subscriberCount)) {
+    throw new YouTubeProviderError("malformed", "YouTube channel metadata is incomplete.");
+  }
+  if (process.env.NODE_ENV === "development") {
+    console.info("youtube_channel_audience", { channelId: id, channelTitle: text(snippet.title), subscriberCount, hiddenSubscriberCount });
+  }
+  return { id, title: text(snippet.title) || "YouTube channel", uploadsPlaylistId, subscriberCount, hiddenSubscriberCount };
+}
+
+export async function getYouTubeChannels(accessToken: string, fetcher: typeof fetch = fetch) {
+  const channels: YouTubeChannelIdentity[] = [];
+  let pageToken: string | undefined;
+  do {
+    const query = new URLSearchParams({
+      part: "id,snippet,contentDetails,statistics", mine: "true", maxResults: "50",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const body = await youtubeGet(`channels?${query}`, accessToken, fetcher);
+    channels.push(...body.items!.map(channelIdentity));
+    pageToken = text(body.nextPageToken) || undefined;
+  } while (pageToken);
+  return channels;
+}
+
+export async function getYouTubeChannel(accessToken: string, fetcher: typeof fetch = fetch) {
+  const channels = await getYouTubeChannels(accessToken, fetcher);
+  if (channels.length === 0) throw new YouTubeProviderError("malformed", "No YouTube channel is available for this account.");
+  if (channels.length > 1) throw new YouTubeProviderError("malformed", "YouTube authorization returned multiple channels.");
+  return channels[0];
 }
 
 export async function pollYouTubeUploads(

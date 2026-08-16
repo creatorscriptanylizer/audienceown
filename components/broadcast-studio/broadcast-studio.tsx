@@ -17,10 +17,10 @@ import type { AudienceEstimate, BroadcastValue, PlatformAccount } from "./types"
 const initialState: UpdateActionState = {};
 function titleCase(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 
-export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcastType = "new_content", creator, accounts, estimate }: {
+export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcastType = "new_content", creator, accounts, accountsAvailable = true, estimate }: {
   update?: BroadcastValue; initialBroadcastType?: BroadcastType;
   creator: { displayName: string; publicSlug: string };
-  accounts: PlatformAccount[]; estimate: AudienceEstimate | null;
+  accounts: PlatformAccount[]; accountsAvailable?: boolean; estimate: AudienceEstimate | null;
 }) {
   void _initialBroadcastType;
   const [intent, setIntent] = useState<BroadcastIntent>(update?.broadcast_intent ?? "account_hacked");
@@ -121,7 +121,7 @@ export function BroadcastStudio({ update, initialBroadcastType: _initialBroadcas
               {definition.platform === "optional" && <button type="button" className={!platformId ? "is-selected" : ""} onClick={() => change(() => setPlatformId(""))}><Users/><span><strong>All matching subscribers</strong><small>Do not narrow by platform</small></span></button>}
               {officialAccounts.map((account) => <button type="button" key={account.id} className={platformId === account.id ? "is-selected" : ""} onClick={() => change(() => setPlatformId(account.id))}><span className="studio-platform-logo">{account.platform.slice(0, 1).toUpperCase()}</span><span><strong>{titleCase(account.platform)} · {account.label}</strong><small>{account.is_primary ? "Primary connected account" : "Connected official account"}</small></span>{platformId === account.id && <CheckCircle2/>}</button>)}
             </div>
-            {!officialAccounts.length && <div className="studio-focus-note is-warning"><AlertTriangle/><div><strong>No official accounts connected</strong><p>Configure a platform before continuing.</p><Link href="/dashboard/platforms">Configure platforms</Link></div></div>}
+            {!accountsAvailable ? <div className="studio-focus-note is-warning" role="status"><AlertTriangle/><div><strong>Connected accounts unavailable</strong><p>Platform-specific targeting cannot be established right now. Try again later.</p></div></div> : !officialAccounts.length && <div className="studio-focus-note is-warning"><AlertTriangle/><div><strong>No official accounts connected</strong><p>Configure a platform before continuing.</p><Link href="/dashboard/platforms">Configure platforms</Link></div></div>}
           </section>}
 
           {definition.mandatory && <section className="broadcast-form-section"><div className="broadcast-form-section-title"><span>{isEmergencyFamily ? "03" : "02"}</span><div><h3>Where should followers find you?</h3><p>Show a verified alternative without inventing a destination.</p></div></div>

@@ -14,7 +14,8 @@ function configuredIds(value: string | undefined) {
 export async function getDeliveryOperator(): Promise<DeliveryOperator | null> {
   const supabase = await createClient();
   if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error("delivery_operator_auth_unavailable", { cause: error });
   const userId = data.user?.id;
   if (!userId) return null;
   if (configuredIds(process.env.DELIVERY_ADMIN_USER_IDS).has(userId)) {

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { lookupOfficialAccount, normalizeAccountUrl, providerForUrl } from "@/lib/authenticity/lookup";
+import { lookupOfficialAccount, normalizeAccountUrl, providerForUrl, PublicLookupUnavailableError } from "@/lib/authenticity/lookup";
+import { apiUnavailable } from "@/lib/api-unavailable";
 import { authenticityRateLimit } from "@/lib/authenticity/rate-limit";
 import { publicBaseUrl } from "@/lib/authenticity/public";
 import { signPortablePayload, signingConfig } from "@/lib/authenticity/signing";
@@ -27,10 +28,15 @@ export async function GET(request: Request) {
     };
     const config = signingConfig();
     const db = createAdminClient();
-    const { data: activeKey } = config && db ? await db.from("authenticity_signing_keys").select("key_id").eq("key_id", config.keyId).eq("active", true).is("revoked_at", null).maybeSingle() : { data: null };
+    const activeKeyResult = config && db ? await db.from("authenticity_signing_keys").select("key_id").eq("key_id", config.keyId).eq("active", true).is("revoked_at", null).maybeSingle() : { data: null, error: null };
+    if (activeKeyResult.error) return apiUnavailable("public_authenticity_lookup_assertion", "active_signing_key", activeKeyResult.error);
+    const activeKey = activeKeyResult.data;
     const signed = activeKey && config ? signPortablePayload(payload, "audienceown-account-status+jws", config) : null;
     return signed
       ? Response.json(signed, { headers: { "cache-control": "no-store" } })
       : Response.json({ signed: false, payload, error: "Signing unavailable" }, { status: 503, headers: { "cache-control": "no-store" } });
-  } catch { return Response.json({ error: "Invalid lookup" }, { status: 400 }); }
+  } catch (error) {
+    if (error instanceof PublicLookupUnavailableError) return apiUnavailable("public_authenticity_lookup_assertion", "official_account_lookup", error);
+    return Response.json({ error: "Invalid lookup" }, { status: 400 });
+  }
 }

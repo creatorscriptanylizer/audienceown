@@ -1,6 +1,18 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
+
+export async function setupAuthenticity() {
+  await requireCreator();
+  const db = await createClient();
+  if (!db) throw new Error("Database unavailable");
+  const { error: identityError } = await db.rpc("ensure_creator_identity_profile");
+  if (identityError) throw new Error(identityError.message);
+  const { error: authenticityError } = await db.rpc("ensure_creator_authenticity_profile");
+  if (authenticityError) throw new Error(authenticityError.message);
+  revalidatePath("/dashboard/authenticity");
+}
 
 export async function saveAuthenticitySettings(data: FormData) {
   const db = await createClient();

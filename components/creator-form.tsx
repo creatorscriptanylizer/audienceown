@@ -68,6 +68,14 @@ export function CreatorForm({ profile, publicSiteUrl }: { profile?: Creator | nu
   const descriptionId = availability.status === "idle" || availability.status === "unchanged"
     ? undefined
     : "public_slug_status";
+  const dirty = Boolean(profile) && (displayName !== profile?.display_name || slugState.slug !== profile?.public_slug || bio !== (profile?.public_bio ?? ""));
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   return <form action={formAction} className="space-y-6">
     <div><label className="label" htmlFor="display_name">Display name</label><input className="input" id="display_name" name="display_name" maxLength={80} value={displayName} onChange={(event) => {
@@ -88,7 +96,7 @@ export function CreatorForm({ profile, publicSiteUrl }: { profile?: Creator | nu
       {availability.status === "available" && <p className="mt-1.5 text-xs text-zinc-500">This URL will be reserved for your account.</p>}
     </div>
     <div><label className="label" htmlFor="public_bio">Biography <span className="font-normal text-zinc-500">(optional)</span></label><textarea className="input min-h-32 resize-y" id="public_bio" name="public_bio" maxLength={500} value={bio} onChange={(event) => setBio(event.target.value)}/><p className="mt-1.5 text-xs text-zinc-500" aria-live="polite">{bio.length} / 500</p></div>
-    {state.error && <p role="alert" className="text-sm text-red-300">{state.error}</p>}{state.success && <p role="status" className="text-sm text-emerald-300">{state.success}</p>}
+    {dirty&&<p role="status" className="text-xs text-amber-200">You have unsaved profile changes.</p>}{state.error && <p role="alert" className="text-sm text-red-300">{state.error}</p>}{state.success && <p role="status" className="text-sm text-emerald-300">{state.success}</p>}
     <SubmitButton className="button button-primary" pendingText="Saving…" disabled={!canSubmitCreatorForm(availability)}>{profile ? "Save changes" : "Claim my page"}</SubmitButton>
   </form>;
 }

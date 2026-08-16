@@ -3,7 +3,7 @@ import { parsePhoneNumberFromString } from "npm:libphonenumber-js@1.12.24/max";
 import { z } from "npm:zod@4";
 import { cors, json, sha256, token } from "../_shared/http.ts";
 
-const sources = ["tiktok", "instagram", "youtube", "x", "facebook", "threads", "snapchat", "twitch", "linkedin", "spotify", "discord", "pinterest", "website", "direct", "other"] as const;
+const sources = ["tiktok", "instagram", "youtube", "x", "facebook", "snapchat", "twitch", "linkedin", "spotify", "discord", "pinterest", "website", "direct", "other"] as const;
 const preferences = z.object({
   recovery: z.literal(true),
   videos: z.boolean(),

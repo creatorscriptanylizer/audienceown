@@ -8,6 +8,12 @@ Stage 7.1 reuses this exact serializer for network manifests, lookups, feeds, an
 
 Stage 7.0 adds a presentation layer over the Creator Identity Graph. It does not copy or replace identity, trust, monitoring, or emergency truth. A public record is available only when the creator page and authenticity profile are enabled, the identity is not archived, and policy permits display.
 
+## Authenticated read boundary
+
+Rendering `GET /dashboard/authenticity` is side-effect-free. It uses creator-scoped SELECTs and the stable `get_public_creator_authenticity(text)` projection only; it never inserts, updates, deletes, upserts, generates assertions, or invokes an ensure RPC. A missing `creator_authenticity_profiles` row is a valid “not configured” state, while a failed profile query is an unavailable state.
+
+The explicit **Set up Authenticity** Server Action authenticates the creator and then invokes `ensure_creator_identity_profile()` followed by `ensure_creator_authenticity_profile()`. Both functions are authenticated-only `SECURITY DEFINER` mutations that derive creator ownership from `auth.uid()`. Unique creator constraints make row creation idempotent; the identity ensure records its creation event only for the first insert. The authenticity ensure requires the identity row and keeps the creator’s public slug current. Settings saves and assertion refresh requests remain separate explicit mutations.
+
 States are `strongly_verified_identity`, `verified_identity`, `verification_needs_attention`, `identity_unverified`, `verification_restricted`, and `emergency_recovery_active`. Emergency recovery takes presentation priority. Restricted state removes accounts, domains, relationships, and verified badges without publishing the internal reason.
 
 Verification means AudienceOwn has current control and continuity signals for the displayed accounts and domains. It does not certify character, content quality, legality, financial safety, or permanence. The safe serializer never emits scores, weights, provider identifiers, connection identifiers, evidence, errors, recommendations, monitoring incidents, alerts, or follower data.
@@ -16,7 +22,7 @@ Verification means AudienceOwn has current control and continuity signals for th
 
 Operations use `POST /api/internal/authenticity/issue` and `GET /api/internal/authenticity/health` with `AUTHENTICITY_WORKER_SECRET`. Public output continues unsigned when signing is unavailable.
 Verified selected TikTok profiles, Instagram professional profiles, and Facebook Pages may expose safe labels, canonical profile links, and approved update links. Stable IDs, permissions/scopes, review and token health, webhook state, provider errors, and expiring/private media URLs are never public.
-Verified Stage 8.4 accounts may expose safe labels, handles, canonical profiles, availability, verification dates, and approved content links. X IDs, LinkedIn URNs, Threads IDs, roles, tiers, scopes, cursors, rate limits, and errors remain private.
+Verified Stage 8.4 accounts may expose safe labels, handles, canonical profiles, availability, verification dates, and approved content links. X IDs, LinkedIn URNs, roles, tiers, scopes, cursors, rate limits, and errors remain private.
 # Expansion IV public fields
 
 Public output may include verified display labels, handles, canonical links, categories, safe availability, and verification-method labels. It excludes Spotify/Snapchat/Pinterest stable IDs, tokens, scopes, review details, errors, private board state, challenge values, and evidence.

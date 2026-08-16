@@ -1,5 +1,7 @@
 # AudienceOwn Stage 1
 
+Local setup is documented in [local development](docs/local-development.md), [local authentication](docs/local-authentication.md), and [Stage 8.8 fixtures](docs/local-stage-8-8-fixtures.md). Start with `npm run local:check`.
+
 Stage 8.8 separates authoritative public **Main Audience** metrics from private, deduplicated **Recovery Destination** opt-ins. See [main audience and recovery destinations](docs/main-audience-and-recovery-destinations.md), [recovery destination analytics](docs/recovery-destination-analytics.md), and [provider audience metrics](docs/platform-audience-metrics.md).
 
 The authenticated home route is the data-driven [Creator Command Dashboard](docs/creator-command-dashboard.md), with documented [metrics](docs/dashboard-metric-definitions.md) and a versioned [Audience Protection Score](docs/audience-protection-score.md).
@@ -42,16 +44,19 @@ Copy the Supabase project values into `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_ADMIN_KEY=
 CONTACT_ENCRYPTION_KEY=
 RESEND_API_KEY=
 DELIVERY_EMAIL_FROM=
 DELIVERY_WORKER_SECRET=
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`, `CONTACT_ENCRYPTION_KEY`, `RESEND_API_KEY`,
+`SUPABASE_ADMIN_KEY`, `CONTACT_ENCRYPTION_KEY`, `RESEND_API_KEY`,
 `DELIVERY_EMAIL_FROM`, and `DELIVERY_WORKER_SECRET` are server-only. Never
 prefix them with `NEXT_PUBLIC_`.
+
+`SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_SECRET_KEY` remain supported as
+server-only legacy aliases for existing deployments.
 
 Apply [the Stage 1 migration](supabase/migrations/20260724000000_stage_one.sql), deploy the `subscribe`, `preferences`, and `unsubscribe` Edge Functions, and set `CONTACT_ENCRYPTION_KEY` in both the application and Edge Function environments. Media uses explicit public URLs; contact values remain encrypted and have no browser-readable policy.
 
@@ -161,7 +166,7 @@ complete deliveries.
 
 Stage 6.0 maintains one stable-ID-anchored identity graph for every creator, projecting verified provider connections, emergency replacements, and domains into the dashboard and public creator page. See [Creator identity graph](docs/creator-identity-graph.md), [identity synchronization](docs/identity-synchronization.md), and the [public identity API](docs/public-identity-api.md).
 Stage 8.3 extends the provider registry with review-aware TikTok Display API support and explicitly selected Instagram professional/Facebook Page assets. See [Provider Expansion II](docs/provider-expansion-two.md).
-Stage 8.4 adds plan-aware X, restricted-product LinkedIn, and distinct Threads support. See [Provider Expansion III](docs/provider-expansion-three.md).
+Stage 8.4 adds plan-aware X and restricted-product LinkedIn support. See [Provider Expansion III](docs/provider-expansion-three.md).
 # Stage 8.5 provider coverage
 
 The fixed social-provider list is complete with Spotify account OAuth and verified-feed show linkage, Snapchat Login Kit with separately gated Public Profile capability, Pinterest read-only boards/Pins/claimed-site support, and SSRF-safe manual services. See [Provider Expansion IV](docs/provider-expansion-four.md). All detections remain approval-first; provider publishing is disabled.

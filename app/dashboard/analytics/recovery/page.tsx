@@ -18,7 +18,8 @@ import {
 
 export default async function RecoveryAnalyticsPage({ searchParams }: { searchParams: Promise<{ incident?: string }> }) {
   const requestedIncident = (await searchParams).incident;
-  const incidents = await recoveryIncidents().catch(() => []);
+  const incidentsResult = await recoveryIncidents();
+  const incidents = incidentsResult.status === "available" ? incidentsResult.incidents : [];
   const selectedIncident = incidents.find((incident) => incident.id === requestedIncident)
     ?? incidents.find((incident) => incident.lifecycle_status === "active") ?? incidents[0] ?? null;
   const live = selectedIncident ? await liveRecoveryAnalytics(selectedIncident.id).catch(() => null) : null;
@@ -50,7 +51,7 @@ export default async function RecoveryAnalyticsPage({ searchParams }: { searchPa
       </div>
       {overview.total_relationships === 0 && <p className="mt-4 text-sm text-zinc-500">Your active audience is empty, so a coverage rate is not available yet.</p>}
     </section>
-    <LiveRecoveryAnalytics key={selectedIncident?.id ?? "empty"} incidents={incidents} initial={live} selectedId={selectedIncident?.id ?? null}/>
+    <LiveRecoveryAnalytics key={selectedIncident?.id ?? incidentsResult.status} incidents={incidents} incidentsAvailable={incidentsResult.status === "available"} initial={live} selectedId={selectedIncident?.id ?? null}/>
     {funnelResult.status === "fulfilled" && <RecoveryFunnel rows={funnelResult.value} />}
     {transportsResult.status === "fulfilled" && <RecoveryTransportBreakdown rows={transportsResult.value} />}
     {trendResult.status === "fulfilled" && <RecoveryCoverageTrend rows={trendResult.value} />}

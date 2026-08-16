@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { AudienceOwnLogo } from "@/components/logo";
 import {
   Activity, ArrowLeft, ArrowRight, BellRing, CalendarDays, Check, CheckCircle2, ChevronRight,
   ExternalLink, Globe2, Mail, Megaphone, MessageCircle, Radio, RadioTower,
@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { getPlatform } from "@/lib/platforms";
 import {
-  CreatorRecord, readSavedRecoveryPass, readStoredCreator,
+  CreatorRecord, readSavedRecoveryPass,
   removeSavedRecoveryPass, type SavedRecoveryPass, saveRecoveryPass, updateSavedRecoveryPass,
 } from "@/lib/public-creators";
 import {
@@ -29,6 +29,7 @@ import { normaliseSource } from "@/lib/recovery-pass";
 import type { PublicIdentityGraph } from "@/lib/identity/types";
 import type { AuthenticityRecord } from "@/lib/authenticity/types";
 import { VerifiedCreatorCard } from "@/components/authenticity/verified-creator-card";
+import { RecoveryPassDestinations } from "@/components/recovery-pass-destinations";
 
 type AlertMethod = "Email" | "SMS" | "WhatsApp" | "Browser notification";
 const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
@@ -37,6 +38,15 @@ const methods: { name: AlertMethod; detail: string; icon: typeof Mail }[] = [
   { name: "WhatsApp", detail: "Receive alerts in WhatsApp", icon: MessageCircle },
   { name: "Browser notification", detail: "Alerts on this device", icon: BellRing },
 ];
+
+async function unsubscribeRecoveryPass(pass: SavedRecoveryPass | null) {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base || !pass?.unsubscribeToken) return;
+  await fetch(`${base}/functions/v1/unsubscribe`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: pass.unsubscribeToken }),
+  }).catch(() => null);
+}
 
 const optionalPreferenceCards: {
   key: Exclude<RecoveryCategory, "recovery">;
@@ -71,7 +81,7 @@ function PlatformMark({ id }: { id: string }) {
 
 function Header() {
   return <header className="fan-nav">
-    <Link href="/" className="fan-wordmark"><Radio size={18} /> AudienceOwn</Link>
+    <AudienceOwnLogo className="fan-wordmark" size={24} />
     <div className="fan-nav-right">
       <span><i /> Verified creator page</span>
     </div>
@@ -189,6 +199,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   const [smsResendSeconds, setSmsResendSeconds] = useState(0);
   const [smsTokens, setSmsTokens] = useState<{ preferenceToken: string; unsubscribeToken: string } | null>(null);
   const [whatsAppConsent, setWhatsAppConsent] = useState(false);
+  const [activationToken, setActivationToken] = useState<string>();
   const [preferences, setPreferences] = useState<RecoveryPreferences>(() =>
     readSavedRecoveryPass(creator.handle)?.preferences ?? { ...DEFAULT_RECOVERY_PREFERENCES },
   );
@@ -200,12 +211,6 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   useEffect(() => {
     headingRef.current?.focus();
   }, [step]);
-
-  useEffect(() => {
-    if (step !== 4) return;
-    const timer = window.setTimeout(onClose, 1400);
-    return () => window.clearTimeout(timer);
-  }, [onClose, step]);
 
   useEffect(() => {
     if (smsResendSeconds <= 0) return;
@@ -305,6 +310,25 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
 
   async function finish() {
     let preferenceToken: string | undefined;
+    let unsubscribeToken: string | undefined;
+    if (method === "Email") {
+      try {
+        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!base) throw new Error("missing_server");
+        const response = await fetch(`${base}/functions/v1/subscribe`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: creator.handle, email: contact, consent: true,
+            source_platform: normaliseSource(source), landing_path: window.location.pathname,
+            source_referrer: document.referrer || null, preferences }),
+        });
+        if (!response.ok) throw new Error("registration_failed");
+        const registration = await response.json() as { preferenceToken?: string; unsubscribeToken?: string };
+        preferenceToken = registration.preferenceToken;
+        unsubscribeToken = registration.unsubscribeToken;
+      } catch {
+        setStep(2); setContactTouched(true); return;
+      }
+    }
     if (method === "Browser notification") {
       if (!pushSubscription) {
         setStep(2);
@@ -328,8 +352,9 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
           }),
         });
         if (!response.ok) throw new Error("registration_failed");
-        const registration = await response.json() as { preferenceToken?: string };
+        const registration = await response.json() as { preferenceToken?: string; unsubscribeToken?: string };
         preferenceToken = registration.preferenceToken;
+        unsubscribeToken = registration.unsubscribeToken;
       } catch {
         setStep(2);
         setPushError("server_registration_failed");
@@ -354,6 +379,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
         }).catch(() => null);
       }
       preferenceToken = smsTokens.preferenceToken;
+      unsubscribeToken = smsTokens.unsubscribeToken;
     }
     saveRecoveryPass(creator.handle, {
       method, contact: method === "Browser notification"
@@ -364,7 +390,9 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
       consent: true, memberNumber, savedAt: new Date().toISOString(), source,
       preferences: { ...preferences, recovery: true },
       preferenceToken,
+      unsubscribeToken,
     });
+    setActivationToken(preferenceToken);
     setStep(4);
     onSaved(memberNumber);
   }
@@ -372,7 +400,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
   return <div className="pass-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <div ref={dialogRef} className={`pass-modal premium-pass-modal step-${step}`} role="dialog" aria-modal="true" aria-labelledby="pass-flow-heading">
       <div className="pass-modal-top">
-        <Link href="/" className="fan-wordmark"><Radio size={17} /> AudienceOwn</Link>
+        <AudienceOwnLogo className="fan-wordmark" size={24} />
         {step < 4 && <span>Step {step} of 3</span>}
         <button onClick={onClose} aria-label="Close"><X size={20} /></button>
       </div>
@@ -467,6 +495,7 @@ function SaveModal({ creator, source, onClose, onSaved, onManage }: { creator: C
             <span><strong>Recovery alerts</strong><b>Enabled</b></span>
             {optionalPreferenceCards.map(({ key, title }) => <span key={key}><strong>{title}</strong><b className={preferences[key] ? "enabled" : ""}>{preferences[key] ? "Enabled" : "Off"}</b></span>)}
           </div>
+          <RecoveryPassDestinations slug={creator.handle} preferenceToken={activationToken} />
           <div className="pass-success-actions"><button className="button button-primary" onClick={onClose}>Done</button><button className="button button-secondary" onClick={onManage}>Manage Recovery Pass</button></div>
         </div>}
       </div>
@@ -570,6 +599,7 @@ function ManagePassModal({ creator, initialMode, onClose, onDeactivate, onSaved 
         }).catch(() => null);
       }
     }
+    await unsubscribeRecoveryPass(stored);
     removeSavedRecoveryPass(creator.handle);
     onDeactivate();
   }
@@ -686,6 +716,7 @@ function RecoveryPassStatusPage({ creator, pass, onManage, onDeactivate }: {
       <p>If this creator is ever hacked, banned, suspended, deleted, or moves to another verified account, AudienceOwn will guide you to the correct destination and notify you using your selected alert methods.</p>
     </section>
     <RecoveryPassStatusCard creator={creator} pass={pass} status={status} />
+    <RecoveryPassDestinations slug={creator.handle} preferenceToken={pass.preferenceToken} />
     <section className="normal-status-card">
       <div className="normal-status-icon"><CheckCircle2 size={21} /></div>
       <div><p>Recovery status</p><h2>Everything looks normal</h2><span>{creator.displayName}’s verified accounts are active.</span></div>
@@ -712,9 +743,13 @@ function HealthyPage({ creator, pass, onSave, onManage, onDeactivate }: {
   if (pass) return <RecoveryPassStatusPage creator={creator} pass={pass} onManage={onManage} onDeactivate={onDeactivate} />;
   return <>
     <section className="fan-hero">
+      {/* Creator-managed image hosts are dynamic and cannot be safely enumerated for next/image. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {creator.bannerImagePath && <img src={creator.bannerImagePath} alt="" className="absolute inset-x-0 top-0 h-48 w-full object-cover opacity-20" />}
       <div className="fan-orbit fan-orbit-one" /><div className="fan-orbit fan-orbit-two" />
       <div className="fan-hero-inner">
         <Profile creator={creator} />
+        {creator.bio && <p className="mx-auto mt-4 max-w-xl text-sm text-zinc-300">{creator.bio}</p>}
         <div className="fan-status fan-status-online" aria-live="polite"><i /> Verified creator</div>
         <h1>Never lose touch with <span>{creator.displayName}.</span></h1>
         <p className="fan-hero-promise"><span>Creators get hacked. Accounts get banned.</span><span>Profiles disappear.</span><span>Save one pass. Always find the real, verified destination.</span></p>
@@ -726,6 +761,12 @@ function HealthyPage({ creator, pass, onSave, onManage, onDeactivate }: {
       </div>
     </section>
     <main className="fan-content">
+      {creator.announcement && <section className="surface mb-8 rounded-xl p-5">
+        <p className="fan-kicker">Latest announcement</p>
+        {creator.announcement.title && <h2 className="mt-1 text-xl font-semibold">{creator.announcement.title}</h2>}
+        {creator.announcement.body && <p className="mt-2 whitespace-pre-line text-sm text-zinc-400">{creator.announcement.body}</p>}
+        {creator.announcement.ctaUrl && <a href={creator.announcement.ctaUrl} target="_blank" rel="noreferrer" className="button button-secondary mt-4">{creator.announcement.ctaLabel || "Learn more"} <ExternalLink size={14} /></a>}
+      </section>}
       <section className="fan-how" id="why-this-matters">
         <div><p className="fan-kicker">Always know where to go</p><h2>What happens when you save this pass?</h2></div>
         <ol>
@@ -786,30 +827,29 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
   fallback: CreatorRecord;
   source?: string;
   canUseDevTools?: boolean;
-  publicUpdates?: Array<{ id: string; title: string; content: string; cta_url: string | null; media_url: string | null; sent_at: string | null }>;
+  publicUpdates?: Array<{ id: string; title: string; content: string; ctaUrl: string | null; mediaUrl: string | null; sentAt: string }>;
   identityGraph?: PublicIdentityGraph | null;
   authenticity?: AuthenticityRecord | null;
 }) {
-  const [creator, setCreator] = useState(fallback);
+  const [fanOffset, setFanOffset] = useState(0);
+  const creator = useMemo(() => ({ ...fallback, recoveryCoreFans: fallback.recoveryCoreFans + fanOffset }), [fallback, fanOffset]);
   const [pass, setPass] = useState<SavedRecoveryPass | null>(null);
   const [modal, setModal] = useState(false);
   const [manageMode, setManageMode] = useState<"methods" | "preferences" | null>(null);
 
   useEffect(() => {
-    // Browser storage is intentionally read after hydration; the server renders
-    // the deterministic mock record and local data replaces it once available.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCreator(readStoredCreator(fallback.handle) ?? fallback);
-    setPass(readSavedRecoveryPass(fallback.handle));
-  }, [fallback]);
+    const frame = window.requestAnimationFrame(() => setPass(readSavedRecoveryPass(fallback.handle)));
+    return () => window.cancelAnimationFrame(frame);
+  }, [fallback.handle]);
 
   function markSaved() {
     setPass(readSavedRecoveryPass(creator.handle));
-    setCreator((current) => ({ ...current, recoveryCoreFans: current.recoveryCoreFans + 1 }));
+    setFanOffset((current) => current + 1);
   }
 
-  function deactivatePass(requireConfirmation = true) {
+  async function deactivatePass(requireConfirmation = true) {
     if (requireConfirmation && !window.confirm(`Deactivate your Recovery Pass for ${creator.displayName}?`)) return;
+    await unsubscribeRecoveryPass(readSavedRecoveryPass(creator.handle));
     removeSavedRecoveryPass(creator.handle);
     setPass(null);
     setManageMode(null);
@@ -824,10 +864,10 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
       <div className="mt-3 grid gap-3">{publicUpdates.map((update) => <article key={update.id} className="surface rounded-xl p-5">
         {/* Provider thumbnail hosts are dynamic and cannot be safely enumerated for next/image. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {update.media_url && <img src={update.media_url} alt="" className="mb-4 aspect-video w-full rounded-lg object-cover"/>}
+        {update.mediaUrl && <img src={update.mediaUrl} alt="" className="mb-4 aspect-video w-full rounded-lg object-cover"/>}
         <h2 className="text-xl font-semibold">{update.title}</h2>
         <p className="mt-2 whitespace-pre-line text-sm text-zinc-400">{update.content}</p>
-        {update.cta_url && <a href={update.cta_url} target="_blank" rel="noreferrer" className="button button-secondary mt-4">Watch on YouTube <ExternalLink size={14}/></a>}
+        {update.ctaUrl && <a href={update.ctaUrl} target="_blank" rel="noreferrer" className="button button-secondary mt-4">View update <ExternalLink size={14}/></a>}
       </article>)}</div>
     </section>}
     {canUseDevTools && <div className="developer-tools-wrap"><DeveloperTools
@@ -837,7 +877,7 @@ export function PublicCreatorExperience({ fallback, source, canUseDevTools = fal
       onClearSource={() => updateSavedRecoveryPass(creator.handle, { source: undefined })}
       onSimulate={() => setPass(null)}
     /></div>}
-    {creator.emergencyMode && <footer className="fan-footer"><Link href="/" className="fan-wordmark"><Radio size={16} /> AudienceOwn</Link><p>Permanent creator recovery infrastructure.</p><span>Verified • Private • Fan-first</span></footer>}
+    {creator.emergencyMode && <footer className="fan-footer"><AudienceOwnLogo className="fan-wordmark" size={22} /><p>Permanent creator recovery infrastructure.</p><span>Verified • Private • Fan-first</span></footer>}
     {modal && <SaveModal creator={creator} source={source} onClose={() => setModal(false)} onSaved={markSaved} onManage={() => { setModal(false); setManageMode("preferences"); }} />}
     {manageMode && <ManagePassModal creator={creator} initialMode={manageMode} onClose={() => setManageMode(null)} onDeactivate={() => deactivatePass(false)} onSaved={() => { setPass(readSavedRecoveryPass(creator.handle)); setManageMode(null); }} />}
   </div>;

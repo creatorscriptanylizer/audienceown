@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -278,6 +283,33 @@ export type Database = {
           },
         ]
       }
+      app_admins: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_email: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          display_email?: string | null
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          display_email?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       authenticity_network_deliveries: {
         Row: {
           attempt_count: number
@@ -529,6 +561,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -564,6 +597,7 @@ export type Database = {
           platform: string
           poll_claimed_until?: string | null
           position?: number
+          protected_official_account_id?: string | null
           provider_metadata?: Json
           provider_status?: string
           requested_scopes?: string[]
@@ -599,6 +633,7 @@ export type Database = {
           platform?: string
           poll_claimed_until?: string | null
           position?: number
+          protected_official_account_id?: string | null
           provider_metadata?: Json
           provider_status?: string
           requested_scopes?: string[]
@@ -615,6 +650,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connected_accounts_protected_official_account_id_fkey"
+            columns: ["protected_official_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1148,6 +1190,68 @@ export type Database = {
             foreignKeyName: "creator_authenticity_views_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_billing_subscriptions: {
+        Row: {
+          billing_interval: string | null
+          cancel_at: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          creator_id: string
+          current_period_end: string | null
+          current_period_start: string | null
+          last_stripe_event_created: number
+          plan: string
+          status: string
+          stripe_customer_id: string
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_interval?: string | null
+          cancel_at?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          last_stripe_event_created?: number
+          plan?: string
+          status?: string
+          stripe_customer_id: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_interval?: string | null
+          cancel_at?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          last_stripe_event_created?: number
+          plan?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_billing_subscriptions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
             referencedRelation: "creators"
             referencedColumns: ["id"]
           },
@@ -2120,6 +2224,88 @@ export type Database = {
           },
         ]
       }
+      creator_onboarding: {
+        Row: {
+          backup_step_completed_at: string | null
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          official_step_completed_at: string | null
+          recovery_pass_completed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          backup_step_completed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          official_step_completed_at?: string | null
+          recovery_pass_completed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          backup_step_completed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          official_step_completed_at?: string | null
+          recovery_pass_completed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_onboarding_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_plan_entitlements: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          creator_id: string
+          current_period_end: string | null
+          plan: string
+          source: string
+          source_reference: string | null
+          subscription_status: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id: string
+          current_period_end?: string | null
+          plan?: string
+          source?: string
+          source_reference?: string | null
+          subscription_status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id?: string
+          current_period_end?: string | null
+          plan?: string
+          source?: string
+          source_reference?: string | null
+          subscription_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_plan_entitlements_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_recovery_daily_snapshots: {
         Row: {
           browser_notification_count: number
@@ -2644,7 +2830,7 @@ export type Database = {
           profile_image_path: string | null
           public_bio: string | null
           public_profile_enabled: boolean
-          public_slug: string
+          public_slug: string | null
           recovery_pass_enabled: boolean
           updated_at: string
         }
@@ -2662,7 +2848,7 @@ export type Database = {
           profile_image_path?: string | null
           public_bio?: string | null
           public_profile_enabled?: boolean
-          public_slug: string
+          public_slug?: string | null
           recovery_pass_enabled?: boolean
           updated_at?: string
         }
@@ -2680,7 +2866,7 @@ export type Database = {
           profile_image_path?: string | null
           public_bio?: string | null
           public_profile_enabled?: boolean
-          public_slug?: string
+          public_slug?: string | null
           recovery_pass_enabled?: boolean
           updated_at?: string
         }
@@ -3717,7 +3903,7 @@ export type Database = {
       }
       emergency_plans: {
         Row: {
-          affected_account_id: string
+          affected_account_id: string | null
           created_at: string
           created_by: string
           creator_id: string
@@ -3738,7 +3924,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          affected_account_id: string
+          affected_account_id?: string | null
           created_at?: string
           created_by: string
           creator_id: string
@@ -3759,7 +3945,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          affected_account_id?: string
+          affected_account_id?: string | null
           created_at?: string
           created_by?: string
           creator_id?: string
@@ -5527,6 +5713,33 @@ export type Database = {
           },
         ]
       }
+      qa_entitlement_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          environment: string
+          id: string
+          plan: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          environment: string
+          id?: string
+          plan: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          environment?: string
+          id?: string
+          plan?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sms_verification_sessions: {
         Row: {
           attempt_count: number
@@ -5710,6 +5923,27 @@ export type Database = {
           provider?: string
           provider_event_id?: string
           signature_verified?: boolean
+        }
+        Relationships: []
+      }
+      stripe_webhook_events: {
+        Row: {
+          event_created: number
+          event_type: string
+          processed_at: string
+          stripe_event_id: string
+        }
+        Insert: {
+          event_created: number
+          event_type: string
+          processed_at?: string
+          stripe_event_id: string
+        }
+        Update: {
+          event_created?: number
+          event_type?: string
+          processed_at?: string
+          stripe_event_id?: string
         }
         Relationships: []
       }
@@ -6069,6 +6303,82 @@ export type Database = {
           },
         ]
       }
+      youtube_oauth_pending_selections: {
+        Row: {
+          access_token_ciphertext: string
+          consumed_at: string | null
+          created_at: string
+          creator_id: string
+          eligible_channels: Json
+          expires_at: string
+          granted_scopes: string[]
+          id: string
+          protected_official_account_id: string | null
+          reconnect_connection_id: string | null
+          refresh_token_ciphertext: string | null
+          requested_role: string
+          token_expires_at: string
+          token_type: string
+          user_id: string
+        }
+        Insert: {
+          access_token_ciphertext: string
+          consumed_at?: string | null
+          created_at?: string
+          creator_id: string
+          eligible_channels: Json
+          expires_at: string
+          granted_scopes: string[]
+          id: string
+          protected_official_account_id?: string | null
+          reconnect_connection_id?: string | null
+          refresh_token_ciphertext?: string | null
+          requested_role: string
+          token_expires_at: string
+          token_type: string
+          user_id: string
+        }
+        Update: {
+          access_token_ciphertext?: string
+          consumed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          eligible_channels?: Json
+          expires_at?: string
+          granted_scopes?: string[]
+          id?: string
+          protected_official_account_id?: string | null
+          reconnect_connection_id?: string | null
+          refresh_token_ciphertext?: string | null
+          requested_role?: string
+          token_expires_at?: string
+          token_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_oauth_pending_selecti_protected_official_account_i_fkey"
+            columns: ["protected_official_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "youtube_oauth_pending_selections_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "youtube_oauth_pending_selections_reconnect_connection_id_fkey"
+            columns: ["reconnect_connection_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       public_connected_accounts: {
@@ -6208,6 +6518,25 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_stripe_subscription_event: {
+        Args: {
+          p_cancel_at: string
+          p_cancel_at_period_end: boolean
+          p_creator_id: string
+          p_customer_id: string
+          p_event_created: number
+          p_event_id: string
+          p_event_type: string
+          p_interval: string
+          p_period_end: string
+          p_period_start: string
+          p_price_id: string
+          p_status: string
+          p_subscription_id: string
+          p_trial_end: string
+        }
+        Returns: boolean
+      }
       apply_update_delivery_event: {
         Args: {
           p_event_timestamp: string
@@ -6260,6 +6589,10 @@ export type Database = {
       capture_recovery_daily_snapshots: {
         Args: { p_limit?: number }
         Returns: number
+      }
+      check_recovery_pass_name_availability: {
+        Args: { p_slug: string }
+        Returns: string
       }
       claim_ai_draft_enhancement_jobs: {
         Args: {
@@ -6591,6 +6924,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -6635,6 +6969,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -6679,6 +7014,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -6889,6 +7225,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -6978,6 +7315,7 @@ export type Database = {
           platform: string
           poll_claimed_until: string | null
           position: number
+          protected_official_account_id: string | null
           provider_metadata: Json
           provider_status: string
           requested_scopes: string[]
@@ -7068,6 +7406,10 @@ export type Database = {
           p_plan_id?: string
           p_template_id?: string
         }
+        Returns: string
+      }
+      create_recovery_pass: {
+        Args: { p_display_name: string; p_slug: string }
         Returns: string
       }
       create_social_draft: { Args: { p_event_id: string }; Returns: Json }
@@ -7184,6 +7526,10 @@ export type Database = {
           provider: string
           selected_at: string
         }[]
+      }
+      get_creator_recovery_audience_summary: {
+        Args: { p_creator_id: string; p_range?: string }
+        Returns: Json
       }
       get_creator_recovery_broadcast_performance: {
         Args: { p_before?: string; p_limit?: number }
@@ -7306,6 +7652,10 @@ export type Database = {
           received_at: string
         }[]
       }
+      get_provider_connection_entitlement: {
+        Args: { p_creator_id: string; p_role: string }
+        Returns: Json
+      }
       get_public_creator_authenticity: {
         Args: { p_slug: string }
         Returns: Json
@@ -7318,6 +7668,7 @@ export type Database = {
         Args: { p_slug: string }
         Returns: Json
       }
+      get_public_creator_page: { Args: { p_slug: string }; Returns: Json }
       get_public_creator_trust: { Args: { p_slug: string }; Returns: Json }
       get_social_automation_analytics: {
         Args: { p_provider?: string }
@@ -7413,6 +7764,8 @@ export type Database = {
         Args: { p_emergency_id: string; p_reason: string }
         Returns: undefined
       }
+      is_app_admin: { Args: { p_user_id: string }; Returns: boolean }
+      is_local_qa_database: { Args: never; Returns: boolean }
       is_published_creator_media: {
         Args: { object_name: string }
         Returns: boolean
@@ -7511,6 +7864,10 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: Database["public"]["Enums"]["delivery_status"]
       }
+      provision_configured_app_admin: {
+        Args: { p_display_email: string; p_user_id: string }
+        Returns: undefined
+      }
       publish_update_delivery_queue: {
         Args: {
           p_creator_id: string
@@ -7540,6 +7897,10 @@ export type Database = {
       reconcile_pending_provider_events: {
         Args: { p_limit?: number }
         Returns: number
+      }
+      reconcile_provider_account_hierarchy: {
+        Args: { p_creator_id: string; p_platform: string }
+        Returns: string
       }
       reconcile_update_delivery_events: {
         Args: { p_provider: string; p_provider_message_id: string }
@@ -7964,101 +8325,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      iceberg_namespaces: {
-        Row: {
-          bucket_name: string
-          catalog_id: string
-          created_at: string
-          id: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          bucket_name: string
-          catalog_id: string
-          created_at?: string
-          id?: string
-          metadata?: Json
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          bucket_name?: string
-          catalog_id?: string
-          created_at?: string
-          id?: string
-          metadata?: Json
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "iceberg_namespaces_catalog_id_fkey"
-            columns: ["catalog_id"]
-            isOneToOne: false
-            referencedRelation: "buckets_analytics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      iceberg_tables: {
-        Row: {
-          bucket_name: string
-          catalog_id: string
-          created_at: string
-          id: string
-          location: string
-          name: string
-          namespace_id: string
-          remote_table_id: string | null
-          shard_id: string | null
-          shard_key: string | null
-          updated_at: string
-        }
-        Insert: {
-          bucket_name: string
-          catalog_id: string
-          created_at?: string
-          id?: string
-          location: string
-          name: string
-          namespace_id: string
-          remote_table_id?: string | null
-          shard_id?: string | null
-          shard_key?: string | null
-          updated_at?: string
-        }
-        Update: {
-          bucket_name?: string
-          catalog_id?: string
-          created_at?: string
-          id?: string
-          location?: string
-          name?: string
-          namespace_id?: string
-          remote_table_id?: string | null
-          shard_id?: string | null
-          shard_key?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "iceberg_tables_catalog_id_fkey"
-            columns: ["catalog_id"]
-            isOneToOne: false
-            referencedRelation: "buckets_analytics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "iceberg_tables_namespace_id_fkey"
-            columns: ["namespace_id"]
-            isOneToOne: false
-            referencedRelation: "iceberg_namespaces"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       migrations: {
         Row: {
@@ -8600,4 +8866,3 @@ export const Constants = {
     },
   },
 } as const
-

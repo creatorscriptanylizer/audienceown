@@ -1,6 +1,6 @@
 import type { SocialProvider } from "@/lib/social-providers/types";
 
-export const audienceProviders = ["youtube", "instagram", "tiktok", "x", "spotify", "twitch", "linkedin", "facebook", "snapchat", "threads", "pinterest", "discord"] as const;
+export const audienceProviders = ["youtube", "instagram", "tiktok", "x", "spotify", "twitch", "linkedin", "facebook", "snapchat", "pinterest", "discord"] as const;
 export type AudienceProvider = Extract<SocialProvider, typeof audienceProviders[number]>;
 export const audienceUnits = ["followers", "subscribers", "members", "listeners", "connections"] as const;
 export type PlatformAudienceUnit = typeof audienceUnits[number];

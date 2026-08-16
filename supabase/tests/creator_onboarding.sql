@@ -1,0 +1,16 @@
+begin;create extension if not exists pgtap with schema extensions;set local role postgres;set local search_path=public,extensions;select plan(12);
+select has_table('public','creator_onboarding','onboarding state exists');select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='public.creator_onboarding'::regclass),'onboarding RLS is forced');
+insert into auth.users(id,email)values('91200000-0000-4000-8000-000000000001','new-onboarding@example.test');
+select is((select count(*)::integer from public.creator_onboarding o join public.creators c on c.id=o.creator_id where c.owner_user_id='91200000-0000-4000-8000-000000000001'),1,'new creator gets one onboarding row');
+select is((select count(*)::integer from public.creator_onboarding o join public.creators c on c.id=o.creator_id where c.owner_user_id='91200000-0000-4000-8000-000000000001'and o.completed_at is null),1,'new creator starts incomplete');
+select throws_ok($$insert into public.creators(owner_user_id,display_name,public_slug)values('91200000-0000-4000-8000-000000000001','Duplicate','valid-duplicate-owner')$$,'23505',null,'second creator ownership rejected');
+insert into auth.users(id,email)values('91200000-0000-4000-8000-000000000002','reserved-onboarding@example.test');
+select throws_ok($$update public.creators set public_slug='onboarding'where owner_user_id='91200000-0000-4000-8000-000000000002'$$,'23514',null,'onboarding slug is reserved');
+select throws_ok($$update public.creators set public_slug='privacy'where owner_user_id='91200000-0000-4000-8000-000000000002'$$,'23514',null,'privacy slug is reserved');
+set local role authenticated;select set_config('request.jwt.claim.sub','91200000-0000-4000-8000-000000000001',true);
+select is((select count(*)::integer from public.creator_onboarding),1,'creator sees only owned onboarding row');
+select lives_ok($$update public.creator_onboarding set recovery_pass_completed_at=now()where creator_id=(select id from public.creators where owner_user_id='91200000-0000-4000-8000-000000000001')$$,'owner updates own milestone');
+update public.creator_onboarding set completed_at=now()where creator_id=(select id from public.creators where owner_user_id='91200000-0000-4000-8000-000000000002');
+select is((select count(*)::integer from public.creator_onboarding where completed_at is not null),0,'creator cannot update another onboarding row');
+set local role postgres;select is((select count(*)::integer from public.creator_onboarding o join public.creators c on c.id=o.creator_id where c.owner_user_id in('91200000-0000-4000-8000-000000000001','91200000-0000-4000-8000-000000000002')and o.recovery_pass_completed_at is not null),1,'milestone persisted');
+select is((select count(*)::integer from public.creator_onboarding o join public.creators c on c.id=o.creator_id where c.owner_user_id in('91200000-0000-4000-8000-000000000001','91200000-0000-4000-8000-000000000002')and o.completed_at is null),2,'partial state remains resumable');select*from finish();rollback;

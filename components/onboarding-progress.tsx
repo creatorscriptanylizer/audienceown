@@ -1,0 +1,2 @@
+const steps=["Recovery Pass","Official Account","Backup Account","Ready"];
+export function OnboardingProgress({current}:{current:1|2|3|4}){return <nav className="onboarding-progress" aria-label="Onboarding progress"><ol>{steps.map((step,index)=>{const number=index+1,state=number<current?"complete":number===current?"current":"upcoming";return <li key={step} className={`is-${state}`} aria-current={state==="current"?"step":undefined}><span>{state==="complete"?"✓":number}</span><strong>{step}</strong></li>})}</ol></nav>}

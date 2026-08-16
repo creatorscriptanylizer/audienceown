@@ -9,7 +9,6 @@
 | X | PKCE | Posts | Polling | Product tier/review required |
 | Instagram | Yes | Professional media | Polling/webhook | Meta review required |
 | Facebook | Yes | Page content/live | Polling/webhook | Meta review required |
-| Threads | Yes | Approved account media | Polling | Review required |
 | Pinterest | Yes | Selected-board Pins | Polling | Review required |
 | Discord | Bot OAuth | Filtered announcements | Events | Bot/event setup required |
 | LinkedIn | Yes | Only with approved read product | Otherwise manual | Review required |
@@ -23,7 +22,7 @@ capabilities. It neither adds provider access nor expands auto-send permissions.
 ## Expansion II capability boundary
 
 TikTok supports OAuth identity and approved `video.list` polling. Instagram supports professional accounts through a correctly configured Instagram Login or Facebook Login mode. Facebook supports selected managed Pages. All three support manual import/verification fallbacks and approval-first drafts; none supports provider publishing.
-Stage 8.4 detection is conditional: X requires an entitled plan, LinkedIn requires restricted products and organization authority, and Threads requires its distinct reviewed product. All three offer manual fallback and disable provider publishing.
+Stage 8.4 detection is conditional: X requires an entitled plan and LinkedIn requires restricted products and organization authority. Both offer manual fallback and disable provider publishing.
 # Expansion IV capability matrix
 
 | Provider | OAuth identity | Asset authority | Automatic detection | Manual fallback | Publishing |

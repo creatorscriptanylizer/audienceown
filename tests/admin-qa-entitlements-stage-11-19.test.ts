@@ -1,0 +1,9 @@
+import{readFileSync}from"node:fs";import{describe,expect,it}from"vitest";
+const source=(path:string)=>readFileSync(path,"utf8");
+describe("admin and QA entitlements",()=>{
+ it("authorizes admins by immutable Auth user ID",()=>{const migration=source("supabase/migrations/20260902000000_admin_and_qa_entitlements.sql");expect(migration).toContain("user_id uuid not null unique references auth.users(id)");expect(migration).toContain("where a.user_id=p_user_id");expect(migration).not.toContain("enkiakka@gmail.com");});
+ it("keeps browser roles unable to mutate authority",()=>{const migration=source("supabase/migrations/20260902000000_admin_and_qa_entitlements.sql");expect(migration).toContain("force row level security");expect(migration).toContain("revoke all on public.app_admins from public,anon,authenticated");expect(migration).toContain("revoke all on public.qa_entitlement_overrides from public,anon,authenticated");});
+ it("requires admin plus an explicit local override",()=>{const migration=source("supabase/migrations/20260902000000_admin_and_qa_entitlements.sql");expect(migration).toContain("public.is_local_qa_database()and public.is_app_admin(owner_id)");expect(migration).toContain("qa_entitlement_overrides q");});
+ it("operator commands resolve exact users and reject production QA",()=>{const script=source("scripts/admin-qa-operator.mjs");expect(script).toContain("matches.length!==1");expect(script).toContain("Create/sign in with ${email} first");expect(script).toContain('process.env.NODE_ENV==="production"||!local');});
+ it("does not conflate admin with billing Pro",()=>{const migration=source("supabase/migrations/20260902000000_admin_and_qa_entitlements.sql");expect(migration).toContain("resolved_status in('trialing','active')");expect(migration).not.toContain("if public.is_app_admin(owner_id)then resolved_plan:='pro'");});
+});

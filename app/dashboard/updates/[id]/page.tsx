@@ -9,6 +9,8 @@ import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { getEligibleRecipientsForUpdate } from "@/lib/update-delivery";
 import { AiDraftPanel } from "@/components/ai-draft-panel";
+import { UnavailableState } from "@/components/product-state";
+import { logPageQueryFailure } from "@/lib/data-availability";
 
 const deliveryStatuses = ["queued", "sending", "accepted", "delivered", "bounced", "complained", "failed", "skipped", "cancelled"] as const;
 const deliveryTransports = ["email", "sms", "whatsapp", "browser_notification"] as const;
@@ -23,45 +25,38 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
   const { id } = await params;
   const query = await searchParams;
   const supabase = await createClient();
-  if (!supabase) notFound();
-  const { data: update } = await supabase.from("creator_updates").select(
+  if (!supabase) return <UnavailableState title="Update unavailable" description="We could not load this update right now. Your saved update was not changed."/>;
+  const updateResult = await supabase.from("creator_updates").select(
     "id,broadcast_type,broadcast_intent,affected_platform_connection_id,status,title,subject,preview_text,content,cta_label,cta_url,scheduled_for,deterministic_title,deterministic_content",
   ).eq("id", id).eq("creator_id", creator.id).maybeSingle();
-  if (!update) notFound();
-  const { data: accounts } = await supabase.from("connected_accounts")
-    .select("id,platform,account_type,label,url,is_primary,is_public,position")
-    .eq("creator_id", creator.id).order("position");
-  let estimate = null;
-  try {
-    const resolution = await getEligibleRecipientsForUpdate(id, creator.id);
-    estimate = {
-      eligible: resolution.eligible,
-      duplicates: resolution.duplicates,
-      excluded: resolution.excluded as Record<string, number>,
-      byTransport: resolution.byTransport,
-    };
-  } catch {
-    estimate = null;
+  if (updateResult.error) {
+    logPageQueryFailure("dashboard/updates/[id]", "creator_updates", updateResult.error);
+    return <UnavailableState title="Update unavailable" description="We could not load this update right now. Your saved update was not changed."/>;
   }
-  const { data: deliveries } = await supabase.from("update_deliveries").select("status,transport")
-    .eq("update_id", id).eq("creator_id", creator.id);
-  const counts = Object.fromEntries(deliveryStatuses.map((status) => [
-    status,
-    (deliveries ?? []).filter((delivery) => delivery.status === status).length,
-  ])) as Record<(typeof deliveryStatuses)[number], number>;
-  const transportCounts = Object.fromEntries(deliveryTransports.map((transport) => [
-    transport,
-    (deliveries ?? []).filter((delivery) => delivery.transport === transport).length,
-  ])) as Record<(typeof deliveryTransports)[number], number>;
-  const acceptedByTransport = Object.fromEntries(deliveryTransports.map((transport) => [
-    transport,
-    (deliveries ?? []).filter((delivery) =>
-      delivery.transport === transport && delivery.status === "accepted").length,
-  ])) as Record<(typeof deliveryTransports)[number], number>;
-  const [{data:aiJobs},{data:aiVariants}]=await Promise.all([
+  const update = updateResult.data;
+  if (!update) notFound();
+  const [accountsResult, estimateResult, deliveriesResult, aiJobsResult, aiVariantsResult] = await Promise.all([
+    supabase.from("connected_accounts").select("id,platform,account_type,label,url,is_primary,is_public,position").eq("creator_id", creator.id).order("position"),
+    getEligibleRecipientsForUpdate(id, creator.id).then((resolution) => ({ data: { eligible: resolution.eligible, duplicates: resolution.duplicates, excluded: resolution.excluded as Record<string, number>, byTransport: resolution.byTransport }, error: null })).catch((error: unknown) => ({ data: null, error })),
+    supabase.from("update_deliveries").select("status,transport").eq("update_id", id).eq("creator_id", creator.id),
     supabase.from("ai_draft_enhancement_jobs").select("id,status,prompt_version,stale_result,last_error_code").eq("creator_update_id",id).order("created_at",{ascending:false}),
     supabase.from("ai_draft_variants").select("id,variant_type,title,body,provider,model,prompt_version,selected").eq("creator_update_id",id).order("created_at"),
   ]);
+  for (const [queryName, error] of [["connected_accounts", accountsResult.error], ["eligible_recipients", estimateResult.error], ["update_deliveries", deliveriesResult.error], ["ai_draft_enhancement_jobs", aiJobsResult.error], ["ai_draft_variants", aiVariantsResult.error]] as const) logPageQueryFailure("dashboard/updates/[id]", queryName, error);
+  const deliveries = deliveriesResult.data ?? [];
+  const counts = Object.fromEntries(deliveryStatuses.map((status) => [
+    status,
+    deliveries.filter((delivery) => delivery.status === status).length,
+  ])) as Record<(typeof deliveryStatuses)[number], number>;
+  const transportCounts = Object.fromEntries(deliveryTransports.map((transport) => [
+    transport,
+    deliveries.filter((delivery) => delivery.transport === transport).length,
+  ])) as Record<(typeof deliveryTransports)[number], number>;
+  const acceptedByTransport = Object.fromEntries(deliveryTransports.map((transport) => [
+    transport,
+    deliveries.filter((delivery) =>
+      delivery.transport === transport && delivery.status === "accepted").length,
+  ])) as Record<(typeof deliveryTransports)[number], number>;
   return <>
     <Link href="/dashboard/updates" className="update-back-link"><ArrowLeft size={15}/> Update history</Link>
     {query.status === "published" && query.updateId === id && <section className="studio-publish-result" role="status">
@@ -81,19 +76,20 @@ export default async function UpdatePage({ params, searchParams }: PageProps<"/d
       <p className="eyebrow">Scheduled broadcast</p>
       <h2>{update.title}</h2>
       <p className="local-scheduled-time"><LocalDateTime value={update.scheduled_for}/></p>
-      <p>{deliveries?.length ?? 0} recipient notifications are prepared as a fixed audience snapshot. Content and targeting are locked.</p>
+      <p>{deliveriesResult.error ? <>— recipient notifications prepared. Delivery data is unavailable.</> : <>{deliveries.length} recipient notifications are prepared as a fixed audience snapshot. Content and targeting are locked.</>}</p>
       <CancelScheduledButton updateId={id}/>
-    </section> : <><AiDraftPanel updateId={id} status={update.status} original={{title:update.deterministic_title,body:update.deterministic_content}}
-      jobs={aiJobs??[]} variants={aiVariants??[]}/><BroadcastStudio
+    </section> : <>{aiJobsResult.error || aiVariantsResult.error ? <UnavailableState compact title="AI draft history unavailable" description="Draft enhancement history could not be loaded. Your update remains available."/> : <AiDraftPanel updateId={id} status={update.status} original={{title:update.deterministic_title,body:update.deterministic_content}}
+      jobs={aiJobsResult.data??[]} variants={aiVariantsResult.data??[]}/>}<BroadcastStudio
       update={update}
-      creator={{ displayName: creator.display_name, publicSlug: creator.public_slug }}
-      accounts={accounts ?? []}
-      estimate={estimate}
+      creator={{ displayName: creator.display_name, publicSlug: creator.public_slug ?? "" }}
+      accounts={accountsResult.data ?? []}
+      accountsAvailable={!accountsResult.error}
+      estimate={estimateResult.data}
     /></>}
-    <UpdateDeliveryPanel
+    {deliveriesResult.error ? <UnavailableState title="Delivery data unavailable" description="Delivery counts could not be established right now. Tracking availability has not changed."/> : <UpdateDeliveryPanel
       counts={counts}
       transportCounts={transportCounts}
       acceptedByTransport={acceptedByTransport}
-    />
+    />}
   </>;
 }

@@ -16,15 +16,32 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://localhost:3000/reset-password"]
+site_url = "https://audienceown.com"
+
+additional_redirect_urls = [
+  "https://audienceown.com/auth/callback",
+  "https://audienceown.com/auth/callback?next=/onboarding",
+  "https://dev.audienceown.com/auth/callback",
+  "https://dev.audienceown.com/auth/callback?next=/onboarding",
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/"
+]
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
 
 [storage]
 enabled = true
 file_size_limit = "10MiB"
 
-# Public Recovery Pass functions authenticate with narrow, expiring capability
-# tokens and call service-role-only SQL functions internally.
 [functions.sms-verification]
 verify_jwt = false
 

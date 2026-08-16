@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@4";
 import { cors, json, sha256, token } from "../_shared/http.ts";
 
-const sources = ["tiktok", "instagram", "youtube", "x", "facebook", "threads", "snapchat", "twitch", "linkedin", "spotify", "discord", "pinterest", "website", "direct", "other"] as const;
+const sources = ["tiktok", "instagram", "youtube", "x", "facebook", "snapchat", "twitch", "linkedin", "spotify", "discord", "pinterest", "website", "direct", "other"] as const;
 const preferenceSchema = z.object({
   recovery: z.literal(true),
   videos: z.boolean(),

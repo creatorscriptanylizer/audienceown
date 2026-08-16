@@ -2,11 +2,11 @@ import{Sparkles}from"lucide-react";import{saveAiSettings}from"@/app/dashboard/se
 type Settings={enabled:boolean;preferred_model:string;preferred_variant:string;tone:string;audience_description:string;preferred_terminology:string;
 phrases_to_avoid:string;cta_style:string;custom_voice_instructions:string;include_emojis:boolean;include_hashtags:boolean;preserve_source_title:boolean;
 approval_required:boolean;ai_auto_send_enabled:boolean;ai_required:boolean;monthly_generation_limit:number;monthly_budget_minor_units:number};
-export function AiSettingsPanel({settings,usage,configured}:{settings:Settings;usage:Record<string,unknown>|null;configured:boolean}){
+export function AiSettingsPanel({settings,usage,configured,usageAvailable=true}:{settings:Settings;usage:Record<string,unknown>|null;configured:boolean;usageAvailable?:boolean}){
 return<section className="surface mt-6 rounded-xl p-6"><div className="flex items-start gap-3"><Sparkles className="text-violet-300"/><div><h2 className="font-semibold">AI-assisted drafts</h2>
 <p className="mt-1 text-sm text-zinc-400">Optional structured enhancements. Deterministic drafts always remain available.</p></div></div>
 <p className="mt-4 rounded-lg bg-white/5 p-3 text-xs text-zinc-400">Model provider: OpenAI · {configured?"Configured":"No model key configured — deterministic fallback only"}
- · This month: {String(usage?.jobs_completed??0)} completions / {String(usage?.estimated_cost_minor_units??0)} minor units estimated.</p>
+ · {usageAvailable?<>This month: {String(usage?.jobs_completed??0)} completions / {String(usage?.estimated_cost_minor_units??0)} minor units estimated.</>:"Usage temporarily unavailable."}</p>
 <form action={saveAiSettings} className="mt-5 grid gap-4"><label className="flex gap-3"><input type="checkbox" name="enabled" defaultChecked={settings.enabled}/><span><strong>Enable AI enhancement</strong><small className="block text-zinc-500">Off by default.</small></span></label>
 <div className="grid gap-4 sm:grid-cols-2"><label className="label">Preferred variant<select name="preferred_variant" defaultValue={settings.preferred_variant}>{["standard","concise","detailed","email","browser","sms","recovery"].map(x=><option key={x}>{x}</option>)}</select></label>
 <label className="label">Tone<select name="tone" defaultValue={settings.tone}>{["natural","energetic","professional","conversational","concise","educational"].map(x=><option key={x}>{x}</option>)}</select></label></div>

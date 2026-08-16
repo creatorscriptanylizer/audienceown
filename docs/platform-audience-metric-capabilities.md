@@ -10,10 +10,9 @@ The executable registry is `lib/platform-audience/capabilities.ts`; it drives un
 | X | User `public_metrics.followers_count` | Followers | API tier and `users.read`; exact when returned |
 | Spotify | Selected Artist `followers.total` | Followers | Artist asset only; exact; listener accounts and monthly listeners excluded |
 | Twitch | Channel Followers response `total` | Followers | Broadcaster identity; exact total only, no follower records retained |
-| LinkedIn | Selected organization follower statistics | Followers | Restricted organization product and `r_organization_social`; member login is insufficient |
+| LinkedIn | Unsupported for member OIDC | — | Personal follower/connection counts are unavailable; no restricted scopes are requested |
 | Facebook | Selected Page `followers_count` | Followers | Page permission/product review; Page likes excluded |
 | Snapchat | Selected Public Profile | Subscribers | Allowlisted Public Profile authority required; currently unavailable by default |
-| Threads | Dedicated Threads profile | Followers | No inherited Meta counts; currently unsupported by the configured product |
 | Pinterest | User account `follower_count` | Followers | Approved user-account read access; board followers excluded |
 | Discord | Selected guild `approximate_member_count` with counts | Members | Bot guild authority; approximate; no member list |
 

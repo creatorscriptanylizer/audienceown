@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import { getCreatorInsight } from "@/lib/dashboard/creator-insights";
+import type { CreatorDashboardData } from "@/lib/dashboard/creator-dashboard";
+import type { RecoveryAudienceRange } from "@/lib/recovery-audience";
+import { calculateRecoveryReadiness } from "@/lib/recovery-readiness";
+
+function summary(range: RecoveryAudienceRange, total: number, growth = 0, connections = total) {
+  return { protectedAudience: total, recoveryConnections: connections, recoveryDestinations: total ? 1 : 0, growth: { range, historySource: "recovery_pass_destination_selected_at" as const, points: growth ? [{ date: "2026-08-08", protectedAudience: total - growth, recoveryConnections: Math.max(0, connections - growth) }, { date: "2026-08-15", protectedAudience: total, recoveryConnections: connections }] : [{ date: "2026-08-15", protectedAudience: total, recoveryConnections: connections }] } };
+}
+
+function dashboard({ total = 24, growth = 0, connections = total }: { total?: number; growth?: number; connections?: number } = {}) {
+  const audience = summary("30d", total, growth, connections);
+  return {
+    calculatedAt: "2026-08-15T12:00:00.000Z",
+    creator: { displayName: "Creator", handle: "creator" },
+    recoveryPass: { exists: true, active: true, canonicalUrl: "https://audienceown.com/creator", displayUrl: "audienceown.com/creator", href: "/creator" },
+    recoveryAudience: audience,
+    recoveryAudienceRanges: { "7d": summary("7d", total, growth, connections), "30d": audience, "90d": summary("90d", total, growth, connections), all: summary("all", total, growth, connections) },
+    recoveryReadiness: calculateRecoveryReadiness({page:"complete",pass:"complete",official:"incomplete",backup:"incomplete",plan:"incomplete"}),
+    recoveryDestinations: [], dashboardAccounts: [], audienceUpdates: { periodDays: 30, updatesSent: 0, audienceReached: 0, openRate: null, clickRate: null, drafts: 0, scheduled: 0, nextScheduled: null, recent: [], byPlatform: [] },
+  } as unknown as CreatorDashboardData;
+}
+
+const update = { id: "update-1", title: "Going live tonight", broadcastType: "announcement" as const, broadcastIntent: "community_update" as const, sourcePlatform: null, deliveryChannels: ["email" as const], occurredAt: "2026-08-15T19:00:00.000Z", deliveredCount: 0, wasSent: false, openRate: null, clickRate: null, status: "scheduled" as const };
+const destination = { destinationId: "youtube-backup", provider: "youtube" as const, displayName: "YouTube Backup", handle: null, role: "backup" as const, verificationState: "verified" as const, recoveryPassOptIns: 8, uniqueProtectedFans: 8, coveragePercent: null, nativeAudience: 1_000_000, nativeAudienceUnit: "subscribers", nativeAudienceStatus: "available" as const, synchronizedAt: null, href: "/dashboard/platforms" };
+
+describe("getCreatorInsight", () => {
+  it("uses onboarding when canonical recovery participation is zero, regardless of native audience", () => { const data = dashboard({ total: 0, connections: 0 }); data.nativeOfficialAudience = 9_274; expect(getCreatorInsight(data)).toMatchObject({ id: "recovery-onboarding", category: "onboarding", action: { href: "/creator" } }); });
+  it("uses exact canonical 7-day growth with correct grammar", () => { expect(getCreatorInsight(dashboard({ total: 24, growth: 5 }))).toMatchObject({ id: "recovery-growth-7d", metadata: { growth7d: 5 }, message: "5 new people have joined your recovery network in the last 7 days." }); expect(getCreatorInsight(dashboard({ total: 2, growth: 1 })).message).toContain("1 new person has joined"); });
+  it("lets an official account warning beat growth", () => { const data = dashboard({ total: 24, growth: 5 }); data.dashboardAccounts = [{ provider: "instagram", actionRequired: true, href: "/dashboard/platforms" } as NonNullable<CreatorDashboardData["dashboardAccounts"]>[number]]; expect(getCreatorInsight(data)).toMatchObject({ id: "connection-instagram", priority: "critical", title: "Instagram needs your attention" }); });
+  it("lets a destination warning beat positive states using its canonical stored status", () => { const data = dashboard({ total: 24, growth: 5 }); data.recoveryDestinations = [{ ...destination, verificationState: "revoked" }]; expect(getCreatorInsight(data)).toMatchObject({ id: "destination-youtube-backup", metadata: { state: "revoked" } }); });
+  it("lets an update scheduled today beat a stable network", () => { const data = dashboard(); data.audienceUpdates = { ...data.audienceUpdates!, scheduled: 1, nextScheduled: update }; expect(getCreatorInsight(data)).toMatchObject({ id: "scheduled-update-1", title: "You have an audience update scheduled today", message: "“Going live tonight” is scheduled for 7:00 PM UTC." }); });
+  it("uses drafts only when no higher-priority state exists", () => { const data = dashboard(); data.audienceUpdates = { ...data.audienceUpdates!, drafts: 2 }; expect(getCreatorInsight(data)).toMatchObject({ id: "update-drafts", title: "You have 2 drafts ready to finish" }); });
+  it("recognizes the first participant and exact milestones before general growth", () => { expect(getCreatorInsight(dashboard({ total: 1 }))).toMatchObject({ id: "first-protected-fan" }); expect(getCreatorInsight(dashboard({ total: 100, growth: 6 }))).toMatchObject({ id: "protected-audience-100", metadata: { growth7d: 6 } }); });
+  it("uses readiness, recent confirmed delivery, and stable fallbacks in order", () => { const ready = dashboard(); ready.recoveryReadiness=calculateRecoveryReadiness({page:"complete",pass:"complete",official:"complete",backup:"complete",plan:"complete"}); expect(getCreatorInsight(ready).id).toBe("recovery-ready"); const delivered = dashboard(); delivered.audienceUpdates = { ...delivered.audienceUpdates!, recent: [{ ...update, occurredAt: "2026-08-14T10:00:00Z", deliveredCount: 12, wasSent: true, status: "sent" }] }; expect(getCreatorInsight(delivered)).toMatchObject({ id: "delivered-update-1", metadata: { deliveredCount: 12 } }); expect(getCreatorInsight(dashboard()).id).toBe("stable-recovery-network"); });
+  it("uses only Recovery Pass opt-ins for a uniquely strongest destination", () => { const data = dashboard(); data.recoveryDestinations = [destination, { ...destination, destinationId: "discord-backup", provider: "discord", recoveryPassOptIns: 3, nativeAudience: 8_000_000 }]; expect(getCreatorInsight(data)).toMatchObject({ id: "top-destination-youtube-backup", metadata: { optIns: 8 } }); });
+  it("is deterministic and does not mutate destination ordering", () => { const data = dashboard(); data.recoveryDestinations = [{ ...destination, recoveryPassOptIns: 2 }, { ...destination, destinationId: "second", recoveryPassOptIns: 8 }]; const before = data.recoveryDestinations.map((item) => item.destinationId); expect(getCreatorInsight(data)).toEqual(getCreatorInsight(data)); expect(data.recoveryDestinations.map((item) => item.destinationId)).toEqual(before); });
+  it("never treats unavailable recovery or update fallbacks as verified zero facts", () => { const data=dashboard({total:0,connections:0}); data.availability={recoveryAudience:{status:"unavailable",reason:"query_failed"},recoveryDestinations:{status:"unavailable",reason:"query_failed"},audienceUpdates:{status:"unavailable",reason:"query_failed"}}; data.audienceUpdates={...data.audienceUpdates!,drafts:3,nextScheduled:update}; data.recoveryDestinations=[{...destination,verificationState:"revoked"}]; const insight=getCreatorInsight(data); expect(insight.id).toBe("dashboard-overview"); expect(insight.metadata).toBeUndefined(); expect(insight.id).not.toBe("recovery-onboarding"); expect(insight.id).not.toBe("update-drafts"); expect(insight.id).not.toBe("scheduled-update-1"); expect(insight.id).not.toBe("destination-youtube-backup"); });
+});

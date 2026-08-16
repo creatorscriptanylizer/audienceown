@@ -1,0 +1,20 @@
+import { readFileSync } from "node:fs";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { ActionRequiredState, EmptyState, ErrorState, LoadingState, SuccessState, UnavailableState } from "@/components/product-state";
+import DashboardLoading from "@/app/dashboard/loading";
+import AudienceLoading from "@/app/dashboard/audience/loading";
+import ConnectedAccountsLoading from "@/app/dashboard/settings/connected-accounts/loading";
+
+const source=(path:string)=>readFileSync(path,"utf8");
+
+describe("global product states",()=>{
+  it("offers one accessible state family with optional actions",()=>{for(const Component of [LoadingState,EmptyState,ErrorState,SuccessState,UnavailableState,ActionRequiredState]){const html=renderToStaticMarkup(<Component title="State title" description="What happened and what to do next." primaryAction={{label:"Try again",href:"/retry"}} secondaryAction={{label:"Get help",href:"/contact"}}/>);expect(html).toContain("State title");expect(html).toContain("What happened and what to do next.");expect(html).toContain('href="/retry"');expect(html).toContain('href="/contact"');expect(html).toMatch(/role="(status|alert)"/);}});
+  it("announces loading and maintains dashboard card dimensions",()=>{const html=renderToStaticMarkup(<DashboardLoading/>);expect(html).toContain("Loading Creator Dashboard");expect(html).toContain("motion-reduce:animate-none");expect(html).toContain("h-[174px]");});
+  it("uses route-shaped mobile-responsive skeletons",()=>{const audience=renderToStaticMarkup(<AudienceLoading/>),connections=renderToStaticMarkup(<ConnectedAccountsLoading/>);expect(audience).toContain('role="status"');expect(audience).toContain('aria-busy="true"');expect(audience).toContain("sm:grid-cols-3");expect(connections).toContain("2xl:grid-cols-2");expect(connections).toContain("Loading connected accounts");});
+  it("does not turn unavailable Recovery Pass data into a zero-fan empty state",()=>{const audience=source("app/dashboard/audience/page.tsx");expect(audience).toContain("connectionsError?<ErrorState");expect(audience).toContain("We could not load your Recovery Pass activity right now");expect(audience).toContain("No fans have joined your Recovery Pass yet");expect(audience).not.toContain("No data");});
+  it("standardizes auth pending and success or failure announcements",()=>{const auth=source("components/auth-form.tsx"),submit=source("components/submit-button.tsx");for(const text of ["Signing in…","Creating your page…","Sending reset link…","Updating password…"])expect(auth).toContain(text);expect(auth).toContain('role="alert"');expect(auth).toContain('role="status"');expect(submit).toContain('aria-live="polite"');expect(submit).toContain("motion-reduce:animate-none");});
+  it("prevents repeated destructive actions and provides restrained failure feedback",()=>{const deletion=source("components/account-deletion-form.tsx"),disconnect=source("components/youtube-connection-manager.tsx");expect(deletion).toContain("disabled={busy||value!==CONFIRMATION}");expect(deletion).toContain('role="alert"');expect(disconnect).toContain('disabled={busy}');expect(disconnect).toContain("Disconnecting…");expect(disconnect).toContain('aria-live="polite"');});
+  it("uses polished feature-state language",()=>{const settings=source("app/dashboard/settings/page.tsx");expect(settings).toContain("UnavailableState");expect(settings).toContain("Creator notifications are not available yet");expect(settings).toContain("BillingStatusPanel");expect(settings).not.toContain("Billing controls are not available yet");expect(settings).not.toContain("Coming soon");});
+  it("does not expose backend response messages from interactive emergency actions",()=>{const emergency=source("components/emergency/preparedness-center.tsx");expect(emergency).not.toContain("result.error");expect(emergency).toContain("We could not complete that action. Check your connection and try again.");});
+});

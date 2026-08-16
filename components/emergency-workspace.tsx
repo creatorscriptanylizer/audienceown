@@ -3,15 +3,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Circle, History, LifeBuoy, Radio, ShieldAlert, TriangleAlert } from "lucide-react";
 import { PreparednessCenter } from "@/components/emergency/preparedness-center";
+import { UnavailableState } from "@/components/product-state";
+import type { RecoveryReadiness, RecoveryReadinessCheckStatus } from "@/lib/recovery-readiness";
 
-export type EmergencyReadiness = {
-  recoveryPassEnabled: boolean;
-  creatorPageLive: boolean;
-  profileCompleted: boolean;
-  connectedPlatformCount: number;
-  backupPlatformCount: number;
-  primaryDestinationLabel: string | null;
-};
 type EmergencyItem={id:string;emergency_type:string;lifecycle_status:string;severity:string;title:string;message:string;updated_at:string;
 emergency_affected_accounts:{display_handle:string;provider:string}[];emergency_replacement_accounts:{id:string;display_handle:string;provider:string;canonical_profile_url:string;stable_provider_account_id:string;verification_state:string;verification_method:string|null;verification_confidence:string|null;official:boolean;verified_at:string|null;last_revalidated_at:string|null;next_revalidation_at:string|null;revalidation_status:string}[];
 emergency_events:{id:number;event_type:string;created_at:string}[];creator_update_id:string|null};
@@ -19,7 +13,8 @@ type Account={id:string;platform:string;label:string;url:string;external_account
 type Delivery={update_id:string;status:string;transport:string};
 type PreparednessProps=React.ComponentProps<typeof PreparednessCenter>;
 
-function ReadinessItem({ label, complete, unavailable = false }: { label: string; complete: boolean; unavailable?: boolean }) {
+function ReadinessItem({ label, status }: { label: string; status: RecoveryReadinessCheckStatus }) {
+  const complete=status==="complete",unavailable=status==="unavailable";
   return <li className={complete ? "is-complete" : unavailable ? "is-unavailable" : "is-incomplete"}>
     <span>{complete ? <Check size={15}/> : <Circle size={15}/>}</span>
     <strong>{label}</strong>
@@ -27,7 +22,7 @@ function ReadinessItem({ label, complete, unavailable = false }: { label: string
   </li>;
 }
 
-export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],deliveries=[],templates=[],plans=[],drills=[] }: { readiness: EmergencyReadiness;accounts?:Account[];emergencies?:EmergencyItem[];deliveries?:Delivery[];templates?:PreparednessProps["templates"];plans?:PreparednessProps["plans"];drills?:PreparednessProps["drills"] }) {
+export function EmergencyWorkspace({ readiness,primaryDestinationLabel=null,availability={accounts:true,emergencies:true,deliveries:true,preparedness:true},accounts=[],emergencies=[],deliveries=[],templates=[],plans=[],drills=[] }: { readiness: RecoveryReadiness;primaryDestinationLabel?:string|null;availability?:{accounts:boolean;emergencies:boolean;deliveries:boolean;preparedness:boolean};accounts?:Account[];emergencies?:EmergencyItem[];deliveries?:Delivery[];templates?:PreparednessProps["templates"];plans?:PreparednessProps["plans"];drills?:PreparednessProps["drills"] }) {
   const[message,setMessage]=useState<string|null>(null),[busy,setBusy]=useState(false);
   async function request(path:string,body?:unknown){setBusy(true);setMessage(null);try{const response=await fetch(path,{method:"POST",headers:body?{"content-type":"application/json"}:undefined,
   body:body?JSON.stringify(body):undefined});const result=await response.json()as{error?:string};if(!response.ok)throw new Error(result.error??"Request failed");
@@ -35,14 +30,6 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
   async function createIncident(form:FormData){await request("/api/emergencies",{emergency_type:String(form.get("emergency_type")),severity:String(form.get("severity")),
   title:String(form.get("title")),message:String(form.get("message")),affected_account_id:String(form.get("affected_account_id"))});}
   async function activateIncident(id:string,severity:string){if(severity!=="critical")return request(`/api/emergencies/${id}/activate`);setBusy(true);setMessage(null);try{const started=await fetch(`/api/emergencies/${id}/authorization/start`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({purpose:"activate_critical_incident"})});const session=await started.json()as{id?:string;challenge?:string;error?:string};if(!started.ok||!session.id||!session.challenge)throw new Error(session.error??"Strong authorization could not be started");const completed=await fetch(`/api/emergencies/${id}/authorization/complete`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:session.id,challenge:session.challenge})});const completion=await completed.json()as{error?:string};if(!completed.ok)throw new Error(completion.error??"Strong authorization could not be completed");const activated=await fetch(`/api/emergencies/${id}/activate`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorization_session_id:session.id})});const result=await activated.json()as{error?:string};if(!activated.ok)throw new Error(result.error??"Activation blocked");window.location.reload();}catch(error){setMessage(error instanceof Error?error.message:"Activation blocked");}finally{setBusy(false);}}
-  const readyCount = [
-    readiness.recoveryPassEnabled,
-    readiness.creatorPageLive,
-    readiness.profileCompleted,
-    readiness.connectedPlatformCount > 0,
-    readiness.backupPlatformCount > 0,
-  ].filter(Boolean).length;
-
   return <div className="emergency-page">
     <header className="emergency-header">
       <p className="eyebrow">Recovery control</p>
@@ -50,7 +37,7 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
       <p>Prepare and manage the route your audience can use if a platform account is hacked, suspended, deleted, or no longer accessible.</p>
     </header>
 
-    <PreparednessCenter accounts={accounts} templates={templates} plans={plans} drills={drills}/>
+    {availability.preparedness ? <PreparednessCenter accounts={accounts} templates={templates} plans={plans} drills={drills}/> : <UnavailableState className="mb-6" compact title="Preparedness unavailable" description="Emergency plans, templates, or drills could not be loaded."/>}
 
     <section className="surface mb-6 rounded-xl p-5">
       <p className="eyebrow">Emergency Center</p><h2 className="mt-2 text-xl font-semibold">Create a verified incident</h2>
@@ -63,11 +50,11 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
         <label className="field-label">Affected official account<select name="affected_account_id" required defaultValue=""><option value="" disabled>Select account</option>{accounts.map(a=><option value={a.id} key={a.id}>{a.platform} · {a.label}</option>)}</select></label>
         <label className="field-label">Alert title<input name="title" required maxLength={160}/></label>
         <label className="field-label md:col-span-2">Verified public message<textarea name="message" required maxLength={5000} rows={4}/></label>
-        <button className="button button-primary w-fit" disabled={busy||!accounts.length}>Create incident</button>
+        <button className="button button-primary w-fit" disabled={busy||!accounts.length||!availability.accounts}>Create incident</button>
       </form>{message&&<p className="mt-3 text-sm text-zinc-300" role="status">{message}</p>}
     </section>
 
-    {emergencies.length>0&&<section className="mb-6 space-y-4"><div><p className="eyebrow">Incident history</p><h2 className="mt-2 text-xl font-semibold">Emergency alerts</h2></div>
+    {!availability.emergencies ? <UnavailableState className="mb-6" compact title="Emergency status unavailable" description="Current incidents and lifecycle status could not be loaded."/> : emergencies.length===0 ? <section className="surface mb-6 rounded-xl p-5"><h2 className="font-semibold">No active emergency</h2><p className="mt-1 text-sm text-zinc-400">No emergency records are currently active or awaiting action.</p></section> : <section className="mb-6 space-y-4"><div><p className="eyebrow">Incident history</p><h2 className="mt-2 text-xl font-semibold">Emergency alerts</h2></div>
     {emergencies.map(e=><article className="surface rounded-xl p-5" key={e.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex gap-2 text-xs uppercase tracking-wide text-zinc-400">
     <span>{e.severity}</span><span>·</span><span>{e.lifecycle_status.replaceAll("_"," ")}</span></div><h3 className="mt-2 text-lg font-semibold">{e.title}</h3>
     <p className="mt-2 max-w-3xl whitespace-pre-line text-sm text-zinc-300">{e.message}</p></div><span className="text-xs text-zinc-500">Updated {new Date(e.updated_at).toLocaleString()}</span></div>
@@ -86,7 +73,7 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
     {r.display_handle} · {r.verification_state}{r.verification_confidence?` · ${r.verification_confidence} confidence`:""}{r.official?" · official":""}</p>):<p className="mt-1 text-sm text-zinc-500">None</p>}</div>
     <div><strong className="flex items-center gap-1 text-xs uppercase text-zinc-500"><History size={13}/>History and delivery</strong>
     {e.emergency_events.slice(-3).reverse().map(event=><p className="mt-1 text-sm" key={event.id}>{event.event_type.replaceAll("_"," ")} · {new Date(event.created_at).toLocaleString()}</p>)}
-    {e.creator_update_id?deliveries.filter(d=>d.update_id===e.creator_update_id).slice(0,5).map((d,index)=><p className="text-sm text-zinc-400" key={`${d.transport}-${index}`}>{d.transport} · {d.status}</p>)
+    {!availability.deliveries?<p className="mt-1 text-sm text-zinc-500">Delivery history unavailable</p>:e.creator_update_id?(deliveries.some(d=>d.update_id===e.creator_update_id)?deliveries.filter(d=>d.update_id===e.creator_update_id).slice(0,5).map((d,index)=><p className="text-sm text-zinc-400" key={`${d.transport}-${index}`}>{d.transport} · {d.status}</p>):<p className="mt-1 text-sm text-zinc-500">No delivery activity yet</p>)
     :<p className="mt-1 text-sm text-zinc-500">Not activated</p>}</div></div>
     <div className="mt-5 border-t border-white/10 pt-4"><strong className="text-xs uppercase text-zinc-500">Verified Backup Accounts</strong>{e.emergency_replacement_accounts.map(r=><div className="mt-3 rounded-lg border border-white/10 p-3" key={r.id}><p className="text-sm font-medium">{r.provider} · {r.display_handle}</p><p className="mt-1 text-xs text-zinc-400">{r.verification_method??"Not verified"} · {r.verification_confidence??"no confidence"} · health: {r.revalidation_status}</p>
     {r.verification_state==="verified"?<button className="button button-secondary mt-2" disabled={busy} onClick={()=>request(`/api/emergencies/${e.id}/replacements/${r.id}/revoke`)}>Revoke verification</button>:<div className="mt-2 flex flex-wrap gap-2">{accounts.filter(a=>a.platform===r.provider&&a.external_account_id&&["healthy","degraded"].includes(a.connection_health??"")).map(a=><button type="button" className="button button-secondary" disabled={busy} key={a.id} onClick={()=>request(`/api/emergencies/${e.id}/replacements/from-connection`,{replacement_id:r.id,connection_id:a.id})}>Verify with {a.label}</button>)}{!accounts.some(a=>a.platform===r.provider&&a.external_account_id)&&<span className="text-xs text-zinc-500">Provider verification unavailable until a healthy account is connected.</span>}</div>}</div>)}</div>
@@ -96,16 +83,12 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
     <section className="emergency-readiness">
       <div className="emergency-readiness-copy">
         <span className="emergency-icon"><LifeBuoy size={22}/></span>
-        <p className="eyebrow">Recovery readiness</p>
-        <h2>{readyCount === 5 ? "Your recovery foundation is ready." : `${readyCount} of 5 safeguards configured.`}</h2>
-        <p>These checks use your current creator page, Recovery Pass, and connected-platform settings.</p>
+        <p className="eyebrow">Recovery setup</p>
+        <h2>{readiness.score===null?"Readiness unavailable":`${readiness.score}% · ${readiness.state}`}</h2>
+        <p>Configuration completion uses the same five required checks shown on your Dashboard. Prepared-plan state and incident lifecycle remain separate below.</p>
       </div>
       <ul>
-        <ReadinessItem label="Recovery Pass enabled" complete={readiness.recoveryPassEnabled}/>
-        <ReadinessItem label="Creator page live" complete={readiness.creatorPageLive}/>
-        <ReadinessItem label="Primary recovery destination configured" complete={Boolean(readiness.primaryDestinationLabel)}/>
-        <ReadinessItem label="Backup platform configured" complete={readiness.backupPlatformCount > 0}/>
-        <ReadinessItem label="Recovery contact available" complete={false} unavailable/>
+        {readiness.checklist.map(item=><ReadinessItem key={item.key} label={item.label} status={item.status}/>)}
       </ul>
     </section>
 
@@ -123,21 +106,17 @@ export function EmergencyWorkspace({ readiness,accounts=[],emergencies=[],delive
         <span className="emergency-panel-icon"><Radio size={21}/></span>
         <p className="eyebrow">Recovery routing</p>
         <h2>Current destination</h2>
-        {readiness.primaryDestinationLabel
-          ? <p className="emergency-destination">{readiness.primaryDestinationLabel}</p>
+        {!availability.accounts ? <p className="emergency-destination is-empty">Status unavailable</p> : primaryDestinationLabel
+          ? <p className="emergency-destination">{primaryDestinationLabel}</p>
           : <><p className="emergency-destination is-empty">Not configured</p><p>Recovery routing setup is coming next.</p></>}
         <Link href="/dashboard/platforms" className="button button-secondary">Manage platforms <ArrowRight size={15}/></Link>
       </section>
     </div>
 
     <section className="emergency-checklist">
-      <div><p className="eyebrow">Emergency checklist</p><h2>Foundation checks</h2></div>
+      <div><p className="eyebrow">Recovery setup checklist</p><h2>Required configuration</h2></div>
       <ul>
-        <ReadinessItem label="Creator profile completed" complete={readiness.profileCompleted}/>
-        <ReadinessItem label="Public creator page available" complete={readiness.creatorPageLive}/>
-        <ReadinessItem label="At least one connected platform" complete={readiness.connectedPlatformCount > 0}/>
-        <ReadinessItem label="Recovery Pass configured" complete={readiness.recoveryPassEnabled}/>
-        <ReadinessItem label="Backup destination configured" complete={readiness.backupPlatformCount > 0}/>
+        {readiness.checklist.map(item=><ReadinessItem key={item.key} label={item.label} status={item.status}/>)}
       </ul>
     </section>
   </div>;

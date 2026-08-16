@@ -1,2 +1,16 @@
-import{z}from"zod";import{getCreator}from"@/lib/dal";import{selectLinkedInOrganization}from"@/lib/providers/linkedin-server";import{requireSameOrigin}from"@/lib/emergency/request-security";
-const schema=z.object({connectionId:z.string().uuid(),organizationUrn:z.string().regex(/^urn:li:organization:\d+$/)}).strict();export async function POST(request:Request){if(!requireSameOrigin(request))return Response.json({error:"Cross-origin request rejected"},{status:403});const creator=await getCreator();if(!creator)return Response.json({error:"Unauthorized"},{status:401});let raw:unknown;try{raw=await request.json();}catch{return Response.json({error:"Invalid JSON"},{status:400});}const parsed=schema.safeParse(raw);if(!parsed.success)return Response.json({error:"Invalid organization"},{status:400});try{return Response.json({organization:await selectLinkedInOrganization(creator.id,parsed.data.connectionId,parsed.data.organizationUrn)},{status:201});}catch{return Response.json({error:"Organization selection failed"},{status:409});}}
+import { z } from "zod";
+import { getCreator } from "@/lib/dal";
+import { selectLinkedInOrganization } from "@/lib/providers/linkedin-server";
+import { requireSameOrigin } from "@/lib/emergency/request-security";
+import { isConnectionLimitError } from "@/lib/provider-entitlements";
+
+const schema=z.object({connectionId:z.string().uuid(),organizationUrn:z.string().regex(/^urn:li:organization:\d+$/)}).strict();
+
+export async function POST(request:Request){
+  if(!requireSameOrigin(request))return Response.json({error:"Cross-origin request rejected"},{status:403});
+  const creator=await getCreator();if(!creator)return Response.json({error:"Unauthorized"},{status:401});
+  let raw:unknown;try{raw=await request.json();}catch{return Response.json({error:"Invalid JSON"},{status:400});}
+  const parsed=schema.safeParse(raw);if(!parsed.success)return Response.json({error:"Invalid organization"},{status:400});
+  try{return Response.json({organization:await selectLinkedInOrganization(creator.id,parsed.data.connectionId,parsed.data.organizationUrn)},{status:201});}
+  catch(error){return Response.json({error:isConnectionLimitError(error)?"connection_limit_reached":"Organization selection failed"},{status:409});}
+}

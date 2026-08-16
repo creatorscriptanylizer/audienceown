@@ -1,0 +1,22 @@
+begin;
+create table public.app_admins(id uuid primary key default gen_random_uuid(),user_id uuid not null unique references auth.users(id)on delete cascade,role text not null default'admin'check(role='admin'),display_email text,created_at timestamptz not null default now(),created_by uuid references auth.users(id)on delete set null);
+comment on table public.app_admins is'Application authority keyed only by auth.users.id; email is non-authoritative audit metadata.';
+alter table public.app_admins enable row level security;alter table public.app_admins force row level security;
+revoke all on public.app_admins from public,anon,authenticated;grant select,insert,update,delete on public.app_admins to service_role;
+create table public.qa_entitlement_overrides(id uuid primary key default gen_random_uuid(),user_id uuid not null unique references auth.users(id)on delete cascade,plan text not null check(plan='pro'),environment text not null check(environment in('development','test')),created_at timestamptz not null default now(),created_by uuid references auth.users(id)on delete set null);
+comment on table public.qa_entitlement_overrides is'Explicit non-production QA state; never billing or Stripe state.';
+alter table public.qa_entitlement_overrides enable row level security;alter table public.qa_entitlement_overrides force row level security;
+revoke all on public.qa_entitlement_overrides from public,anon,authenticated;grant select,insert,update,delete on public.qa_entitlement_overrides to service_role;
+create or replace function public.is_app_admin(p_user_id uuid)returns boolean language sql stable security definer set search_path='' as $$select exists(select 1 from public.app_admins a where a.user_id=p_user_id and a.role='admin')$$;
+revoke all on function public.is_app_admin(uuid)from public,anon;grant execute on function public.is_app_admin(uuid)to authenticated,service_role;
+create or replace function public.is_local_qa_database()returns boolean language sql stable set search_path='' as $$select coalesce(current_setting('request.headers',true)::jsonb->>'host','')~*'^(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?$'$$;
+revoke all on function public.is_local_qa_database()from public,anon;grant execute on function public.is_local_qa_database()to authenticated,service_role;
+create or replace function public.get_provider_connection_entitlement(p_creator_id uuid,p_role text)returns jsonb language plpgsql stable security definer set search_path='' as $$declare resolved_plan text:='free';resolved_status text:='inactive';connection_count integer:=0;connection_limit integer:=1;owner_id uuid;qa_override boolean:=false;begin
+if p_role not in('official','backup')then raise exception'invalid connection role'using errcode='22023';end if;if auth.role()<>'service_role'and not public.has_creator_permission(p_creator_id,'emergency_manage')then raise exception'access denied'using errcode='42501';end if;
+select c.owner_user_id into owner_id from public.creators c where c.id=p_creator_id;select e.plan,e.subscription_status into resolved_plan,resolved_status from public.creator_plan_entitlements e where e.creator_id=p_creator_id;
+resolved_plan:=case when resolved_plan='pro'and resolved_status in('trialing','active')then'pro'else'free'end;
+if public.is_local_qa_database()and public.is_app_admin(owner_id)then select exists(select 1 from public.qa_entitlement_overrides q where q.user_id=owner_id and q.plan='pro'and q.environment in('development','test'))into qa_override;end if;
+if qa_override then resolved_plan:='pro';end if;connection_limit:=case when resolved_plan='pro'then null else 1 end;select count(*)::integer into connection_count from public.connected_accounts a where a.creator_id=p_creator_id and a.account_type=p_role;
+return jsonb_build_object('plan',resolved_plan,'subscriptionStatus',resolved_status,'role',p_role,'currentCount',connection_count,'limit',connection_limit,'allowed',connection_limit is null or connection_count<connection_limit,'qaOverride',qa_override);end$$;
+revoke all on function public.get_provider_connection_entitlement(uuid,text)from public,anon;grant execute on function public.get_provider_connection_entitlement(uuid,text)to authenticated,service_role;
+commit;

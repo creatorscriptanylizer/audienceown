@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
 import { formatBroadcastStatus, formatBroadcastType, type BroadcastStatus, type BroadcastType } from "@/lib/updates";
 import { LocalDateTime } from "@/components/local-date-time";
+import { UnavailableState } from "@/components/product-state";
+import { logPageQueryFailure } from "@/lib/data-availability";
 
 const filters = [
   ["all", "All"],
@@ -23,12 +25,17 @@ export default async function UpdatesPage({ searchParams }: PageProps<"/dashboar
   const { filter = "all" } = await searchParams;
   const activeFilter = filters.some(([key]) => key === filter) ? filter : "all";
   const supabase = await createClient();
-  const [{ data }, { data: deliveries }] = supabase ? await Promise.all([
+  const [updatesResult, deliveriesResult] = supabase ? await Promise.all([
     supabase.from("creator_updates").select(
       "id,broadcast_type,broadcast_intent,status,title,subject,scheduled_for,updated_at",
     ).eq("creator_id", creator.id).order("updated_at", { ascending: false }),
     supabase.from("update_deliveries").select("update_id").eq("creator_id", creator.id),
-  ]) : [{ data: [] }, { data: [] }];
+  ]) : [{ data: null, error: new Error("Database unavailable") }, { data: null, error: new Error("Database unavailable") }];
+  logPageQueryFailure("dashboard/updates", "creator_updates", updatesResult.error);
+  logPageQueryFailure("dashboard/updates", "update_deliveries", deliveriesResult.error);
+  if (updatesResult.error) return <div className="updates-page"><header className="updates-page-header"><div><p className="eyebrow">Direct connection</p><h1>Updates</h1><p>Write the message once, preview it carefully, and choose when it should reach your audience.</p></div></header><UnavailableState title="Update history unavailable" description="We could not load your updates right now. Your saved updates were not changed."/></div>;
+  const data = updatesResult.data;
+  const deliveries = deliveriesResult.error ? null : deliveriesResult.data;
   const recipientCounts = new Map<string, number>();
   for (const delivery of deliveries ?? []) {
     recipientCounts.set(delivery.update_id, (recipientCounts.get(delivery.update_id) ?? 0) + 1);
@@ -66,7 +73,7 @@ export default async function UpdatesPage({ searchParams }: PageProps<"/dashboar
         </div>
         <div className="update-history-time">
           {update.status === "scheduled" && update.scheduled_for && <strong><CalendarClock size={14}/><LocalDateTime value={update.scheduled_for}/></strong>}
-          {recipientCounts.has(update.id) && <span>{recipientCounts.get(update.id)} prepared recipients</span>}
+          {deliveriesResult.error ? <span>— · Delivery data unavailable</span> : <span>{recipientCounts.get(update.id) ?? 0} prepared recipients</span>}
           <span>Updated {formatDate(update.updated_at)}</span>
           <ArrowRight size={17}/>
         </div>

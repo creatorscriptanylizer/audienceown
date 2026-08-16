@@ -1,0 +1,19 @@
+import { readFileSync } from "node:fs";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { OnboardingAccounts } from "@/components/onboarding-accounts";
+import type { CreatorProviderAccount } from "@/lib/social-providers/creator-account-projection";
+
+const entitlements={isAdmin:false,plan:"free",subscriptionStatus:"inactive",providerConnections:{official:{currentCount:1,limit:1,allowed:false},backup:{currentCount:0,limit:1,allowed:true}}} as const;
+const capability=(provider:string,displayName:string)=>({provider,displayName,description:`Connect ${displayName}`,connectionAvailable:true,connectionMethod:"oauth",connectionHref:`/api/integrations/${provider}/connect?role=backup`}) as never;
+const account=(provider:CreatorProviderAccount["provider"],displayName:string):CreatorProviderAccount=>({accountKey:`${provider}-backup`,provider,displayName,handle:`@${displayName.toLowerCase().replaceAll(" ","")}`,role:"backup",connected:true,verified:true,primary:false,archived:false,revoked:false,needsAttention:false,publicProfileUrl:null,connectionHealth:"healthy",lastSynchronizedAt:null,connectionType:"oauth"});
+const render=(accounts:CreatorProviderAccount[],provider="youtube",name="YouTube")=>renderToStaticMarkup(<OnboardingAccounts role="backup" accounts={accounts} capabilities={[capability(provider,name)]} entitlements={entitlements}/>);
+
+describe("backup account onboarding success",()=>{
+  it("keeps the pre-connection copy when no backup is connected",()=>{const html=render([]);expect(html).toContain("Where followers can find you next");expect(html).toContain("Add a backup account");expect(html).toContain("Add another place followers can find you if your official account becomes unavailable.");expect(html).not.toContain("Your backup account is connected");});
+  it("renders the complete success state from the real backup account",()=>{const html=render([account("youtube","Lineconomy")]);expect(html).toContain("Backup account connected");expect(html).toContain("Your backup account is connected");expect(html).toContain("Your audience now has another trusted place to find you if your main account becomes unavailable.");expect(html).toContain("YouTube");expect(html).toContain("Lineconomy");expect(html).toContain("Backup account");expect(html).toContain("Connected");expect(html).toContain("Change account");expect(html).toContain("Continue to finish");expect(html).toContain('name="step" value="backup"');expect(html).not.toContain("Add a backup account");});
+  it.each([["instagram","Instagram"],["tiktok","TikTok"],["x","X"],["spotify","Spotify"],["twitch","Twitch"],["linkedin","LinkedIn"],["facebook","Facebook"],["snapchat","Snapchat"],["pinterest","Pinterest"],["discord","Discord"]] as const)("is provider-neutral for %s",(provider,name)=>{const html=render([account(provider,`${name} Backup`)],provider,name);expect(html).toContain(name);expect(html).toContain(`${name} Backup`);expect(html).toContain("Your backup account is connected");});
+  it("ignores disconnected, archived, and revoked backup records",()=>{for(const state of [{connected:false},{archived:true},{revoked:true}]){const html=render([{...account("youtube","Lineconomy"),...state}]);expect(html).toContain("Add a backup account");expect(html).not.toContain("Your backup account is connected");}});
+  it("uses server-provided OAuth-return data immediately",()=>{const html=render([account("youtube","OAuth Backup")]);expect(html).toContain("OAuth Backup");expect(html).toContain("Your backup account is connected");});
+  it("advances the backup CTA to Ready",()=>{const action=readFileSync("app/onboarding/actions.ts","utf8");expect(action).toContain('step === "official" ? "/onboarding/accounts?step=backup" : "/onboarding/ready"');});
+});

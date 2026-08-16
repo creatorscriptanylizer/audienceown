@@ -6,7 +6,7 @@
 
 Manual content requires canonical URLs and trustworthy publication timestamps, deduplicates through the standard ingestion pipeline, requires creator approval by default, and never receives stronger trust than its evidence supports.
 TikTok video, Instagram post/reel, and Facebook Page-post imports require exact HTTPS provider permalinks, creator title, and a creator-supplied trustworthy timestamp. They remain unverified, approval-required, non-trust-bearing, and never imply account ownership.
-X status, LinkedIn update, and Threads post imports use exact provider host/path parsing and trustworthy timestamps. These imports never prove ownership or improve trust.
+X status and LinkedIn update imports use exact provider host/path parsing and trustworthy timestamps. These imports never prove ownership or improve trust.
 # Expansion IV
 
 Spotify, Snapchat, and Pinterest manual imports require exact provider HTTPS URLs and trustworthy creator-supplied timestamps. More-platform services use SSRF-safe hashed challenges and never self-verify. None of these fallbacks adds trust from a URL alone or enables scraping, publishing, emergency activation, or delivery.

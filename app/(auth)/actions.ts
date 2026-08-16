@@ -1,25 +1,48 @@
 "use server";
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { appUrl } from "@/lib/utils";
+import { appUrl } from "@/lib/app-url";
+import { localGoogleConfigured, mapOAuthError, safeNextPath } from "@/lib/auth-flow";
+import { debugError, debugLog } from "@/lib/debug";
 
 const credentials = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
 export type AuthState = { error?: string; message?: string };
 
-function safeNextPath(value: FormDataEntryValue | null, fallback: string) {
-  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
+async function authInitiationContext() {
+  try {
+    const [store, requestHeaders] = await Promise.all([cookies(), headers()]);
+    const canonical = new URL(appUrl());
+    return {
+      callbackHost: canonical.host,
+      forwardedHostPresent: Boolean(requestHeaders.get("x-forwarded-host")),
+      forwardedProtoPresent: Boolean(requestHeaders.get("x-forwarded-proto")),
+      forwardedHostMatchesCanonical: requestHeaders.get("x-forwarded-host")?.split(",", 1)[0]?.trim() === canonical.host,
+      forwardedProtoHttps: requestHeaders.get("x-forwarded-proto")?.split(",", 1)[0]?.trim() === "https",
+      pkceContextPresent: store.getAll().some(({ name }) => name.includes("-code-verifier")),
+    };
+  } catch {
+    return { callbackHost: new URL(appUrl()).host, forwardedHostPresent: false, forwardedProtoPresent: false, forwardedHostMatchesCanonical: false, forwardedProtoHttps: false, pkceContextPresent: false };
+  }
 }
 
 export async function signInWithGoogle(data: FormData) {
   const supabase = await createClient();
   if (!supabase) redirect("/login?error=configuration");
-  const next = safeNextPath(data.get("next"), "/onboarding");
+  const next = safeNextPath(typeof data.get("next") === "string" ? String(data.get("next")) : null, "/onboarding");
+  if (process.env.NODE_ENV === "development" && !localGoogleConfigured()) redirect(`/login?next=${encodeURIComponent(next)}&error=google_not_configured`);
+  const redirectTo = appUrl(`/auth/callback?next=${encodeURIComponent(next).replaceAll("%2F", "/")}`);
+  debugLog("oauth", { event: "auth_initiation", provider: "google", redirectOrigin: new URL(redirectTo).origin, redirectPath: new URL(redirectTo).pathname });
   const { data: oauth, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: appUrl(`/auth/callback?next=${encodeURIComponent(next)}`) },
+    options: { redirectTo },
   });
-  if (error || !oauth.url) redirect("/login?error=oauth");
+  if (error || !oauth.url) {
+    debugError("oauth", error ?? new Error("OAuth authorization URL was not returned."), { event: "auth_initiation_failed", provider: "google" });
+    redirect(`/login?next=${encodeURIComponent(next)}&error=${mapOAuthError(error)}`);
+  }
+  debugLog("oauth", { event: "auth_initiation_ready", provider: "google", ...await authInitiationContext() });
   redirect(oauth.url);
 }
 
@@ -40,7 +63,7 @@ export async function login(_: AuthState, data: FormData): Promise<AuthState> {
   if (!supabase) return { error: "Authentication is not configured yet." };
   const { error } = await supabase.auth.signInWithPassword(input.data);
   if (error) return { error: "Email or password is incorrect, or the email is not confirmed." };
-  redirect("/dashboard");
+  redirect(safeNextPath(typeof data.get("next") === "string" ? String(data.get("next")) : null, "/dashboard"));
 }
 
 export async function forgotPassword(_: AuthState, data: FormData): Promise<AuthState> {

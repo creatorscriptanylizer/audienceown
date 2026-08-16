@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { RecoveryKpiCard } from "@/components/recovery/recovery-kpi-card";
 import { LiveRecoveryFunnel } from "@/components/recovery/recovery-funnel";
+import { LiveRecoveryAnalytics as LiveRecoveryAnalyticsPanel } from "@/components/recovery/live-recovery-analytics";
 import { liveMetricEntries, type LiveRecoveryAnalytics } from "@/lib/live-recovery-analytics";
 
 const unavailable = { status: "unavailable" as const, value: null, updatedAt: null, explanation: "Unsupported." };
@@ -22,5 +23,13 @@ describe("live recovery analytics", () => {
   it("formats migration percentages locale-safely", () => {
     const metric = { ...snapshot.metrics.migrationRate, status: "available" as const, value: 12.5, numerator: 1, denominator: 8, measurement: "click_through_proxy" as const };
     expect(renderToStaticMarkup(<RecoveryKpiCard label="Migration rate" metric={metric}/>)).toMatch(/12[.,]5%/);
+  });
+  it("keeps successful-empty incidents distinct from unavailable incident activity", () => {
+    const empty = renderToStaticMarkup(<LiveRecoveryAnalyticsPanel incidents={[]} incidentsAvailable initial={null} selectedId={null}/>);
+    const failed = renderToStaticMarkup(<LiveRecoveryAnalyticsPanel incidents={[]} incidentsAvailable={false} initial={null} selectedId={null}/>);
+    expect(empty).toContain("Live recovery metrics will appear after Emergency Mode is activated.");
+    expect(empty).not.toContain("Recovery incident activity unavailable");
+    expect(failed).toContain("Recovery incident activity unavailable");
+    expect(failed).not.toContain("Live recovery metrics will appear after Emergency Mode is activated.");
   });
 });

@@ -1,0 +1,15 @@
+begin;create extension if not exists pgtap with schema extensions;set local role postgres;set local search_path=public,extensions;select plan(9);
+select has_function('public','check_recovery_pass_name_availability',array['text'],'availability RPC exists');
+select has_index('public','creators','creators_public_slug_unique','canonical slug lookup is uniquely indexed');
+insert into auth.users(id,email)values('12500000-0000-4000-8000-000000000001','availability-owner@example.test'),('12500000-0000-4000-8000-000000000002','availability-other@example.test');
+update public.creators set public_slug='taken-name'where owner_user_id='12500000-0000-4000-8000-000000000001';
+set local role authenticated;select set_config('request.jwt.claim.sub','12500000-0000-4000-8000-000000000002',true);
+select is(public.check_recovery_pass_name_availability('first-empty-name'),'available','first unused name is available');
+select is(public.check_recovery_pass_name_availability('taken-name'),'taken','another creator name is taken');
+select is(public.check_recovery_pass_name_availability('TAKEN-NAME'),'taken','case variants collide');
+select set_config('request.jwt.claim.sub','12500000-0000-4000-8000-000000000001',true);
+select is(public.check_recovery_pass_name_availability('taken-name'),'available','current creator own name remains available');
+set local role anon;select throws_ok($$select public.check_recovery_pass_name_availability('anything')$$,'42501',null,'anonymous callers cannot execute lookup');
+set local role authenticated;select set_config('request.jwt.claim.sub','12500000-0000-4000-8000-000000000002',true);
+select is((select count(*)::integer from public.check_recovery_pass_name_availability('taken-name')),1,'RPC returns only one scalar status');
+set local role postgres;select is((select count(*)::integer from public.creators where lower(public_slug)='taken-name'),1,'unique canonical owner remains singular');select*from finish();rollback;

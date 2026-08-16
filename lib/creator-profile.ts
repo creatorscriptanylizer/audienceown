@@ -12,7 +12,9 @@ export type SlugAvailability =
   | { status: "checking" }
   | { status: "available" }
   | { status: "taken" }
+  | { status: "reserved"; message: string }
   | { status: "invalid"; message: string }
+  | { status: "error"; message: string }
   | { status: "unchanged" };
 
 export function slugifyDisplayName(displayName: string) {
@@ -41,6 +43,13 @@ export function applyManualSlugEdit(value: string, displayName: string): SlugSyn
 
   return {
     slug: value.toLowerCase().replaceAll("_", "-").slice(0, SLUG_MAX_LENGTH),
+    manuallyEdited: true,
+  };
+}
+
+export function applyRecoveryPassSlugEdit(value: string): SlugSyncState {
+  return {
+    slug: value.trim().toLowerCase().replaceAll("_", "-").slice(0, SLUG_MAX_LENGTH),
     manuallyEdited: true,
   };
 }

@@ -1,4 +1,4 @@
-begin;select plan(37);
+begin;select plan(36);
 select has_table('public','provider_product_entitlements','product entitlements exist');
 select has_table('public','provider_stream_checkpoints','X stream checkpoints exist');
 select hasnt_table('public','provider_identity_resolutions','no speculative identity-resolution table');
@@ -17,7 +17,6 @@ select col_has_check('public','provider_product_entitlements','status','entitlem
 select col_has_check('public','provider_stream_checkpoints','status','stream state constrained');
 select is(public.trust_provider_family('x'),'x','X family');
 select is(public.trust_provider_family('linkedin'),'linkedin','LinkedIn family');
-select is(public.trust_provider_family('threads'),'meta','Threads shares Meta family');
 select is(public.trust_provider_family('instagram'),'meta','Instagram remains Meta family');
 select is(public.trust_provider_family('facebook'),'meta','Facebook remains Meta family');
 select is((select status from public.provider_product_entitlements limit 1),null,'entitlements never default to an approved row');

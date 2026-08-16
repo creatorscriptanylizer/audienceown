@@ -7,7 +7,7 @@ export type TrustSignal={sourceId:string;type:string;state:TrustSignalState;fami
 export type TrustRecommendation={code:string;priority:TrustPriority;title:string;description:string;actionUrl:string|null};
 export type TrustEvaluation={trustState:TrustState;internalScore:number;signals:TrustSignal[];recommendations:TrustRecommendation[];blockers:string[];warnings:string[];policyVersion:string;evaluatedAt:string;expiresAt:string|null};
 export type TrustPolicyOptions={now?:Date;providerFreshnessHours?:number;domainFreshnessHours?:number;emergencyFreshnessHours?:number;evaluationTtlMinutes?:number};
-const family:Record<string,string>={youtube:"google",google:"google",instagram:"meta",facebook:"meta",threads:"meta",tiktok:"bytedance",x:"x",twitter:"x",spotify:"spotify",twitch:"twitch",linkedin:"linkedin",pinterest:"pinterest",discord:"discord",snapchat:"snapchat"};
+const family:Record<string,string>={youtube:"google",google:"google",instagram:"meta",facebook:"meta",tiktok:"bytedance",x:"x",twitter:"x",spotify:"spotify",twitch:"twitch",linkedin:"linkedin",pinterest:"pinterest",discord:"discord",snapchat:"snapchat"};
 export function providerFamily(provider?:string){return provider?family[provider.toLowerCase()]??"other":"other";}
 function hours(value:unknown,fallback:number){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback;}
 function recommendation(code:string,priority:TrustPriority,title:string,description:string,actionUrl:string|null="/dashboard/identity"):TrustRecommendation{return{code,priority,title,description,actionUrl};}

@@ -22,7 +22,7 @@ Monitoring-relevant graph mutations advance `identity_revision`, allowing the ex
 
 Limitations: current policy uses only repository-backed ownership, verification, freshness, presentation, stable-ID, sync, domain, and replacement evidence. It deliberately ignores popularity, followers, account age, and unverifiable provider claims. Organization verification remains a future, explicitly versioned policy boundary.
 TikTok contributes the ByteDance family. Facebook Pages and Instagram professional accounts both contribute the Meta family, so any number of Meta assets count once for provider independence. Engagement and audience attributes never contribute trust.
-Provider families include X, LinkedIn, and Meta for Threads, Instagram, and Facebook. Multiple assets in one family count once. Threads does not inherit verification from another Meta asset. Popularity and engagement never contribute trust.
+Provider families include X, LinkedIn, and Meta for Instagram and Facebook. Multiple assets in one family count once. Popularity and engagement never contribute trust.
 # Expansion IV families
 
 Spotify uses the Spotify family, Login Kit and Public Profile share Snap, and Pinterest accounts/boards/Pins/claims share Pinterest. Multiple services proved by one domain remain one domain family. Unverified/manual URLs and popularity metrics contribute no trust.

@@ -1,68 +1,141 @@
+import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getCreator, getViewer } from "@/lib/dal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSocialSecret } from "@/lib/social-secrets";
-import { exchangeYouTubeCode, verifyYouTubeOAuthState } from "@/lib/youtube-oauth";
-import { getYouTubeChannel } from "@/lib/youtube-watcher";
-import { revalidateCreatorAccounts } from "@/lib/social-providers/creator-account-revalidation";
+import { exchangeYouTubeCode, verifyYouTubeOAuthState, YOUTUBE_READONLY_SCOPE } from "@/lib/youtube-oauth";
+import { getYouTubeChannels } from "@/lib/youtube-watcher";
+import { persistYouTubeConnection, YouTubeConnectionError } from "@/lib/youtube-connection";
+import { normalizeProviderFailure } from "@/lib/social-providers/errors";
+import { createTraceId, debugError, debugStep } from "@/lib/debug";
+import { appUrl } from "@/lib/app-url";
 
 export const runtime = "nodejs";
 
-function dashboard(request: Request, status: string) {
-  return NextResponse.redirect(new URL(`/dashboard/platforms?youtube=${encodeURIComponent(status)}`, request.url));
+function dashboard(status: string, pendingSelectionId?: string) {
+  const destination = new URL("/dashboard/platforms", appUrl());
+  destination.searchParams.set("youtube", status);
+  if (pendingSelectionId) destination.searchParams.set("pendingSelectionId", pendingSelectionId);
+  return NextResponse.redirect(destination);
 }
 
 export async function GET(request: Request) {
+  const traceId = createTraceId("yt");
+  const callbackDiagnostic = debugStep("oauth", "callback_started", { traceId, area:"youtube_oauth" });
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const stateValue = url.searchParams.get("state");
   const store = await cookies();
   const nonce = store.get("youtube_oauth_nonce")?.value;
   store.delete("youtube_oauth_nonce");
-  if (!code || !stateValue || !nonce || url.searchParams.has("error")) return dashboard(request, "authorization_failed");
+  callbackDiagnostic.success();
+  if (!stateValue || !nonce) return dashboard("authorization_failed");
+  let diagnostic = debugStep("oauth", "state_validation", { traceId, area:"youtube_oauth" });
   const state = verifyYouTubeOAuthState(stateValue, nonce);
+  if (!state) { diagnostic.failed(new Error("Invalid OAuth state")); return dashboard("invalid_state"); }
+  const finish = (status:string,pendingSelectionId?:string) => {
+    if(state.returnTo!=="onboarding")return dashboard(status,pendingSelectionId);
+    const destination=new URL(`/onboarding/accounts?step=${state.role}&oauth=youtube:${status}`,appUrl());
+    if(pendingSelectionId)destination.searchParams.set("pendingSelectionId",pendingSelectionId);
+    return NextResponse.redirect(destination);
+  };
+  if (!code || url.searchParams.has("error")) return finish("authorization_failed");
+  diagnostic.success({ role:state.role });
+  if (process.env.NODE_ENV === "development" && state.role === "backup") console.info("youtube_backup_verify", { step:"oauth_state_verified", connectionId:state.connectionId ?? null, role:state.role });
+  const viewerDiagnostic = debugStep("oauth", "viewer_lookup", { traceId, area:"youtube_oauth", role:state.role });
+  const creatorDiagnostic = debugStep("oauth", "creator_lookup", { traceId, area:"youtube_oauth", role:state.role });
   const [user, creator] = await Promise.all([getViewer(), getCreator()]);
-  if (!state || !user || !creator || state.userId !== user.id || state.creatorId !== creator.id) {
-    return dashboard(request, "invalid_state");
-  }
+  if (user) viewerDiagnostic.success(); else viewerDiagnostic.failed(new Error("Viewer not found"));
+  if (creator) creatorDiagnostic.success({ creatorId:creator.id }); else creatorDiagnostic.failed(new Error("Creator not found"));
+  if (!user || !creator || state.userId !== user.id || state.creatorId !== creator.id) return finish("invalid_state");
   const admin = createAdminClient();
-  if (!admin) return dashboard(request, "not_configured");
+  if (!admin) return finish("not_configured");
+  let discoveredChannelId: string | undefined;
+  let backupFailureStep = "callback";
+
   try {
+    const reconnect = state.connectionId
+      ? await admin.from("connected_accounts").select("id,account_type,external_account_id,connection_health,provider_status")
+        .eq("id", state.connectionId).eq("creator_id", creator.id).eq("platform", "youtube").maybeSingle()
+      : { data: null, error: null };
+    if (reconnect.error) throw new Error("connection_lookup_failed");
+    if (state.connectionId && (!reconnect.data || reconnect.data.account_type !== state.role)) return finish("invalid_state");
+    if (state.role === "backup" && process.env.NODE_ENV === "development") console.info("youtube_backup_verify", { step:"target_loaded", connectionId:state.connectionId ?? null, targetExternalAccountId:reconnect.data?.external_account_id ?? null, targetRole:reconnect.data?.account_type ?? null, targetHealth:reconnect.data?.connection_health ?? null, targetProviderStatus:reconnect.data?.provider_status ?? null });
+
+    backupFailureStep = "code_exchange";
+    diagnostic = debugStep("oauth", "code_exchange", { traceId, area:"youtube_oauth", creatorId:creator.id, role:state.role });
     const tokens = await exchangeYouTubeCode(code);
-    const channel = await getYouTubeChannel(tokens.access_token);
-    const connectionValues = {
-      creator_id: creator.id, platform: "youtube", account_type: "official",
-      label: channel.title, url: `https://www.youtube.com/channel/${channel.id}`,
-      is_primary: true, is_public: true, watch_enabled: true, auto_create_drafts: true,
-      auto_send: false, connection_health: "healthy", last_connection_error: null,
-      external_account_id: channel.id, external_account_name: channel.title,
-      provider_metadata: { uploads_playlist_id: channel.uploadsPlaylistId },
-      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      token_refreshed_at: new Date().toISOString(),
-    };
-    const { data: existingConnection } = await admin.from("connected_accounts").select("id")
-      .eq("creator_id", creator.id).eq("platform", "youtube").eq("account_type", "official").limit(1).maybeSingle();
-    const { data: connection, error } = existingConnection
-      ? await admin.from("connected_accounts").update(connectionValues).eq("id", existingConnection.id).select("id").single()
-      : await admin.from("connected_accounts").insert(connectionValues).select("id").single();
-    if (error || !connection) throw new Error("connection_write_failed");
-    const existing = await admin.from("platform_connection_secrets").select("refresh_token_ciphertext")
-      .eq("platform_connection_id", connection.id).maybeSingle();
-    await admin.from("platform_connection_secrets").upsert({
-      platform_connection_id: connection.id,
+    diagnostic.success();
+    diagnostic = debugStep("oauth", "scope_validation", { traceId, area:"youtube_oauth", creatorId:creator.id, role:state.role });
+    const grantedScopes = (tokens.scope ?? "").split(/\s+/).filter(Boolean);
+    if (grantedScopes.length !== 1 || grantedScopes[0] !== YOUTUBE_READONLY_SCOPE) throw new Error("unexpected_youtube_scope");
+    diagnostic.success();
+    diagnostic = debugStep("oauth", "channel_discovery", { traceId, area:"youtube_oauth", creatorId:creator.id, role:state.role });
+    const channels = await getYouTubeChannels(tokens.access_token);
+    diagnostic.success({ count:channels.length });
+    discoveredChannelId = channels.length === 1 ? channels[0].id : undefined;
+    console.info("provider_oauth", { event: "youtube_channels_discovered", provider: "youtube", role: state.role, channelCount: channels.length });
+    if (channels.length === 0) return finish("no_channel");
+    if (state.role === "backup" && process.env.NODE_ENV === "development" && channels.length === 1) console.info("youtube_backup_verify", { step:"channel_discovered", connectionId:state.connectionId ?? null, channelId:channels[0].id, channelTitle:channels[0].title, subscriberCount:channels[0].subscriberCount, hiddenSubscriberCount:channels[0].hiddenSubscriberCount });
+
+    if (reconnect.data) {
+      const reconnectTarget = reconnect.data;
+      const channel = channels.find((candidate) => candidate.id === reconnectTarget.external_account_id);
+      if (state.role === "backup" && process.env.NODE_ENV === "development") console.info("youtube_backup_verify", { step:"identity_match", connectionId:reconnectTarget.id, expectedChannelId:reconnectTarget.external_account_id, actualChannelId:channels.length === 1 ? channels[0].id : null, matches:Boolean(channel) });
+      if (!channel) {
+        if (state.role === "backup" && process.env.NODE_ENV === "development") console.error("youtube_backup_verify_failed", { step:"identity_match", connectionId:reconnectTarget.id, role:state.role, errorName:"YouTubeConnectionError", errorMessage:"reconnect_mismatch", errorCode:"reconnect_mismatch", cause:null });
+        return finish("reconnect_mismatch");
+      }
+      backupFailureStep = "connection_persistence";
+      await persistYouTubeConnection({
+        admin, creatorId: creator.id, role: state.role, reconnectConnectionId: reconnectTarget.id, protectedOfficialAccountId:state.protectedOfficialAccountId, channel,
+        tokens: { accessToken: tokens.access_token, refreshToken: tokens.refresh_token, scope: tokens.scope!, tokenType: tokens.token_type ?? "Bearer", expiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString() },
+        traceId,
+      });
+      debugStep("oauth", "callback_success", { traceId, area:"youtube_oauth", creatorId:creator.id, role:state.role, channelId:channel.id }).success();
+      if (state.role === "backup" && process.env.NODE_ENV === "development") console.info("youtube_backup_verify", { step:"complete", connectionId:reconnectTarget.id });
+      return finish("connected");
+    }
+
+    if (channels.length === 1) {
+      await persistYouTubeConnection({
+        admin, creatorId: creator.id, role: state.role, protectedOfficialAccountId:state.protectedOfficialAccountId, channel: channels[0],
+        tokens: { accessToken: tokens.access_token, refreshToken: tokens.refresh_token, scope: tokens.scope!, tokenType: tokens.token_type ?? "Bearer", expiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString() },
+        traceId,
+      });
+      debugStep("oauth", "callback_success", { traceId, area:"youtube_oauth", creatorId:creator.id, role:state.role, channelId:channels[0].id }).success();
+      return finish("connected");
+    }
+
+    const pendingSelectionId = randomUUID();
+    const pending = await admin.from("youtube_oauth_pending_selections").insert({
+      id: pendingSelectionId, creator_id: creator.id, user_id: user.id, requested_role: state.role,
+      reconnect_connection_id: null,
+      protected_official_account_id: state.protectedOfficialAccountId??null,
       access_token_ciphertext: encryptSocialSecret(tokens.access_token),
-      refresh_token_ciphertext: tokens.refresh_token
-        ? encryptSocialSecret(tokens.refresh_token)
-        : existing.data?.refresh_token_ciphertext ?? null,
-      token_scope: tokens.scope ?? null, token_type: tokens.token_type ?? "Bearer",
+      refresh_token_ciphertext: tokens.refresh_token ? encryptSocialSecret(tokens.refresh_token) : null,
+      granted_scopes: grantedScopes, token_type: tokens.token_type ?? "Bearer",
+      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      eligible_channels: channels, expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
     });
-    console.info("social_automation", { event: "connection_established", provider: "youtube", connectionId: connection.id });
-    revalidateCreatorAccounts(creator.id);
-    return dashboard(request, "connected");
+    if (pending.error) throw new Error("pending_selection_write_failed");
+    return finish("select_channel", pendingSelectionId);
   } catch (error) {
-    console.warn("social_automation", { event: "provider_failure", provider: "youtube", phase: "oauth_callback",
-      reason: error instanceof Error ? error.message : "unknown" });
-    return dashboard(request, "connection_failed");
+    if (state.role === "backup" && process.env.NODE_ENV === "development") console.error("youtube_backup_verify_failed", {
+      step: error instanceof YouTubeConnectionError ? error.step ?? backupFailureStep : backupFailureStep,
+      connectionId: state.connectionId ?? null, role: state.role,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorCode: typeof error === "object" && error && "code" in error ? String(error.code) : null,
+      cause: error instanceof Error && error.cause ? String(error.cause) : null,
+    });
+    debugError("oauth", error, { traceId, area:"youtube_oauth", step:error instanceof YouTubeConnectionError ? error.step : "callback", creatorId:creator.id, role:state.role, channelId:discoveredChannelId });
+    if (error instanceof YouTubeConnectionError) {
+      return finish(error.code);
+    }
+    const failure = normalizeProviderFailure(error);
+    console.warn("provider_sync", { event: "oauth_callback_failed", provider: "youtube", category: failure.category, code: failure.code });
+    return finish("connection_failed");
   }
 }

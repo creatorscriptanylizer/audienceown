@@ -1,1 +1,5 @@
-import Link from"next/link";export default function Page(){return <main className="mx-auto max-w-3xl px-5 py-20"><p className="eyebrow">Cookie notice</p><h1 className="mt-3 text-4xl font-semibold">Essential storage only</h1><p className="mt-5 leading-7 text-zinc-400">OwnSignal uses secure authentication cookies to keep creators signed in and preserve account security. Cloudflare Turnstile may use storage necessary to distinguish legitimate subscriber requests from automated abuse. Configure and document any optional analytics before enabling them. See our <Link href="/legal/privacy" className="text-violet-300">privacy policy</Link>.</p></main>}
+import { redirect } from "next/navigation";
+
+export default function CookiesRedirect() {
+  redirect("/cookie-policy");
+}

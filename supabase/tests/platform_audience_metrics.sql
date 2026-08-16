@@ -29,6 +29,8 @@ select is((select proconfig[1] from pg_proc where oid='public.get_creator_recove
 insert into auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change) values
 ('00000000-0000-0000-0000-000000000000','98000000-0000-4000-8000-000000000001','authenticated','authenticated','destination-owner@example.com',crypt('test-password',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{}',now(),now(),'','','','');
 update public.creators set public_slug='destination-owner' where owner_user_id='98000000-0000-4000-8000-000000000001';
+insert into public.creator_plan_entitlements(creator_id,plan,subscription_status)
+select id,'pro','active' from public.creators where owner_user_id='98000000-0000-4000-8000-000000000001';
 insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary) select '98000000-0000-4000-8000-000000000101',id,'tiktok','backup','TikTok Backup','https://tiktok.com/@backup',false from public.creators where owner_user_id='98000000-0000-4000-8000-000000000001';
 insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary) select '98000000-0000-4000-8000-000000000102',id,'youtube','backup','YouTube Backup','https://youtube.com/@backup',false from public.creators where owner_user_id='98000000-0000-4000-8000-000000000001';
 insert into public.follower_contacts(id) values('98000000-0000-4000-8000-000000000201'),('98000000-0000-4000-8000-000000000202'),('98000000-0000-4000-8000-000000000203');

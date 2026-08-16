@@ -13,7 +13,9 @@ export async function GET(
   }
   try {
     const result = await recoveryUpdate(id);
-    return result ? privateAnalyticsJson(result) : analyticsError("not_found", 404);
+    if (result.status === "unavailable") return analyticsError("analytics_unavailable", 503);
+    if (result.status === "absent") return analyticsError("not_found", 404);
+    return privateAnalyticsJson(result.data);
   } catch {
     return analyticsError("analytics_unavailable", 503);
   }

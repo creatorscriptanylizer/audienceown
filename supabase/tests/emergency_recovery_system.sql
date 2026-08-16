@@ -1,5 +1,5 @@
 begin;
-select plan(61);
+select plan(64);
 select has_table('public','creator_emergencies','creator emergencies exist');
 select has_table('public','emergency_affected_accounts','affected accounts exist');
 select has_table('public','emergency_replacement_accounts','replacement accounts exist');
@@ -118,4 +118,8 @@ select is((public.submit_emergency(current_setting('tests.noncritical_id')::uuid
 select set_config('request.jwt.claim.sub','f4000000-0000-4000-8000-000000000002',true);select set_config('request.jwt.claims','{"sub":"f4000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select is((public.approve_emergency(current_setting('tests.noncritical_id')::uuid,'Reviewed')->>'status'),'ready','non-critical emergency is approved');
 select is((public.activate_emergency(current_setting('tests.noncritical_id')::uuid,null)->>'status'),'active','non-critical activation works without authorization session');
+reset role;set local role service_role;select set_config('request.jwt.claim.role','service_role',true);
+select lives_ok($$delete from public.connected_accounts where id='f4100000-0000-4000-8000-000000000001'$$,'connected account deletion preserves historical records');
+select is((select count(*)::integer from public.emergency_affected_accounts where connected_account_id is null),2,'emergency account snapshots survive with a detached connection');
+select ok((select bool_and(affected_platform_connection_id is null) from public.creator_updates),'historical creator updates survive with detached account references');
 select * from finish();rollback;

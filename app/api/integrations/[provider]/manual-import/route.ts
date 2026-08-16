@@ -1,12 +1,13 @@
-import { createHash } from "node:crypto";import { getCreator } from "@/lib/dal";import { createClient } from "@/lib/supabase/server";
+import { createHash } from "node:crypto";import { getCreator,getViewer } from "@/lib/dal";import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";import { getSocialProvider } from "@/lib/social-providers/registry";
 import { isSocialProvider,providerHosts } from "@/lib/social-providers/normalize";
 import { requireSameOrigin } from "@/lib/emergency/request-security";
+import {canCreateProviderConnection,isConnectionLimitError} from "@/lib/provider-entitlements";
 export async function POST(request:Request,{params}:{params:Promise<{provider:string}>}){const{provider}=await params;
   if(!requireSameOrigin(request))return Response.json({error:"Cross-origin request rejected"},{status:403});
   if(!isSocialProvider(provider))return Response.json({error:"Unknown provider"},{status:404});const adapter=getSocialProvider(provider);
   if(!adapter.capabilities.manualImport)return Response.json({error:"provider_capability_not_supported"},{status:409});const creator=await getCreator();
-  if(!creator)return Response.json({error:"Unauthorized"},{status:401});let body:{url?:unknown;title?:unknown;thumbnailUrl?:unknown};
+  const viewer=await getViewer();if(!creator||!viewer)return Response.json({error:"Unauthorized"},{status:401});let body:{url?:unknown;title?:unknown;thumbnailUrl?:unknown};
   try{body=await request.json() as {url?:unknown;title?:unknown;thumbnailUrl?:unknown;sourcePublishedAt?:unknown};}catch{return Response.json({error:"Invalid JSON"},{status:400});}
   const url=String(body.url??""),title=String(body.title??"").trim(),thumbnail=String(body.thumbnailUrl??"");
   const sourcePublishedAt=String((body as {sourcePublishedAt?:unknown}).sourcePublishedAt??"");let parsed:URL;
@@ -15,9 +16,9 @@ export async function POST(request:Request,{params}:{params:Promise<{provider:st
     return Response.json({error:"Provider URL, title, and publication time are required"},{status:400});
   if(thumbnail){try{if(new URL(thumbnail).protocol!=="https:")throw new Error();}catch{return Response.json({error:"Invalid thumbnail URL"},{status:400});}}
   const client=await createClient();let{data:connection}=await client!.from("connected_accounts").select("id").eq("creator_id",creator.id).eq("platform",provider).limit(1).maybeSingle();
-  if(!connection){const inserted=await client!.from("connected_accounts").insert({creator_id:creator.id,platform:provider,account_type:"official",
+  if(!connection){const entitlement=await canCreateProviderConnection(creator.id,"official","new_connection",viewer);if(!entitlement.allowed)return Response.json({error:"connection_limit_reached"},{status:409});const inserted=await client!.from("connected_accounts").insert({creator_id:creator.id,platform:provider,account_type:"official",
       label:`${adapter.displayName} manual imports`,url:`https://${providerHosts[provider][0]}`,is_primary:false,is_public:false,
-      provider_status:"automatic_detection_unavailable"}).select("id").single();connection=inserted.data;}
+      provider_status:"automatic_detection_unavailable"}).select("id").single();if(isConnectionLimitError(inserted.error))return Response.json({error:"connection_limit_reached"},{status:409});connection=inserted.data;}
   if(!connection)return Response.json({error:"Connection unavailable"},{status:500});const admin=createAdminClient();if(!admin)return Response.json({error:"Not configured"},{status:503});
   const normalized=adapter.manualImport?await adapter.manualImport({url,title,publishedAt:sourcePublishedAt}):null;
   if(adapter.manualImport&&!normalized)return Response.json({error:"The URL is not a supported public provider object"},{status:400});

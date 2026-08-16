@@ -89,6 +89,10 @@ set
   public_profile_enabled = false
 where owner_user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
+-- This RLS fixture intentionally creates a second official account later.
+insert into public.creator_plan_entitlements(creator_id,plan,subscription_status)
+select id,'pro','active' from public.creators where public_slug='creator-a';
+
 -- Store creator B's creator-row ID for later RLS checks.
 select set_config(
   'tests.creator_b_id',

@@ -9,8 +9,16 @@ import {
   type RecoveryCoverage,
 } from "@/lib/recovery-analytics";
 import type { LiveRecoveryAnalytics } from "@/lib/live-recovery-analytics";
+import { debugDatabaseError } from "@/lib/debug";
 
 export type RecoveryIncidentOption = { id: string; title: string; severity: string; lifecycle_status: string; activated_at: string | null; resolved_at: string | null; updated_at: string };
+export type RecoveryIncidentsResult =
+  | { status: "available"; incidents: RecoveryIncidentOption[] }
+  | { status: "unavailable"; reason: "query_failed"; incidents: null };
+export type RecoveryUpdateResult =
+  | { status: "available"; data: Record<string, unknown> }
+  | { status: "absent"; data: null }
+  | { status: "unavailable"; reason: "query_failed"; data: null };
 
 export type RecoveryAnalyticsOverview = RecoveryCoverage & {
   availability: "available" | "empty";
@@ -27,15 +35,18 @@ export const emptyRecoveryAnalyticsOverview = (): RecoveryAnalyticsOverview => (
   availability: "empty",
 });
 
-export async function recoveryIncidents() {
+export async function recoveryIncidents(): Promise<RecoveryIncidentsResult> {
   const client = await createClient();
-  if (!client) throw new Error("analytics_unavailable");
+  if (!client) return { status: "unavailable", reason: "query_failed", incidents: null };
   const { data, error } = await client.from("creator_emergencies")
     .select("id,title,severity,lifecycle_status,activated_at,resolved_at,updated_at")
     .in("lifecycle_status", ["active", "resolved", "cancelled"])
     .order("updated_at", { ascending: false }).limit(50);
-  if (error) throw new Error("analytics_unavailable");
-  return (data ?? []).sort((a, b) => Number(b.lifecycle_status === "active") - Number(a.lifecycle_status === "active")) as RecoveryIncidentOption[];
+  if (error) {
+    debugDatabaseError("select", "creator_emergencies", error, { page: "recovery_analytics", failureCategory: "query_failed" });
+    return { status: "unavailable", reason: "query_failed", incidents: null };
+  }
+  return { status: "available", incidents: (data ?? []).sort((a, b) => Number(b.lifecycle_status === "active") - Number(a.lifecycle_status === "active")) as RecoveryIncidentOption[] };
 }
 
 export async function liveRecoveryAnalytics(id: string) {
@@ -161,22 +172,26 @@ export async function recoveryUpdates(limit = 20, before?: string | null) {
   }));
 }
 
-export async function recoveryUpdate(id: string) {
+export async function recoveryUpdate(id: string): Promise<RecoveryUpdateResult> {
   const client = await createClient();
-  if (!client) throw new Error("analytics_unavailable");
+  if (!client) return { status: "unavailable", reason: "query_failed", data: null };
   const { data, error } = await client.rpc("get_creator_recovery_update_performance", {
     p_update_id: id,
   });
-  if (error || !data) return null;
+  if (error) {
+    debugDatabaseError("rpc", "get_creator_recovery_update_performance", error, { page: "recovery_update_analytics", failureCategory: "query_failed" });
+    return { status: "unavailable", reason: "query_failed", data: null };
+  }
+  if (!data) return { status: "absent", data: null };
   const row = data as Record<string, unknown>;
   const threshold = recoveryAnalyticsThresholds().privacyThreshold;
-  return {
+  return { status: "available", data: {
     ...row,
     transport_breakdown: suppressBreakdown(
       (row.transport_breakdown ?? {}) as Record<string, number>, threshold),
     provider_breakdown: suppressBreakdown(
       (row.provider_breakdown ?? {}) as Record<string, number>, threshold),
-  };
+  } };
 }
 
 export async function recoveryOpportunities() {

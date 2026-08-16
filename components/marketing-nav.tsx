@@ -9,7 +9,7 @@ const links = [
   ["Product", "#product"],
   ["How it works", "#how-it-works"],
   ["Pricing", "#pricing"],
-  ["FAQ", "#faq"],
+  ["Resources", "#resources"],
 ] as const;
 
 export function MarketingNav() {
@@ -30,7 +30,7 @@ export function MarketingNav() {
       </nav>
       <div className="flex items-center gap-2">
         <Link href="/login" className="nav-signin hidden sm:inline-flex">Sign in</Link>
-        <Link href="/register" className="button button-primary h-10 px-4 text-sm">Create your page</Link>
+        <Link href="/register" className="button button-primary hidden h-11 px-4 text-sm sm:inline-flex">Create your page, it&apos;s free</Link>
         <button type="button" className="nav-menu md:hidden" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen(v => !v)}>
           {open ? <X size={20}/> : <Menu size={20}/>}
         </button>
@@ -39,6 +39,7 @@ export function MarketingNav() {
     {open && <nav className="mobile-nav md:hidden" aria-label="Mobile navigation">
       {links.map(([label, href]) => <Link key={href} href={href} onClick={() => setOpen(false)}>{label}</Link>)}
       <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
+      <Link className="mobile-nav-cta" href="/register" onClick={() => setOpen(false)}>Create your page, it&apos;s free</Link>
     </nav>}
   </header>;
 }

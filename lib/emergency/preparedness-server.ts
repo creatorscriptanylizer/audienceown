@@ -7,16 +7,17 @@ import type { EmergencySeverity } from "./types";
 import type { emergencyApiContext } from "./api";
 
 type Context = NonNullable<Awaited<ReturnType<typeof emergencyApiContext>>>;
-type PlanRow = { id:string;creator_id:string;affected_account_id:string;template_id:string|null;emergency_type:string;severity:string;title:string;message:string;proposed_replacement_url:string|null;proposed_replacement_provider:string|null;proposed_replacement_handle:string|null };
+type PlanRow = { id:string;creator_id:string;affected_account_id:string|null;template_id:string|null;emergency_type:string;severity:string;title:string;message:string;proposed_replacement_url:string|null;proposed_replacement_provider:string|null;proposed_replacement_handle:string|null };
 
 export async function getPreparednessChecks(ctx: Context, plan: PlanRow) {
   const admin = createAdminClient();
   if (!admin) throw new Error("Preparedness checks are not configured.");
-  const [{ data: creator }, { data: account }, { data: members }] = await Promise.all([
+  const [{ data: creator, error: creatorError }, { data: account, error: accountError }, { data: members, error: membersError }] = await Promise.all([
     admin.from("creators").select("owner_user_id,recovery_pass_enabled,public_profile_enabled").eq("id", ctx.creator.id).single(),
-    admin.from("connected_accounts").select("id").eq("id", plan.affected_account_id).eq("creator_id", ctx.creator.id).eq("account_type", "official").maybeSingle(),
+    plan.affected_account_id ? admin.from("connected_accounts").select("id").eq("id", plan.affected_account_id).eq("creator_id", ctx.creator.id).eq("account_type", "official").maybeSingle() : Promise.resolve({ data:null, error:null }),
     admin.from("creator_team_members").select("user_id,permissions").eq("creator_id", ctx.creator.id),
   ]);
+  if (creatorError || accountError || membersError) throw creatorError ?? accountError ?? membersError;
   const isOwner = creator?.owner_user_id === ctx.user.id;
   const has = (permission: string) => isOwner || (members ?? []).some((member) => member.permissions.includes(permission));
   const currentMember = (members ?? []).find((member) => member.user_id === ctx.user.id);
@@ -40,9 +41,10 @@ export async function validatePlan(ctx: Context, plan: PlanRow) {
   return checks;
 }
 
-export async function simulatePreparedDelivery(creatorId: string, affectedAccountId: string): Promise<ReturnType<typeof simulateRecipientAggregation>> {
+export async function simulatePreparedDelivery(creatorId: string, affectedAccountId: string | null): Promise<ReturnType<typeof simulateRecipientAggregation>> {
   const admin = createAdminClient();
   if (!admin) throw new Error("Drill simulation is not configured.");
+  if (!affectedAccountId) throw new Error("The prepared plan needs another official account before it can run.");
   const { data: account, error: accountError } = await admin.from("connected_accounts").select("platform").eq("id",affectedAccountId).eq("creator_id",creatorId).eq("account_type","official").single();
   if (accountError) throw accountError;
   const { data: connections, error } = await admin.from("follower_connections").select("id,creator_id,follower_contact_id,status,selected_recovery_method_id").eq("creator_id", creatorId).eq("source_platform",account.platform);
@@ -50,10 +52,11 @@ export async function simulatePreparedDelivery(creatorId: string, affectedAccoun
   const rows = connections ?? [];
   const contactIds = [...new Set(rows.map((row) => row.follower_contact_id))];
   const connectionIds = rows.map((row) => row.id);
-  const [{ data: methods }, { data: preferences }] = await Promise.all([
-    contactIds.length ? admin.from("follower_recovery_methods").select("id,follower_contact_id,method_type,method_status,destination_hash,provider_identifier").in("follower_contact_id", contactIds) : Promise.resolve({ data: [] }),
-    connectionIds.length ? admin.from("follower_category_preferences").select("follower_connection_id,enabled").in("follower_connection_id", connectionIds).eq("category_key", resolvePreferenceCategory("account_update")) : Promise.resolve({ data: [] }),
+  const [{ data: methods, error: methodsError }, { data: preferences, error: preferencesError }] = await Promise.all([
+    contactIds.length ? admin.from("follower_recovery_methods").select("id,follower_contact_id,method_type,method_status,destination_hash,provider_identifier").in("follower_contact_id", contactIds) : Promise.resolve({ data: [], error:null }),
+    connectionIds.length ? admin.from("follower_category_preferences").select("follower_connection_id,enabled").in("follower_connection_id", connectionIds).eq("category_key", resolvePreferenceCategory("account_update")) : Promise.resolve({ data: [], error:null }),
   ]);
+  if (methodsError || preferencesError) throw methodsError ?? preferencesError;
   const methodMap = new Map<string, NonNullable<typeof methods>>();
   for (const method of methods ?? []) methodMap.set(method.follower_contact_id, [...(methodMap.get(method.follower_contact_id) ?? []), method]);
   const preferenceMap = new Map((preferences ?? []).map((row) => [row.follower_connection_id, row.enabled]));

@@ -32,10 +32,11 @@ export async function disconnectYouTube(formData: FormData) {
   const creator = await requireCreator();
   const id = idSchema.parse(formData.get("connection_id"));
   const client = await createClient();
-  const { data } = await client!.from("connected_accounts").update({
+  const { data, error } = await client!.from("connected_accounts").update({
     watch_enabled: false, auto_send: false, connection_health: "disconnected",
     last_connection_error: null, token_expires_at: null,
   }).eq("id", id).eq("creator_id", creator.id).eq("platform", "youtube").select("id").maybeSingle();
+  if (error) redirect("/dashboard/platforms?youtube=disconnect_unavailable");
   if (!data) redirect("/dashboard/platforms?youtube=disconnect_failed");
   const admin = createAdminClient();
   const { data: secret } = admin
