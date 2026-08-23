@@ -1,5 +1,20 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+
+const EXPECTED_PRODUCTION_PROJECT_REF = "jngmxlcibqmtrvskxdcw";
+
+let linkedProjectRef;
+try {
+  linkedProjectRef = readFileSync("supabase/.temp/project-ref", "utf8").trim();
+} catch (error) {
+  throw new Error(`MIGRATION GUARD: unable to determine linked production project. ${error instanceof Error ? error.message : String(error)}`);
+}
+if (linkedProjectRef !== EXPECTED_PRODUCTION_PROJECT_REF) {
+  throw new Error(`MIGRATION GUARD: linked project ref does not match the required production project (${EXPECTED_PRODUCTION_PROJECT_REF}).`);
+}
+if (process.env.SUPABASE_PROJECT_REF && process.env.SUPABASE_PROJECT_REF !== linkedProjectRef) {
+  throw new Error("MIGRATION GUARD: SUPABASE_PROJECT_REF does not match the linked production project.");
+}
 
 const local = readdirSync("supabase/migrations")
   .map((name) => /^(\d{14})_.*\.sql$/.exec(name)?.[1])
@@ -45,4 +60,4 @@ if (normalizedOutput.startsWith("{")) {
 }
 const missing = local.filter((version) => !remote.has(version));
 if (missing.length) throw new Error(`MIGRATION GUARD: production is missing ${missing.length} required migration(s): ${missing.join(", ")}`);
-console.log(`Migration guard passed: ${local.length} repository migrations exist in the linked production database.`);
+console.log(`Migration guard passed for project ${linkedProjectRef}: ${local.length} repository migrations exist in the linked production database.`);

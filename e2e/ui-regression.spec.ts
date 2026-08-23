@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const email = process.env.UI_VISUAL_EMAIL ?? "stage88@audienceown.local";
-const password = process.env.UI_VISUAL_PASSWORD ?? "LocalStage88!";
+const email = process.env.UI_VISUAL_EMAIL;
+const password = process.env.UI_VISUAL_PASSWORD;
 const publicSlug = process.env.UI_VISUAL_PUBLIC_SLUG;
 
 async function settle(page: Page) {
@@ -16,6 +16,7 @@ async function settle(page: Page) {
 }
 
 async function login(page: Page) {
+  if (!email || !password) throw new Error("Authorized UI_VISUAL_EMAIL and UI_VISUAL_PASSWORD are required.");
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
@@ -42,6 +43,7 @@ for (const [name, route] of [
   ["verified-identity", "/dashboard/verified-identity"],
 ] as const) {
   test(`${name} canonical production route`, async ({ page }) => {
+    test.skip(!email || !password, "Authorized visual-test credentials were not supplied.");
     await login(page);
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
