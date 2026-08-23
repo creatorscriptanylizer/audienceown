@@ -142,12 +142,14 @@ export function RecoveryPassFlow({ creator, accounts, source, memberState }: Pro
     requestPending.current = true;
     setBusy(true); setError(""); setEmailNotice(""); setEmailErrorKind("default");
     let serverMessage = "";
+    let serverCode = "";
     try {
       const response = await fetch("/api/public/recovery-pass/email-verification", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(action === "verify"
         ? { action, slug: creator.handle, challengeId: emailChallenge, code: emailCode }
         : { action, slug: creator.handle, email, challengeId: action === "resend" ? emailChallenge : undefined, preferenceToken: tokens.preferenceToken, source, landingPath: location.pathname }) });
       const result = await response.json();
-      serverMessage = typeof result.message === "string" ? result.message : "";
+      serverMessage = [result.title, result.message].filter((value): value is string => typeof value === "string" && Boolean(value)).join(". ");
+      serverCode = typeof result.code === "string" ? result.code : "";
       if (result.kind === "verification_sent") {
         const resendAt = Date.now() + Number(result.resendAfterSeconds ?? 30) * 1_000;
         setEmailChallenge(result.challengeId); setEmailMasked(result.masked); setEmailCode(""); setClock(Date.now()); setEmailResendAt(resendAt);
@@ -166,7 +168,7 @@ export function RecoveryPassFlow({ creator, accounts, source, memberState }: Pro
       if (action === "start") setError(serverMessage || "We couldn't send your verification code. Please try again.");
       else {
         setError(message);
-        if (/expired/i.test(message)) setEmailErrorKind("expired");
+        if (serverCode === "expired" || /expired/i.test(message)) setEmailErrorKind("expired");
       }
       return false;
     }
@@ -190,7 +192,7 @@ export function RecoveryPassFlow({ creator, accounts, source, memberState }: Pro
   }
 
   const canContinue = stage === 1 ? selected.length > 0 : stage === 2 ? /.+@.+\..+/.test(email) : stage === 3 ? emailVerified : stage === 4 ? recoveryAlerts : true;
-  const title = ["", "Build your connection", "Create your direct connection", "Verify your connection", `Choose what ${name} can tell you`, "Protect your connection"];
+  const title = ["", "Build your connection", "Create your direct connection", "Verify Your Email to Continue", `Choose what ${name} can tell you`, "Protect your connection"];
 
   if (memberState && !managing) return <MemberManager creator={creator} state={memberState} onManageAccounts={() => { setSelected(memberState.accounts.map((account) => account.reference)); setManaging(true); setStage(1); }} onManagePreferences={() => { setRecoveryAlerts(memberState.recoveryAlerts); setPreferences(RECOVERY_PASS_CATEGORIES.filter((key) => memberState.preferences[key])); setPushState(memberState.deliveryMethods.some((method) => method.type === "web_push") ? "enabled" : browserPushSupport().supported ? "default" : "unsupported"); setManaging(true); setStage(4); }} onManageDelivery={() => { setManaging(true); setStage(2); }} onDisablePush={() => updatePush("disable")} />;
 
@@ -255,7 +257,7 @@ function EmailOtpCard({ done, busy, code, error, errorKind, notice, name, onCode
     <p className="rp-otp-helper" id="email-code-help"><span><ShieldCheck aria-hidden /></span> Enter all six digits from your verification Email.</p>
     {error && <p className={errorKind === "expired" ? "rp-otp-error is-expired" : "rp-otp-error"} role="alert">{error}</p>}
     <button className="rp-verify-email" type="button" disabled={busy || !/^\d{6}$/.test(code)} onClick={onVerify}><ShieldCheck aria-hidden /> {busy ? "Verifying…" : "Verify Email"}</button>
-    <div className="rp-resend-card"><span className="rp-resend-icon"><Send aria-hidden /></span><div><strong>Didn&apos;t get the code?</strong><small>{resendSeconds > 0 ? `You can resend in ${cooldown}` : "You can request a new verification code."}</small></div><button type="button" disabled={busy || resendSeconds > 0} onClick={onResend}>Resend code</button></div>
+    <div className="rp-resend-card"><span className="rp-resend-icon"><Send aria-hidden /></span><div><strong>Didn&apos;t get the code?</strong><small>{resendSeconds > 0 ? `You can resend in ${cooldown}` : "You can request a new verification email."}</small></div><button type="button" disabled={busy || resendSeconds > 0} onClick={onResend}>{errorKind === "expired" ? "Send a New Verification Email" : "Resend Verification Email"}</button></div>
     {notice && <p className="rp-otp-notice" role="status"><CheckCircle2 aria-hidden /> {notice}</p>}
   </section>;
 }

@@ -10,12 +10,25 @@ describe("Recovery Pass Email verification route", () => {
   it("returns a structured 503 for unavailable configuration", () => {
     expect(route).toContain('kind: "verification_unavailable", reason: configurationFailure');
     expect(route).toContain('"email_otp_pepper_not_configured"');
+    expect(route).toContain('"contact_encryption_not_configured"');
     expect(route).toContain('"email_provider_not_configured"');
     expect(route).toContain('"email_sender_not_configured"');
   });
 
+  it("does not blame follower details for configuration or unexpected server failures", () => {
+    expect(route).toContain("We Couldn't Verify Your Email Right Now");
+    expect(route).toContain("Your information is safe. Please try again.");
+    expect(route).toContain("error instanceof z.ZodError");
+    expect(route).toContain('kind: "system_error"');
+  });
+
+  it("distinguishes consumed and expired challenges", () => {
+    expect(route).toContain('code: "consumed"');
+    expect(route).toContain('code: "expired", title: "Your Verification Link Expired"');
+  });
+
   it("distinguishes challenge persistence from provider rejection", () => {
-    expect(route).toContain('if (inserted.error) return response({ kind: "system_error", message: "A verification code could not be created." }, 500)');
+    expect(route).toContain('if (inserted.error) return response({ kind: "system_error", title: "We Couldn\'t Verify Your Email Right Now", message: "Your information is safe. Please try again." }, 503)');
     expect(route).toContain('reason: "provider_rejected"');
     expect(route).toContain('cancelled_at: new Date().toISOString()');
   });

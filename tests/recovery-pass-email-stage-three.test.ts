@@ -36,6 +36,8 @@ describe("Recovery Pass Stage 2 to Stage 3 Email verification", () => {
     expect(flow).toContain('role="status" aria-live="polite"');
     expect(flow).toContain('String(resendSeconds).padStart(2, "0")');
     expect(flow).toContain("rp-resend-card");
+    expect(flow).toContain("Resend Verification Email");
+    expect(flow).toContain("Send a New Verification Email");
     expect(styles).toContain("@media(max-width:430px)");
     expect(styles).toContain("grid-template-columns:repeat(6,minmax(0,1fr))");
     expect(styles).toContain("min-width:0");
