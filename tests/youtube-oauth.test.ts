@@ -10,12 +10,15 @@ describe("YouTube OAuth", () => {
   });
 
   it("validates signed, owned, unexpired state", async () => {
-    const { createYouTubeOAuthState, verifyYouTubeOAuthState } = await import("@/lib/youtube-oauth");
+    const { createYouTubeOAuthState, inspectYouTubeOAuthState, verifyYouTubeOAuthState } = await import("@/lib/youtube-oauth");
     const state = createYouTubeOAuthState({ creatorId: "creator", userId: "user", nonce: "nonce", expiresAt: 2000, role:"backup", connectionId:"connection-1" });
     expect(verifyYouTubeOAuthState(state, "nonce", 1000)).toMatchObject({ creatorId:"creator", role:"backup", connectionId:"connection-1" });
     expect(verifyYouTubeOAuthState(state, "other", 1000)).toBeNull();
     expect(verifyYouTubeOAuthState(`${state}x`, "nonce", 1000)).toBeNull();
     expect(verifyYouTubeOAuthState(state, "nonce", 3000)).toBeNull();
+    expect(inspectYouTubeOAuthState(state, null, 1000)).toMatchObject({ signatureValid:true, expired:false, nonceMatches:false, state:{ creatorId:"creator" } });
+    expect(inspectYouTubeOAuthState(state, "nonce", 3000)).toMatchObject({ signatureValid:true, expired:true, nonceMatches:true });
+    expect(inspectYouTubeOAuthState(`${state}x`, "nonce", 1000)).toMatchObject({ signatureValid:false });
   });
 
   it("refreshes without exposing credentials in the URL", async () => {
@@ -53,6 +56,19 @@ describe("YouTube OAuth", () => {
     const url = new URL(getYouTubeAuthorizationUrl(state));
     expect(url.searchParams.get("scope")).toBe(YOUTUBE_READONLY_SCOPE);
     expect(url.searchParams.get("scope")?.split(/\s+/)).toHaveLength(1);
+  });
+
+  it("validates normalized token-response scopes against the canonical YouTube contract", async () => {
+    const { validateYouTubeGrantedScopes, YOUTUBE_READONLY_SCOPE } = await import("@/lib/youtube-oauth");
+    const identity = "openid email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
+
+    expect(validateYouTubeGrantedScopes(YOUTUBE_READONLY_SCOPE)).toMatchObject({ valid:true, grantedScopes:[YOUTUBE_READONLY_SCOPE], failure:null });
+    expect(validateYouTubeGrantedScopes(`${YOUTUBE_READONLY_SCOPE} ${identity}`)).toMatchObject({ valid:true, failure:null });
+    expect(validateYouTubeGrantedScopes(identity)).toMatchObject({ valid:false, failure:"required_scope_missing" });
+    expect(validateYouTubeGrantedScopes("  \n\t  ")).toMatchObject({ valid:false, grantedScopes:[], failure:"required_scope_missing" });
+    expect(validateYouTubeGrantedScopes(`${YOUTUBE_READONLY_SCOPE}.evil`)).toMatchObject({ valid:false, failure:"required_scope_missing" });
+    expect(validateYouTubeGrantedScopes(`${YOUTUBE_READONLY_SCOPE}  ${YOUTUBE_READONLY_SCOPE}\nopenid`)).toMatchObject({ valid:true, grantedScopes:[YOUTUBE_READONLY_SCOPE, "openid"] });
+    expect(validateYouTubeGrantedScopes(`${YOUTUBE_READONLY_SCOPE} https://www.googleapis.com/auth/youtube.force-ssl`)).toMatchObject({ valid:false, failure:"unexpected_scope" });
   });
 
   it("revokes server-side and treats an invalid token as already revoked", async () => {

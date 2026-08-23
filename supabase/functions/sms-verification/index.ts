@@ -15,6 +15,7 @@ const startSchema = z.object({
   action: z.literal("start"),
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   phone: z.string().min(4).max(80),
+  preferenceToken: z.string().min(20).max(200).optional(),
   country: z.string().length(2).regex(/^[A-Za-z]{2}$/).optional(),
   consent: z.literal(true),
   consentVersion: z.literal("sms-recovery-v1"),
@@ -26,7 +27,7 @@ const startSchema = z.object({
 const sessionSchema = z.object({
   action: z.enum(["verify", "resend", "cancel"]),
   sessionToken: z.string().min(20).max(200),
-  code: z.string().regex(/^[0-9]{4,10}$/).optional(),
+  code: z.string().regex(/^[0-9]{6}$/).optional(),
 }).strict();
 const removeSchema = z.object({
   action: z.literal("remove"),
@@ -131,6 +132,15 @@ Deno.serve(async (request) => {
 
       const destinationHash = await sha256(e164);
       const masked = `•••• •••• ${e164.slice(-4)}`;
+      const { data: managedConnection } = input.preferenceToken
+        ? await admin.from("follower_connections")
+          .select("id,follower_contact_id")
+          .eq("creator_id", creator.id)
+          .eq("preference_token_hash", await sha256(input.preferenceToken))
+          .is("management_tokens_revoked_at", null)
+          .gt("preference_token_expires_at", now.toISOString())
+          .maybeSingle()
+        : { data: null };
       let { data: contact } = await admin.from("follower_contacts")
         .select("id").eq("phone_hash", destinationHash).maybeSingle();
       if (!contact) {
@@ -203,6 +213,7 @@ Deno.serve(async (request) => {
       const { error } = await admin.from("sms_verification_sessions").insert({
         recovery_method_id: method.id,
         creator_id: creator.id,
+        follower_connection_id: managedConnection?.id ?? null,
         session_token_hash: await sha256(sessionToken),
         provider_verification_id: sent.data.sid ?? null,
         source_ip_hash: ipHash,

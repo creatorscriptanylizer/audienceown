@@ -34,7 +34,6 @@ describe("Proxy routing", () => {
 
   it.each([
     "/",
-    "/login",
     "/register",
     "/cookies",
     "/cookie-policy",
@@ -52,6 +51,10 @@ describe("Proxy routing", () => {
     "/auth/callback?code=oauth-code",
   ])("does not run Auth for public route or asset %s", (path) => {
     expect(matches(path)).toBe(false);
+  });
+
+  it("matches login only to enforce the canonical development browser origin", () => {
+    expect(matches("/login")).toBe(true);
   });
 
   it.each(["/dashboard", "/dashboard/settings", "/onboarding"])("matches protected route %s", (path) => {
@@ -76,5 +79,23 @@ describe("Proxy routing", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
     expect(authMocks.getClaims).toHaveBeenCalledOnce();
+  });
+
+  it("redirects direct localhost login to the canonical development origin without running Auth", async () => {
+    vi.stubEnv("APP_URL", "https://audienceown.com");
+    const response = await proxy(new NextRequest("http://localhost:3000/login?next=%2Fdashboard%2Fplatforms"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://audienceown.com/login?next=%2Fdashboard%2Fplatforms");
+    expect(authMocks.getClaims).not.toHaveBeenCalled();
+  });
+
+  it("allows a canonical login forwarded to the local Next.js server", async () => {
+    vi.stubEnv("APP_URL", "https://audienceown.com");
+    const response = await proxy(new NextRequest("http://localhost:3000/login", { headers:{ "x-forwarded-host":"audienceown.com", "x-forwarded-proto":"https" } }));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(authMocks.getClaims).not.toHaveBeenCalled();
   });
 });

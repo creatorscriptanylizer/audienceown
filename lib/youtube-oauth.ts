@@ -5,6 +5,35 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export const YOUTUBE_READONLY_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
+export const YOUTUBE_REQUIRED_SCOPES = [YOUTUBE_READONLY_SCOPE] as const;
+export const GOOGLE_IDENTITY_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
+] as const;
+export const YOUTUBE_REQUESTED_SCOPES = YOUTUBE_REQUIRED_SCOPES;
+export const YOUTUBE_ALLOWED_RETURNED_SCOPES = [...YOUTUBE_REQUESTED_SCOPES, ...GOOGLE_IDENTITY_SCOPES] as const;
+
+export type YouTubeScopeValidation = {
+  valid: boolean;
+  grantedScopes: string[];
+  failure: "required_scope_missing" | "unexpected_scope" | null;
+};
+
+export function validateYouTubeGrantedScopes(value: string | null | undefined): YouTubeScopeValidation {
+  const grantedScopes = [...new Set((value ?? "").split(/\s+/).map((scope) => scope.trim()).filter(Boolean))];
+  const granted = new Set(grantedScopes);
+  if (YOUTUBE_REQUIRED_SCOPES.some((scope) => !granted.has(scope))) {
+    return { valid:false, grantedScopes, failure:"required_scope_missing" };
+  }
+  const allowed = new Set<string>(YOUTUBE_ALLOWED_RETURNED_SCOPES);
+  if (grantedScopes.some((scope) => !allowed.has(scope))) {
+    return { valid:false, grantedScopes, failure:"unexpected_scope" };
+  }
+  return { valid:true, grantedScopes, failure:null };
+}
 
 export type YouTubeAccountRole = "official" | "backup";
 export type YouTubeOAuthState = {
@@ -15,7 +44,15 @@ export type YouTubeOAuthState = {
   role: YouTubeAccountRole;
   connectionId?: string;
   protectedOfficialAccountId?: string;
+  recoveryForMainAccountId?: string;
+  recoveryNetworkId?: string;
   returnTo?: "onboarding";
+};
+export type YouTubeOAuthStateInspection = {
+  state: YouTubeOAuthState | null;
+  signatureValid: boolean;
+  expired: boolean;
+  nonceMatches: boolean;
 };
 type TokenResponse = {
   access_token: string;
@@ -51,32 +88,41 @@ export function createYouTubeOAuthState(payload: YouTubeOAuthState) {
   return `${body}.${signature}`;
 }
 
-export function verifyYouTubeOAuthState(value: string, expectedNonce: string, now = Date.now()): YouTubeOAuthState | null {
+export function inspectYouTubeOAuthState(value: string, expectedNonce: string | null, now = Date.now()): YouTubeOAuthStateInspection {
   try {
     const [body, signature] = value.split(".");
-    if (!body || !signature) return null;
+    if (!body || !signature) return { state:null, signatureValid:false, expired:false, nonceMatches:false };
     const expected = createHmac("sha256", oauthConfig().stateSecret).update(body).digest();
     const supplied = Buffer.from(signature, "base64url");
-    if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
+    if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return { state:null, signatureValid:false, expired:false, nonceMatches:false };
     const payload: unknown = JSON.parse(Buffer.from(body, "base64url").toString());
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { state:null, signatureValid:true, expired:false, nonceMatches:false };
     const state = payload as Record<string, unknown>;
     if (typeof state.creatorId !== "string" || typeof state.userId !== "string" || typeof state.nonce !== "string"
       || typeof state.expiresAt !== "number" || (state.role !== "official" && state.role !== "backup")
       || (state.connectionId !== undefined && (typeof state.connectionId !== "string" || !state.connectionId))
       || (state.protectedOfficialAccountId !== undefined && (typeof state.protectedOfficialAccountId !== "string" || !state.protectedOfficialAccountId))
-      || (state.returnTo !== undefined && state.returnTo !== "onboarding")) return null;
-    return state.nonce === expectedNonce && state.expiresAt >= now ? state as YouTubeOAuthState : null;
+      || (state.recoveryForMainAccountId !== undefined && (typeof state.recoveryForMainAccountId !== "string" || !/^[0-9a-f-]{36}$/i.test(state.recoveryForMainAccountId)))
+      || (state.recoveryNetworkId !== undefined && (typeof state.recoveryNetworkId !== "string" || !/^[0-9a-f-]{36}$/i.test(state.recoveryNetworkId)))
+      || (state.recoveryNetworkId !== undefined && state.role !== "official")
+      || (state.returnTo !== undefined && state.returnTo !== "onboarding")) return { state:null, signatureValid:true, expired:false, nonceMatches:false };
+    const parsed = state as unknown as YouTubeOAuthState;
+    return { state:parsed, signatureValid:true, expired:parsed.expiresAt < now, nonceMatches:Boolean(expectedNonce && parsed.nonce === expectedNonce) };
   } catch {
-    return null;
+    return { state:null, signatureValid:false, expired:false, nonceMatches:false };
   }
+}
+
+export function verifyYouTubeOAuthState(value: string, expectedNonce: string, now = Date.now()): YouTubeOAuthState | null {
+  const inspected = inspectYouTubeOAuthState(value, expectedNonce, now);
+  return inspected.state && inspected.signatureValid && !inspected.expired && inspected.nonceMatches ? inspected.state : null;
 }
 
 export function getYouTubeAuthorizationUrl(state: string) {
   const { clientId, redirectUri } = oauthConfig();
   const params = new URLSearchParams({
     client_id: clientId, redirect_uri: redirectUri, response_type: "code",
-    scope: YOUTUBE_READONLY_SCOPE, access_type: "offline", include_granted_scopes: "true",
+    scope: YOUTUBE_REQUESTED_SCOPES.join(" "), access_type: "offline", include_granted_scopes: "true",
     prompt: "consent", state,
   });
   return `${GOOGLE_AUTH_URL}?${params}`;

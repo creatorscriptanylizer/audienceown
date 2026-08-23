@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { requireCreator } from "@/lib/dal";
 import { debugDatabaseError, debugLog } from "@/lib/debug";
@@ -52,4 +53,4 @@ export async function createRecoveryPass(_: RecoveryPassState, formData: FormDat
 }
 
 export async function completeAccountStep(formData: FormData) { const { creator } = await import("@/lib/onboarding").then(module => module.requireOnboarding()); const step = z.enum(["official", "backup"]).parse(formData.get("step")), db = await createClient(); if (!db) throw new Error("Onboarding progress could not be saved."); const field = step === "official" ? "official_step_completed_at" : "backup_step_completed_at", result = await db.from("creator_onboarding" as never).update({ [field]: new Date().toISOString() } as never).eq("creator_id", creator.id); if (result.error) throw new Error("Onboarding progress could not be saved."); redirect(step === "official" ? "/onboarding/accounts?step=backup" : "/onboarding/ready"); }
-export async function completeOnboarding(formData: FormData) { const creator = await requireCreator(), destination = z.enum(["dashboard", "recovery-pass"]).catch("dashboard").parse(formData.get("destination")), db = await createClient(); if (!db) throw new Error("Onboarding progress could not be saved."); const result = await db.from("creator_onboarding" as never).update({ completed_at: new Date().toISOString() } as never).eq("creator_id", creator.id); if (result.error) throw new Error("Onboarding progress could not be saved."); revalidatePath("/dashboard", "layout"); redirect(destination === "recovery-pass" ? "/dashboard/creator-page" : "/dashboard"); }
+export async function completeOnboarding(formData: FormData) { const creator = await requireCreator(), destination = z.enum(["dashboard", "recovery-pass"]).catch("dashboard").parse(formData.get("destination")), db = await createClient(); if (!db) throw new Error("Onboarding progress could not be saved."); const result = await db.from("creator_onboarding" as never).update({ completed_at: new Date().toISOString() } as never).eq("creator_id", creator.id); if (result.error) throw new Error("Onboarding progress could not be saved."); revalidatePath("/dashboard", "layout"); const store=await cookies(),proInterval=store.get("audienceown_post_onboarding_pro")?.value;store.delete("audienceown_post_onboarding_pro");if(proInterval==="monthly"||proInterval==="yearly")redirect(`/dashboard/settings/plans?checkout=${proInterval}`);redirect(destination === "recovery-pass" ? "/dashboard/creator-page" : "/dashboard"); }

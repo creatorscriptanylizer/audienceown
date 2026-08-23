@@ -8,7 +8,7 @@ const errors: Record<string, string> = {
   google_not_configured: LOCAL_GOOGLE_UNAVAILABLE,
   oauth: "Google sign-in could not be started. Try again or use email.",
   callback: "Sign-in could not be completed. Please try again.",
-  missing_code: "The sign-in link is incomplete or expired. Please try again.",
+  missing_code: "This authentication link is incomplete. Start again from AudienceOwn or sign in below.",
   configuration: "Authentication is not configured yet.",
 };
 

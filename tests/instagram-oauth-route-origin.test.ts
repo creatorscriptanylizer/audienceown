@@ -39,7 +39,7 @@ describe("Instagram OAuth same-origin routes",()=>{
   it("redirects localhost before auth or state-cookie creation",async()=>{
     const response=await connect(new Request("http://localhost:3000/api/integrations/instagram/connect?role=backup&returnTo=onboarding&flow=kept"),context);
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://tunnel.example/api/integrations/instagram/connect?role=backup&returnTo=onboarding&flow=kept");
+    expect(response.headers.get("location")).toBe("https://tunnel.example/connect/provider?provider=instagram&role=backup");
     expect(h.getViewer).not.toHaveBeenCalled();expect(h.set).not.toHaveBeenCalled();
   });
 
@@ -58,20 +58,20 @@ describe("Instagram OAuth same-origin routes",()=>{
 
   it.each(["official","backup"])("preserves the %s role through canonicalization",async(role)=>{
     const response=await connect(new Request(`http://localhost:3000/api/integrations/instagram/connect?role=${role}&returnTo=onboarding&reconnect=keep`),context);
-    expect(response.headers.get("location")).toBe(`https://tunnel.example/api/integrations/instagram/connect?role=${role}&returnTo=onboarding&reconnect=keep`);
+    expect(response.headers.get("location")).toBe(`https://tunnel.example/connect/provider?provider=instagram&role=${role}`);
     expect(h.set).not.toHaveBeenCalled();
   });
 
   it("preserves reconnect connectionId parameters through canonicalization",async()=>{
     const url="http://localhost:3000/api/integrations/instagram/connect?role=backup&connectionId=00000000-0000-4000-8000-000000000001&returnTo=onboarding";
     const response=await connect(new Request(url),context);
-    expect(response.headers.get("location")).toBe(url.replace("http://localhost:3000","https://tunnel.example"));
+    expect(response.headers.get("location")).toBe("https://tunnel.example/connect/provider?provider=instagram&role=backup");
     expect(h.getViewer).not.toHaveBeenCalled();expect(h.set).not.toHaveBeenCalled();
   });
 
-  it("does not apply Instagram canonicalization to YouTube OAuth",async()=>{
+  it("gives YouTube its own fail-closed canonical-origin guard",async()=>{
     const source=await import("node:fs/promises").then(fs=>fs.readFile("app/api/integrations/youtube/connect/route.ts","utf8"));
-    expect(source).not.toContain("oauthOriginCheck");expect(source).not.toContain("canonicalOAuthRequest");
+    expect(source).toContain("oauthOriginCheck");expect(source).toContain("canonicalProviderHandoffUrl");expect(source).not.toContain("canonicalOAuthRequest");
   });
 
   function prepareState(nonce="nonce"){

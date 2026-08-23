@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -11,31 +11,54 @@ const connected = read("app/dashboard/settings/connected-accounts/page.tsx");
 const connectedCard = read("components/connected-platform-card.tsx");
 const youtube = read("components/youtube-connection-manager.tsx");
 const security = read("app/dashboard/security/page.tsx");
+const profile = read("app/dashboard/settings/profile/page.tsx");
+const recoveryPass = read("app/dashboard/settings/recovery-pass/page.tsx");
+const plans = read("app/dashboard/settings/plans/page.tsx");
 const mfa = read("components/mfa-panel.tsx");
 const loading = read("app/dashboard/settings/loading.tsx");
 const creatorActions = read("app/actions/creator.ts");
 
 describe("settings product readiness", () => {
+  it("keeps the Settings stylesheet import resolvable", () => {
+    const layout = read("app/dashboard/settings/layout.tsx");
+    expect(layout).toContain('import "./settings-workspace.css"');
+    expect(existsSync(resolve("app/dashboard/settings/settings-workspace.css"))).toBe(true);
+  });
   it("provides a supported, accessible settings information architecture", () => {
-    for (const label of ["Overview", "Profile", "Account", "Security", "Connected Platforms", "Recovery Pass"]) expect(navigation).toContain(label);
+    for (const label of ["Overview", "Profile", "Account & Security", "Connected Platforms", "Recovery Pass", "Plans & Billing"]) expect(navigation).toContain(label);
+    expect(navigation).not.toContain('label: "Security"');
     expect(navigation).toContain('aria-label="Settings"');
     expect(navigation).toContain('aria-current={current ? "page" : undefined}');
     expect(navigation).toContain("overflow-x-auto");
     expect(navigation).toContain("xl:sticky");
     expect(overview).toContain("Creator notifications");
-    expect(overview).toContain("BillingStatusPanel");
-    expect(overview).toContain("readBillingRecord");
+    expect(overview).toContain('href="/dashboard/settings/plans"');
+    expect(overview).not.toContain("BillingStatusPanel");
+    expect(plans).toContain("PlansBillingWorkspace");
+    expect(plans).toContain("readCanonicalPricing");
   });
 
   it("shows truthful account and security status", () => {
     expect(account).toContain("Account created");
     expect(account).toContain("Most recent sign-in");
     expect(account).toContain("Google Sign-In and a YouTube connection are separate");
-    expect(account).toContain("Active session management across other devices is not available");
-    expect(security).toContain("Viewing or revoking sessions on other devices is not currently available");
+    expect(account).not.toContain("Current browser session");
+    expect(account).not.toContain("Active session management across other devices is not available");
+    expect(account).toContain("MfaPanel");
+    expect(security).toContain('redirect("/dashboard/settings/account")');
     expect(mfa).toContain("No authenticator app is enrolled");
     expect(mfa).toContain("Confirm authenticator removal");
+    expect(mfa).toContain("data?.all");
+    expect(mfa).toContain('factor.status === "unverified"');
+    expect(mfa).toContain("pending-factor-cleanup");
     expect(mfa).not.toContain("error.message");
+  });
+
+  it("keeps profile and Recovery Pass inside the settings workspace", () => {
+    expect(profile).toContain("CreatorForm");
+    expect(profile).toContain("canonical identity");
+    expect(recoveryPass).toContain("Current status");
+    expect(recoveryPass).toContain("recovery_pass_enabled");
   });
 
   it("distinguishes OAuth connections from manual public accounts", () => {

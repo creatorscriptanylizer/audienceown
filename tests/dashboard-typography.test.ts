@@ -32,6 +32,15 @@ describe("authenticated app typography contract", () => {
     expect(dashboardCss).toContain("font-size:var(--text-display)");
   });
 
+  it("keeps metric labels on the primary foreground while preserving semantic accents and muted support", () => {
+    expect(dashboardCss).toMatch(/\.premium-metric-top p\{color:var\(--foreground\)/);
+    expect(dashboardCss).toMatch(/\.audience-updates \.audience-update-metrics article p\{color:var\(--foreground\)/);
+    expect(dashboardCss).toMatch(/\.premium-metric-top span\{[^}]*color:var\(--metric-tone\)/);
+    expect(dashboardCss).toMatch(/\.audience-updates \.audience-update-metrics article>div>span\{[^}]*color:var\(--update-tone\)/);
+    expect(dashboardCss).toMatch(/\.premium-metric-support\{[^}]*color:var\(--text-supporting\)/);
+    expect(dashboardCss).toMatch(/\.audience-updates \.audience-update-metrics article>small\{[^}]*color:var\(--text-tertiary\)/);
+  });
+
   it("maps legacy supporting copy onto Updates body roles", () => {
     for (const selector of [".platform-card-copy small", ".connected-card-copy small", ".account-section-heading p", ".method-copy small", ".backup-empty-state p"]) {
       expect(globalCss).toContain(`.dashboard-app ${selector}`);

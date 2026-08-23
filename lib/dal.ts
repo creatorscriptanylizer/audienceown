@@ -1,12 +1,22 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 export const getViewer = cache(async () => {
   const supabase = await createClient();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error("viewer_lookup_unavailable", { cause: error });
+  return data.user;
+});
+
+export const getOptionalViewer = cache(async () => {
+  const supabase = await createClient();
+  if (!supabase) throw new Error("viewer_lookup_unavailable");
+  const { data, error } = await supabase.auth.getUser();
+  if (isAuthSessionMissingError(error)) return null;
   if (error) throw new Error("viewer_lookup_unavailable", { cause: error });
   return data.user;
 });
@@ -22,6 +32,19 @@ export const getCreator = cache(async () => {
   const supabase = await createClient();
   if (!user || !supabase) return null;
   const { data, error } = await supabase.from("creators").select("*").eq("owner_user_id", user.id).maybeSingle();
+  if (error) throw new Error("creator_lookup_unavailable", { cause: error });
+  return data;
+});
+
+export const getOptionalCreator = cache(async () => {
+  const user = await getOptionalViewer();
+  const supabase = await createClient();
+  if (!user || !supabase) return null;
+  const { data, error } = await supabase
+    .from("creators")
+    .select("owner_user_id, public_slug")
+    .eq("owner_user_id", user.id)
+    .maybeSingle();
   if (error) throw new Error("creator_lookup_unavailable", { cause: error });
   return data;
 });

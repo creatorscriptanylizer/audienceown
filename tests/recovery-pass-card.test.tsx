@@ -29,11 +29,12 @@ describe("RecoveryPassCard hydration", () => {
     document.body.append(container);
 
     const eyebrow = [...container.querySelectorAll("p")].find((element) => element.textContent === "Your Recovery Pass");
-    const status = [...container.querySelectorAll("span")].find((element) => element.textContent === "Ready");
+    const status = [...container.querySelectorAll("span")].find((element) => element.textContent?.trim() === "Action required");
     const description = [...container.querySelectorAll("p")].find((element) => element.textContent?.startsWith("Share this link"));
     const url = [...container.querySelectorAll("span")].find((element) => element.textContent === recoveryPass.displayUrl);
     expect(eyebrow?.className).toBe("text-sm font-semibold uppercase tracking-[.16em] text-violet-300");
-    expect(status?.className).toBe("inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300");
+    expect(status?.className).toContain("recovery-pass-status");
+    expect(status?.className).toContain("text-amber-200");
     expect(description?.className).toBe("mt-1 text-base leading-[1.6] text-zinc-300");
     expect(url?.className).toContain("text-base");
 
@@ -56,7 +57,8 @@ describe("RecoveryPassCard hydration", () => {
       expect(description?.className.split(" ")).not.toContain("text-sm");
       expect(url?.className.split(" ")).not.toContain("text-sm");
       expect(eyebrow?.className).toBe("text-sm font-semibold uppercase tracking-[.16em] text-violet-300");
-      expect(status?.className).toBe("inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300");
+      expect(status?.className).toContain("recovery-pass-status");
+      expect(status?.className).toContain("text-amber-200");
       expect(description?.className).toBe("mt-1 text-base leading-[1.6] text-zinc-300");
       expect(url?.className).toContain("text-base");
     } finally {

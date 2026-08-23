@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','creator_update_recovery_destinations','Recovery communication destinations table exists');
+select col_is_pk('public','creator_update_recovery_destinations',array['update_id','connected_account_id'],'destination cannot be duplicated for one update');
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='public.creator_update_recovery_destinations'::regclass),'destination relation forces RLS');
+select table_privs_are('public','creator_update_recovery_destinations','authenticated',array['SELECT'],'creators can only read relationship rows');
+select table_privs_are('public','creator_update_recovery_destinations','service_role',array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'],'service role controls writes');
+select function_privs_are('public','create_recovery_communication_draft',array['uuid','jsonb','uuid[]'],'service_role',array['EXECUTE'],'atomic create is service-only');
+select function_privs_are('public','update_recovery_communication_draft',array['uuid','uuid','jsonb','uuid[]'],'service_role',array['EXECUTE'],'atomic update is service-only');
+select function_privs_are('public','replace_creator_update_recovery_destinations',array['uuid','uuid','uuid[]'],'service_role',array['EXECUTE'],'atomic replacement is service-only');
+select * from finish();
+rollback;

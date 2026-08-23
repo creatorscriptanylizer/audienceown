@@ -3,9 +3,9 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canonicalize } from "@/lib/authenticity/canonical";
 import { boundedNetworkFetch, decryptWebhookSecret, webhookSignature } from "@/lib/authenticity/network-security";
+import { webhookRetry } from "@/lib/authenticity/webhook-retry";
 
 function authorized(request: Request) { const expected = process.env.AUTHENTICITY_WEBHOOK_WORKER_SECRET, actual = request.headers.get("authorization")?.replace(/^Bearer\s+/i, ""); return Boolean(expected && actual && expected.length === actual.length && timingSafeEqual(Buffer.from(expected), Buffer.from(actual))); }
-export function webhookRetry(attempt: number, max: number, status?: number) { if (attempt >= max) return "failed" as const; if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) return "failed" as const; return "retrying" as const; }
 const unavailable = () => Response.json({ error: "Temporarily unavailable" }, { status: 503, headers: { "cache-control": "no-store" } });
 
 export async function POST(request: Request) {

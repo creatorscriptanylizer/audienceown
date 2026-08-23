@@ -16,8 +16,9 @@ function enabled(area: DebugArea) {
 
 function sanitizeValue(key: string, value: unknown, depth = 0): unknown {
   if (value === "configured" || value === "missing" || value === "invalid_format") return value;
+  if (typeof value === "boolean" || typeof value === "number") return value;
   if (SENSITIVE_KEY.test(key)) return "[REDACTED]";
-  if (value == null || typeof value === "boolean" || typeof value === "number") return value;
+  if (value == null) return value;
   if (typeof value === "string") {
     if (/^Bearer\s+/i.test(value) || value.split(".").length === 3 && value.length > 80) return "[REDACTED]";
     return value.length > 2_000 ? `${value.slice(0, 2_000)}…` : value;
@@ -72,6 +73,19 @@ export function debugError(area: DebugArea, error: unknown, metadata: DebugMetad
 }
 export function debugDatabaseError(operation: string, table: string, error: unknown, metadata: DebugMetadata = {}) {
   emit("[AUDIENCEOWN DB]", "error", "database", { operation, table, status: "FAILED", ...metadata, ...serializeDebugError(error) });
+}
+
+export function debugEmailVerification(metadata: DebugMetadata) {
+  emit("[AUDIENCEOWN EMAIL VERIFY]", "info", "general", metadata);
+}
+
+export function recoveryMemberDebugEnabled() {
+  return process.env.AUDIENCEOWN_DEBUG === "true" || process.env.AUDIENCEOWN_DEBUG === "1";
+}
+
+export function debugRecoveryMember(metadata: DebugMetadata) {
+  if (!recoveryMemberDebugEnabled()) return;
+  console.info("[AUDIENCEOWN RECOVERY MEMBER]", metadata);
 }
 
 export function debugStep(area: DebugArea, step: string, metadata: DebugMetadata = {}) {

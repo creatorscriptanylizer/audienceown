@@ -40,14 +40,17 @@ const payload = {
 
 describe("canonical public creator page assembler", () => {
   it("maps one RPC payload into the page model", async () => {
-    rpc.mockResolvedValueOnce({ data: payload, error: null });
+    rpc.mockResolvedValueOnce({ data: payload, error: null }).mockResolvedValueOnce({ data: { recoveryPassName: "Creator Safety Net", displayName: "Canonical Creator", slug: "canonical-creator", tagline: "Always find me", biography: "Canonical biography" }, error: null });
     const page = await getPublicCreatorPage("canonical-creator");
-    expect(rpc).toHaveBeenLastCalledWith("get_public_creator_page", { p_slug: "canonical-creator" });
+    expect(rpc).toHaveBeenCalledWith("get_public_creator_page", { p_slug: "canonical-creator" });
+    expect(rpc).toHaveBeenCalledWith("get_public_recovery_pass_profile", { p_slug: "canonical-creator" });
     expect(page).toMatchObject({
       bio: "Canonical biography",
       creator: {
         handle: "canonical-creator",
         displayName: "Canonical Creator",
+        recoveryPassName: "Creator Safety Net",
+        tagline: "Always find me",
         emergencyMode: true,
         affectedPlatform: "youtube",
         announcement: { title: "Public notice" },
@@ -58,9 +61,9 @@ describe("canonical public creator page assembler", () => {
   });
 
   it("distinguishes not found from backend failure", async () => {
-    rpc.mockResolvedValueOnce({ data: null, error: null });
+    rpc.mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce({ data: null, error: null });
     await expect(getPublicCreatorPage("missing-creator")).resolves.toBeNull();
-    rpc.mockResolvedValueOnce({ data: null, error: { message: "unavailable" } });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "unavailable" } }).mockResolvedValueOnce({ data: null, error: null });
     await expect(getPublicCreatorPage("broken-creator")).rejects.toBeInstanceOf(PublicCreatorPageUnavailableError);
   });
 

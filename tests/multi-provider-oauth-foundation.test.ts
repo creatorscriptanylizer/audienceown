@@ -43,7 +43,7 @@ describe("multi-provider OAuth foundation",()=>{
 
   it("accepts an optional parent hint while database reconciliation owns the lasting hierarchy",()=>{
     const connect=readFileSync("app/api/integrations/[provider]/connect/route.ts","utf8"),callback=readFileSync("app/api/integrations/[provider]/callback/route.ts","utf8"),meta=readFileSync("app/api/integrations/meta/connect/route.ts","utf8"),metaCallback=readFileSync("app/api/integrations/meta/callback/route.ts","utf8");
-    for(const source of[connect,meta]){expect(source).toContain("protectedOfficialAccountId");expect(source).toContain('role==="backup"&&protectedOfficialAccountId');expect(source).toContain('eq("account_type","official")');expect(source).not.toContain("official_account_required");}
+    for(const source of[connect,meta]){const compact=source.replace(/\s+/g,"");expect(source).toContain("protectedOfficialAccountId");expect(compact).toContain('role==="backup"&&protectedOfficialAccountId');expect(compact).toContain('eq("account_type","official")');expect(source).not.toContain("official_account_required");}
     for(const source of[callback,metaCallback])expect(source).toContain("protected_official_account_id");
   });
 

@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicAuthenticity } from "./server";
 import type { AccountLookup } from "./network-types";
+import { canonicalPublicOrigin, getPublicVerificationUrl } from "@/lib/canonical-public-url";
 
 export class PublicLookupUnavailableError extends Error {}
 
@@ -68,10 +69,10 @@ export async function lookupOfficialAccount(input: { url?: string; provider?: st
     ? normalizeAccountUrl(account.url) === wantedUrl
     : account.provider === input.provider?.toLowerCase() && normalizeHandle(account.handle ?? "") === wantedHandle);
   if (matches.length !== 1) return { matched: false, ...(matches.length > 1 ? { ambiguous: true } : {}) };
-  const base = process.env.AUTHENTICITY_PUBLIC_BASE_URL ?? "http://localhost:3000";
+  const base = canonicalPublicOrigin();
   return {
     matched: true,
-    creator: { slug: record.creator.slug, displayName: record.creator.displayName, verificationUrl: new URL(record.authenticity.verificationUrl, base).toString() },
+    creator: { slug: record.creator.slug, displayName: record.creator.displayName, verificationUrl: getPublicVerificationUrl(record.creator.slug) },
     account: { ...matches[0], status: "verified" },
     authenticity: { state: record.authenticity.state, label: record.authenticity.label },
     emergency: record.emergency,

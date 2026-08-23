@@ -34,6 +34,8 @@ export function HeroProtectionScene(){
       <div className="hero-shield"><div className="shield-panel shield-panel-back"/><div className="shield-panel shield-panel-front"><span className="shield-reflection"/><div className="shield-core"><b>AO</b><small>AudienceOwn</small></div></div></div>
     </motion.div>
     {planets.map(([provider,label,start,duration,radius],index)=><button type="button" key={provider} aria-label={`${label}, protected platform`} onClick={()=>{setRippling(provider);window.setTimeout(()=>setRippling(null),650)}} className={`orbit-node orbit-node-${index} ${rippling===provider?"is-rippling":""}`} style={{"--orbit-start":`${start}deg`,"--orbit-duration":`${duration}s`,"--orbit-radius":`${radius*5}px`} as React.CSSProperties}><span className="orbit-bob"><PlatformBrandIcon provider={provider} label={label} animated={!reduced}/><em>{label}</em></span></button>)}
+    <div className="hero-permanent-link"><span>Permanent destination</span><strong>audienceown.com/yourname</strong></div>
+    <p className="hero-system-label">Multiple platforms <b>+</b> one protection layer</p>
     {Array.from({length:14},(_,index)=><i aria-hidden className="scene-particle" style={{left:`${8+(index*17)%84}%`,top:`${6+(index*23)%88}%`,"--particle-delay":`${-index*.47}s`,"--particle-size":`${2+(index%3)}px`} as React.CSSProperties} key={index}/>)}
   </div>
 }

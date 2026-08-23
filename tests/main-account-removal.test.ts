@@ -11,19 +11,38 @@ const historyMigration = source("supabase/migrations/20260829000000_detach_conne
 const cleanupGrants = source("supabase/migrations/20260829000001_service_role_connected_account_cleanup_grants.sql");
 const providerAccounts = source("lib/social-providers/creator-provider-accounts.ts");
 const platformsPage = source("app/dashboard/platforms/page.tsx");
+const networks = source("components/recovery-network-manager.tsx");
 
 describe("official account removal", () => {
   it("offers a restrained per-account remove action", () => {
-    expect(manager).toContain('aria-label={`Remove ${account.label||platform.name}`}');
-    expect(manager).toContain("removeOfficial(index)");
-    expect(manager).toContain("removeMainAccount(item.id)");
-    expect(manager).toContain("officials:value.officials.filter");
+    expect(manager).toContain("Disconnect Main account");
+    expect(manager).toContain("disconnectManagedMain");
+    expect(manager).toContain("removeMainAccount(account.id)");
+    expect(manager).toContain("Recovery accounts in this Recovery Network will remain connected");
+  });
+
+  it("replaces Recovery Network management with accessible Main deletion",()=>{
+    expect(networks).not.toContain("Manage Main account");
+    expect(networks).toContain('aria-label={`Delete Main account ${m.platform} · ${m.label}`}');
+    expect(networks).toContain("onClick={()=>openMainDelete(m,n)}");
+    expect(networks).toContain("removeMainAccount(deletingMain.account.id)");
+    expect(networks).toContain('role="dialog"');
+    expect(networks).toContain("mainReturn.current?.focus()");
+    expect(networks).toContain("Your Recovery Network and its");
+  });
+
+  it("keeps Recoveries connected while reporting exact relationship impact",()=>{
+    expect(networks).toContain("deletingMain.network.recovery_account_ids.length");
+    expect(networks).toContain("will remain in place");
+    const persistentMigration=source("supabase/migrations/20260920000000_persistent_recovery_networks.sql");
+    expect(persistentMigration).toContain("main_connected_account_id uuid references public.connected_accounts(id) on delete set null");
+    expect(removal).not.toContain('from("connected_accounts").delete().eq("account_type", "backup")');
   });
 
   it("keeps failure state intact and shows the required feedback", () => {
     expect(actions).toContain("We couldn’t remove this account. Please try again.");
     expect(manager).toContain("if(result.error){window.alert(result.error);return;}");
-    expect(manager.indexOf("if(result.error)")).toBeLessThan(manager.indexOf("officials:value.officials.filter"));
+    expect(manager.indexOf("if(result.error)")).toBeLessThan(manager.indexOf("router.refresh()"));
   });
 
   it("authorizes the exact creator-owned official connection without requiring global primary status", () => {
@@ -90,11 +109,12 @@ describe("official account removal", () => {
     expect(removal).not.toContain('from("emergency_plans").delete()');
   });
 
-  it("shows an empty official state while retaining the independent backup UI", () => {
-    expect(manager).toContain("No official accounts connected");
-    expect(manager).toContain("Add the first platform your audience knows you from.");
-    expect(manager).toContain("Add official account");
-    expect(manager).toContain("draft.backups.map");
+  it("shows a hierarchical Main-first state without an independent Recovery column", () => {
+    const networks=source("components/recovery-network-manager.tsx");
+    expect(networks).toContain("No Recovery Networks yet");
+    expect(networks).toContain("Set up a Recovery Network");
+    expect(networks).not.toContain("Set one up when you’re ready to give your audience another trusted way to find you.");
+    expect(manager).not.toContain("backupColumn");
   });
 
   it("builds fresh official and backup drafts whenever configuration opens", () => {
@@ -109,11 +129,11 @@ describe("official account removal", () => {
     expect(platformsPage).toContain("const accounts=configuredConnections.map");
   });
 
-  it("starts replacement OAuth as official and preserves backup removal", () => {
+  it("starts replacement OAuth as Main and preserves network-owned Recovery accounts", () => {
     expect(manager).toContain("connectPath}?role=${flow.role}");
     expect(actions).toContain('account_type:"official"');
     expect(actions).toContain("existingPrimaryId");
-    expect(manager).toContain("backups:value.backups.filter");
+    expect(manager).toContain("Recovery accounts in this Recovery Network will remain connected");
   });
 
   it("preserves multiple official platforms and enforces one official per platform", () => {

@@ -6,7 +6,7 @@ import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/logo";
 
 const links = [
-  ["Product", "#product"],
+  ["Protection", "#product"],
   ["How it works", "#how-it-works"],
   ["Pricing", "#pricing"],
   ["Resources", "#resources"],
@@ -29,8 +29,8 @@ export function MarketingNav() {
         {links.map(([label, href]) => <Link key={href} href={href} className="nav-link">{label}</Link>)}
       </nav>
       <div className="flex items-center gap-2">
-        <Link href="/login" className="nav-signin hidden sm:inline-flex">Sign in</Link>
-        <Link href="/register" className="button button-primary hidden h-11 px-4 text-sm sm:inline-flex">Create your page, it&apos;s free</Link>
+        <Link href="/register?mode=signin" className="nav-signin hidden sm:inline-flex">Sign in</Link>
+        <Link href="/register?mode=signup" className="button button-primary hidden h-11 px-4 text-sm sm:inline-flex">Protect your audience</Link>
         <button type="button" className="nav-menu md:hidden" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen(v => !v)}>
           {open ? <X size={20}/> : <Menu size={20}/>}
         </button>
@@ -38,8 +38,8 @@ export function MarketingNav() {
     </div>
     {open && <nav className="mobile-nav md:hidden" aria-label="Mobile navigation">
       {links.map(([label, href]) => <Link key={href} href={href} onClick={() => setOpen(false)}>{label}</Link>)}
-      <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
-      <Link className="mobile-nav-cta" href="/register" onClick={() => setOpen(false)}>Create your page, it&apos;s free</Link>
+      <Link href="/register?mode=signin" onClick={() => setOpen(false)}>Sign in</Link>
+      <Link className="mobile-nav-cta" href="/register?mode=signup" onClick={() => setOpen(false)}>Protect your audience</Link>
     </nav>}
   </header>;
 }

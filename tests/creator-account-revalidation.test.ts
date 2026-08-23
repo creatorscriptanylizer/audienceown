@@ -11,7 +11,12 @@ describe("creator account cache invalidation", () => {
   it("invalidates both account surfaces and their shared creator tag after OAuth writes", () => {
     revalidateCreatorAccounts("creator-a");
     expect(cache.revalidatePath.mock.calls).toEqual([
-      ["/dashboard"], ["/dashboard/platforms"], ["/dashboard/settings/connected-accounts"], ["/c/[slug]", "page"],
+      ["/dashboard"],
+      ["/dashboard/platforms"],
+      ["/dashboard/settings/connected-accounts"],
+      ["/dashboard/authenticity"],
+      ["/c/[slug]", "page"],
+      ["/verify/[slug]", "page"],
     ]);
     expect(cache.revalidateTag.mock.calls).toEqual([
       [creatorAccountsCacheTag("creator-a"), "max"],

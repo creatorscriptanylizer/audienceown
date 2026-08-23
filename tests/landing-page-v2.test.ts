@@ -6,25 +6,26 @@ const navigation = readFileSync(new URL("../components/marketing-nav.tsx", impor
 const preview = readFileSync(new URL("../components/product-preview.tsx", import.meta.url), "utf8");
 const heroScene = readFileSync(new URL("../components/hero-protection-scene.tsx", import.meta.url), "utf8");
 const pricing = readFileSync(new URL("../components/landing-pricing.tsx", import.meta.url), "utf8");
+const planCatalog = readFileSync(new URL("../lib/billing/plan-catalog.ts", import.meta.url), "utf8");
 const footer = readFileSync(new URL("../components/public-footer.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 
 describe("premium landing page", () => {
   it("provides the public navigation, mobile menu, and primary conversion paths", () => {
-    for (const label of ["Product", "How it works", "Pricing", "Resources"]) expect(navigation).toContain(label);
+    for (const label of ["Protection", "How it works", "Pricing", "Resources"]) expect(navigation).toContain(label);
     expect(navigation).not.toContain('["Trust",');
     expect(navigation).not.toContain('["FAQ",');
     expect(navigation).toContain('aria-expanded={open}');
     expect(navigation).toContain('aria-label={open ? "Close navigation" : "Open navigation"}');
-    expect(navigation).toContain("Create your page, it&apos;s free");
+    expect(navigation).toContain("Protect your audience");
     expect(page).toContain('href="/register"');
-    expect(page).toContain('href="#how-it-works"');
+    expect(page).toContain('href="#protection-system"');
   });
 
   it("tells the recovery story with a realistic product preview", () => {
-    expect(page).toContain("Never lose");
+    expect(page).toContain("shouldn&apos;t disappear");
     expect(page).toContain("Recovery Pass");
-    expect(page).toContain("You send a recovery alert");
+    expect(page).toContain("Creator activates recovery");
     expect(preview).toContain("Official Accounts");
     expect(preview).toContain("Backup Accounts");
     expect(preview).toContain("Direct connections");
@@ -34,13 +35,13 @@ describe("premium landing page", () => {
   it("uses launch-safe provider and shared health wording", () => {
     expect(page).toContain('["youtube","YouTube","OAuth available"]');
     expect(page).toContain('["instagram","Instagram","OAuth available"]');
-    for (const state of ["Healthy", "Syncing", "Action required", "Temporarily unavailable", "Disconnected", "Manual"]) expect(page).toContain(state);
+    for (const state of ["Healthy", "Syncing", "Action required", "Disconnected", "Manual connection"]) expect(page).toContain(state);
     expect(page).not.toMatch(/\d[\d,]+ creators|\d[\d,]+ connected platforms|uptime/i);
   });
 
   it("states the Free and Pro limits without adding unsupported plans", () => {
-    for (const item of ["1 Main Platform", "1 Backup Platform", "Up to 500 protected followers", "1 Emergency Recovery Alert each month", "1 Creator Update each month"]) expect(pricing).toContain(item);
-    for (const item of ["Unlimited Connected Platforms", "Unlimited Backup Platforms", "Unlimited Protected Followers", "Unlimited Emergency Recovery Alerts", "Unlimited Creator Updates"]) expect(pricing).toContain(item);
+    for (const item of ["1 Main Platform", "1 Backup Platform", "Up to 500 protected followers", "1 Emergency Recovery Alert each month", "1 Creator Update each month"]) expect(planCatalog).toContain(item);
+    for (const item of ["Unlimited Connected Platforms", "Unlimited Backup Platforms", "Unlimited Protected Followers", "Unlimited Emergency Recovery Alerts", "Unlimited Creator Updates"]) expect(planCatalog).toContain(item);
     expect(pricing).toContain('yearly ? "10" : "12"');
     expect(pricing).not.toMatch(/Team plan|Enterprise plan/);
   });
@@ -89,8 +90,8 @@ describe("premium landing page", () => {
 
   it("uses followers consistently in public marketing copy", () => {
     expect(page).toContain("AudienceOwn gives your followers");
-    expect(page).toContain("Followers see your backup accounts");
-    expect(pricing).toContain("Up to 500 protected followers");
+    expect(page).toContain("Followers receive the path forward");
+    expect(planCatalog).toContain("Up to 500 protected followers");
     expect(page).not.toMatch(/your people|People choose|Let people|Fans see|protected fans/i);
   });
 

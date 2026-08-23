@@ -29,6 +29,8 @@ export type PublicAnnouncement = {
 export type CreatorRecord = {
   handle: string;
   displayName: string;
+  recoveryPassName?: string;
+  tagline?: string | null;
   avatar?: string;
   bio?: string | null;
   bannerImagePath?: string | null;

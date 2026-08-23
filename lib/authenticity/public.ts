@@ -1,6 +1,8 @@
 import type{AuthenticityRecord,AuthenticityState}from"./types";
 import{authenticityStates}from"./types";
+import{canonicalPublicOrigin,getPublicVerificationUrl}from"@/lib/canonical-public-url";
 export function parseAuthenticityRecord(value:unknown):AuthenticityRecord|null{if(!value||typeof value!=="object"||Array.isArray(value))return null;const r=value as Record<string,unknown>,creator=r.creator,auth=r.authenticity;if(!creator||typeof creator!=="object"||!auth||typeof auth!=="object"||!Array.isArray(r.accounts)||!Array.isArray(r.domains)||!Array.isArray(r.relationships)||!Array.isArray(r.continuity))return null;const c=creator as Record<string,unknown>,a=auth as Record<string,unknown>;if(typeof c.slug!=="string"||typeof c.displayName!=="string"||typeof a.state!=="string"||!authenticityStates.includes(a.state as AuthenticityState)||typeof a.label!=="string"||typeof a.lastUpdatedAt!=="string")return null;return value as AuthenticityRecord;}
 export function isVerifiedAuthenticity(state:AuthenticityState){return state==="verified_identity"||state==="strongly_verified_identity"||state==="verification_needs_attention"||state==="emergency_recovery_active";}
 export function canonicalVerificationPath(slug:string){return`/verify/${encodeURIComponent(slug)}`;}
-export function publicBaseUrl(){const configured=process.env.AUTHENTICITY_PUBLIC_BASE_URL;try{return new URL(configured??"http://localhost:3000").origin;}catch{return"http://localhost:3000";}}
+export{getPublicVerificationUrl};
+export function publicBaseUrl(){return canonicalPublicOrigin();}

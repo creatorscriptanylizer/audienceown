@@ -5,6 +5,7 @@ import { decryptSocialSecret } from "@/lib/social-secrets";
 import { requireSameOrigin } from "@/lib/emergency/request-security";
 import { persistYouTubeConnection, YouTubeConnectionError } from "@/lib/youtube-connection";
 import type { YouTubeChannelIdentity } from "@/lib/youtube-watcher";
+import { applyRecoveryAutoLinkIntent } from "@/lib/social-providers/recovery-auto-link";
 
 export const runtime = "nodejs";
 const schema = z.object({ pendingSelectionId: z.string().uuid(), selectedChannelId: z.string().min(1).max(128) }).strict();
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     .eq("id", pending.data.id).is("consumed_at", null).select("id").maybeSingle();
   if (claim.error || !claim.data) return failure("selection_expired", "This channel selection was already used.", 409);
   try {
-    await persistYouTubeConnection({
+    const persisted=await persistYouTubeConnection({
       admin, creatorId: creator.id, role: pending.data.requested_role,
       reconnectConnectionId: pending.data.reconnect_connection_id ?? undefined, protectedOfficialAccountId:pending.data.protected_official_account_id??undefined, channel,
       tokens: {
@@ -45,9 +46,10 @@ export async function POST(request: Request) {
         scope: pending.data.granted_scopes.join(" "), tokenType: pending.data.token_type, expiresAt: pending.data.token_expires_at,
       },
     });
+    const autoLink=await applyRecoveryAutoLinkIntent(admin,{creatorId:creator.id,connectedAccountId:persisted.connectionId,provider:"youtube",role:pending.data.requested_role,recoveryForMainAccountId:pending.data.recovery_for_main_account_id??undefined});
     const removed = await admin.from("youtube_oauth_pending_selections").delete().eq("id", pending.data.id);
     if (removed.error) console.warn("provider_oauth", { event: "pending_selection_cleanup_failed", provider: "youtube", role: pending.data.requested_role });
-    return Response.json({ status: "connected" });
+    return Response.json({ status:autoLink==="linked"||autoLink==="existing"?"connected_recovery_linked":autoLink==="failed"?"connected_recovery_link_failed":"connected",connectionId:persisted.connectionId });
   } catch (error) {
     await admin.from("youtube_oauth_pending_selections").update({ consumed_at: null }).eq("id", pending.data.id);
     if (error instanceof YouTubeConnectionError && error.code === "already_connected") return failure("already_connected", "That YouTube channel is already connected to AudienceOwn.", 409);

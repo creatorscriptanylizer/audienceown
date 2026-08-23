@@ -22,7 +22,21 @@ vi.mock("@/lib/dal", () => ({
 vi.mock("@/lib/youtube-oauth", () => ({
   YOUTUBE_READONLY_SCOPE: "https://www.googleapis.com/auth/youtube.readonly",
   exchangeYouTubeCode: mocks.exchangeYouTubeCode,
+  validateYouTubeGrantedScopes: (value: string | undefined) => {
+    const grantedScopes = [...new Set((value ?? "").split(/\s+/).filter(Boolean))];
+    const required = "https://www.googleapis.com/auth/youtube.readonly";
+    const allowed = new Set([required, "openid", "email", "profile", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]);
+    return !grantedScopes.includes(required)
+      ? { valid:false, grantedScopes, failure:"required_scope_missing" }
+      : grantedScopes.some((scope) => !allowed.has(scope))
+        ? { valid:false, grantedScopes, failure:"unexpected_scope" }
+        : { valid:true, grantedScopes, failure:null };
+  },
   verifyYouTubeOAuthState: mocks.verifyYouTubeOAuthState,
+  inspectYouTubeOAuthState: (...args: unknown[]) => {
+    const state = mocks.verifyYouTubeOAuthState(...args);
+    return { state, signatureValid:Boolean(state), expired:false, nonceMatches:Boolean(state) };
+  },
 }));
 vi.mock("@/lib/youtube-watcher", () => ({ getYouTubeChannels: mocks.getYouTubeChannels }));
 vi.mock("@/lib/social-secrets", () => ({
@@ -101,14 +115,14 @@ describe("YouTube OAuth audience sync", () => {
       headers,
     }));
 
-    expect(response.headers.get("location")).toBe("https://audienceown.com/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("https://audienceown.com/dashboard/platforms?youtube=connected&connectionId=connection-1");
   });
 
   it("does not inherit an HTTPS localhost callback origin", async () => {
     process.env.APP_URL = "https://audienceown.com";
     const response = await GET(new Request("https://localhost:3000/api/integrations/youtube/callback?code=code&state=state"));
 
-    expect(response.headers.get("location")).toBe("https://audienceown.com/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("https://audienceown.com/dashboard/platforms?youtube=connected&connectionId=connection-1");
   });
 
   it("uses APP_URL for a cancelled onboarding callback", async () => {
@@ -134,13 +148,13 @@ describe("YouTube OAuth audience sync", () => {
       },
     }));
 
-    expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard/platforms?youtube=connected&connectionId=connection-1");
   });
 
   it("persists authenticated subscribers before redirecting so the dashboard does not await its first sync", async () => {
     const response = await GET(new Request("https://app.test/api/integrations/youtube/callback?code=code&state=state"));
 
-    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected&connectionId=connection-1");
     expect(mocks.getYouTubeChannels).toHaveBeenCalledWith("youtube-access");
     expect(mocks.rpc).toHaveBeenCalledWith("upsert_provider_audience_metric", expect.objectContaining({
       p_creator_id: "creator-1", p_connection_id: "connection-1", p_provider: "youtube",
@@ -148,6 +162,23 @@ describe("YouTube OAuth audience sync", () => {
     }));
     expect(mocks.rpc).toHaveBeenCalledWith("append_provider_audience_snapshot", { p_metric_id: "metric-1" });
     expect(mocks.revalidateCreatorAccounts).toHaveBeenCalledWith("creator-1");
+  });
+
+  it("accepts Google's live read-only plus identity scope set and completes persistence", async () => {
+    mocks.exchangeYouTubeCode.mockResolvedValueOnce({
+      access_token: "youtube-access", refresh_token: "youtube-refresh", expires_in: 3600,
+      scope: "https://www.googleapis.com/auth/youtube.readonly openid email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+      token_type: "Bearer",
+    });
+
+    const response = await GET(new Request("https://app.test/api/integrations/youtube/callback?code=code&state=state"));
+
+    expect(mocks.getYouTubeChannels).toHaveBeenCalledWith("youtube-access");
+    expect(admin.insert).toHaveBeenCalledWith(expect.objectContaining({
+      platform:"youtube", account_type:"official", external_account_id:"channel-1",
+    }));
+    expect(admin.secretUpsert).toHaveBeenCalled();
+    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected&connectionId=connection-1");
   });
 
   it("replaces a revoked credential-less Main without changing the healthy Backup", async () => {
@@ -162,7 +193,7 @@ describe("YouTube OAuth audience sync", () => {
 
     const response = await GET(new Request("https://app.test/api/integrations/youtube/callback?code=code&state=state"));
 
-    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected&connectionId=connection-1");
     expect(mocks.removeCreatorConnectedAccount).toHaveBeenCalledWith(admin, "creator-1", "old-smart-money");
     expect(admin.insert).toHaveBeenCalledWith(expect.objectContaining({
       label:"KwaMoon", account_type:"official", is_primary:true,
@@ -185,7 +216,7 @@ describe("YouTube OAuth audience sync", () => {
     expect(admin.insert).toHaveBeenCalled();
     expect(admin.deleteConnection).toHaveBeenCalled();
     expect(admin.secretUpsert).not.toHaveBeenCalled();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalledWith("upsert_provider_audience_metric", expect.anything());
     const output = diagnostic.mock.calls.flat().join(" ");
     expect(output).not.toContain("youtube-access");
     expect(output).not.toContain("youtube-refresh");
@@ -203,7 +234,7 @@ describe("YouTube OAuth audience sync", () => {
     mocks.verifyYouTubeOAuthState.mockReturnValueOnce({ userId:"user-1", creatorId:"creator-1", role:"backup",protectedOfficialAccountId:"official-1" });
     admin.connectedLookup.maybeSingle.mockResolvedValueOnce({data:{id:"official-1"},error:null});
     const response = await GET(new Request("https://app.test/api/integrations/youtube/callback?code=code&state=state"));
-    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected");
+    expect(response.headers.get("location")).toBe("https://app.test/dashboard/platforms?youtube=connected&connectionId=connection-1");
     expect(admin.insert).toHaveBeenCalledWith(expect.objectContaining({ account_type:"backup", is_primary:false, external_account_id:"channel-1" }));
     expect(mocks.rpc).toHaveBeenCalledWith("upsert_provider_audience_metric", expect.objectContaining({ p_account_category:"backup" }));
   });

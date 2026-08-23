@@ -11,17 +11,18 @@ describe("Updates route availability contract", () => {
   const preview = source("app/dashboard/updates/[id]/preview/page.tsx");
   const create = source("app/dashboard/updates/new/page.tsx");
 
-  it("keeps successful empty root/filter states but makes root failures unavailable", () => {
-    expect(root).toContain("if (updatesResult.error)");
-    expect(root).toContain('title="Update history unavailable"');
-    expect(root.indexOf("if (updatesResult.error)")).toBeLessThan(root.indexOf("updates.length === 0"));
-    expect(root).toContain('activeFilter === "all" ? "Your first weekly update starts here." : `No ${activeFilter} updates yet.`');
-    for (const filter of ["draft", "scheduled", "sent"]) expect(root).toContain(`["${filter}",`);
+  it("keeps successful empty activity distinct from root-query failures", () => {
+    expect(root).toContain("const available=!updatesResult.error&&!accountsResult.error&&!emergenciesResult.error");
+    expect(root).toContain("available={false}");
+    const commandCenter=source("components/updates-activity-command-center.tsx");
+    expect(commandCenter).toContain("Your first update starts here.");
+    expect(commandCenter).toContain("Activity history is unavailable");
+    for (const filter of ["updates","emergency","account","scheduled","failed"]) expect(commandCenter).toContain(`\"${filter}\"`);
   });
 
   it("does not turn a delivery failure into zero recipients", () => {
-    expect(root).toContain("deliveriesResult.error ? <span>— · Delivery data unavailable</span>");
-    expect(root).toContain("recipientCounts.get(update.id) ?? 0");
+    expect(root).toContain("deliveries:deliveriesResult.error?[]:");
+    expect(source("lib/updates-activity.ts")).toContain("recipientCount:deliveries.length?");
     expect(detail).toContain('title="Delivery data unavailable"');
     expect(detail).toContain("deliveriesResult.error ? <>— recipient notifications prepared.");
     expect(detail).not.toContain("deliveries?.length ?? 0");
@@ -34,8 +35,8 @@ describe("Updates route availability contract", () => {
     const unavailable = renderToStaticMarkup(<BroadcastStudio update={update} creator={{displayName:"Creator",publicSlug:"creator"}} accounts={[]} accountsAvailable={false} estimate={null}/>);
     const empty = renderToStaticMarkup(<BroadcastStudio update={update} creator={{displayName:"Creator",publicSlug:"creator"}} accounts={[]} accountsAvailable estimate={null}/>);
     expect(unavailable).toContain("Connected accounts unavailable");
-    expect(unavailable).not.toContain("No official accounts connected");
-    expect(empty).toContain("No official accounts connected");
+    expect(unavailable).not.toContain("No Main accounts connected");
+    expect(empty).toContain("No Main accounts connected");
     expect(empty).not.toContain("Connected accounts unavailable");
   });
 
@@ -47,9 +48,11 @@ describe("Updates route availability contract", () => {
   });
 
   it("keeps secondary detail failures isolated", () => {
-    for (const query of ["connected_accounts", "eligible_recipients", "update_deliveries", "ai_draft_enhancement_jobs", "ai_draft_variants"]) expect(detail).toContain(`["${query}"`);
+    for (const query of ["connected_accounts", "publishing_accounts", "update_deliveries", "ai_draft_enhancement_jobs", "ai_draft_variants"]) expect(detail).toContain(`["${query}"`);
     expect(detail).toContain('title="AI draft history unavailable"');
-    expect(detail).toContain("estimate={estimateResult.data}");
+    expect(detail).not.toContain("getEligibleRecipientsForUpdate");
+    expect(detail).toContain("account_display_snapshot");
+    expect(detail).toContain("Audience calculation unavailable");
   });
 
   it("distinguishes preview lookup failure from genuine absence", () => {
@@ -60,7 +63,7 @@ describe("Updates route availability contract", () => {
 
   it("preserves creator scoping and browser/RLS reads", () => {
     for (const page of [root, detail, preview, create]) expect(page).toContain("requireCreator()");
-    expect(root).toContain('.eq("creator_id", creator.id)');
+    expect(root).toContain('.eq("creator_id",creator.id)');
     expect(detail).toContain('.eq("creator_id", creator.id)');
     expect(preview).toContain('.eq("creator_id", creator.id)');
     expect(create).toContain('.eq("creator_id", creator.id)');

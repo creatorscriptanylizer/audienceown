@@ -15,6 +15,7 @@ export type ClaimedDelivery = {
   content: string;
   cta_label: string | null;
   cta_url: string | null;
+  recovery_destinations?: Array<{connected_account_id:string;provider:string;display_name:string;url:string}>;
   creator_display_name: string;
   creator_public_slug: string;
 };
@@ -33,17 +34,21 @@ export function buildDeliveryMessage(
   appUrl: string,
 ): DeliveryMessage {
   const creatorUrl = `${appUrl.replace(/\/$/, "")}/c/${encodeURIComponent(delivery.creator_public_slug)}`;
+  const recoveryDestinations=delivery.recovery_destinations??[];
+  const recoveryText=recoveryDestinations.length?[delivery.cta_label||"Find me safely here",...recoveryDestinations.flatMap(item=>[`${item.provider} · ${item.display_name}`,item.url])].join("\n"):null;
   const text = [
     delivery.content,
-    delivery.cta_label && delivery.cta_url ? `${delivery.cta_label}: ${delivery.cta_url}` : null,
+    recoveryText??(delivery.cta_label && delivery.cta_url ? `${delivery.cta_label}: ${delivery.cta_url}` : null),
     `Creator page: ${creatorUrl}`,
     `Sent by ${delivery.creator_display_name} through AudienceOwn.`,
   ].filter(Boolean).join("\n\n");
   const html = [
     `<p>${escapeHtml(delivery.content).replaceAll("\n", "<br>")}</p>`,
-    delivery.cta_label && delivery.cta_url
-      ? `<p><a href="${escapeHtml(delivery.cta_url)}">${escapeHtml(delivery.cta_label)}</a></p>`
-      : "",
+    recoveryDestinations.length
+      ? `<section><p><strong>${escapeHtml(delivery.cta_label||"Find me safely here")}</strong></p>${recoveryDestinations.map(item=>`<p><strong>${escapeHtml(item.provider)} · ${escapeHtml(item.display_name)}</strong><br><a href="${escapeHtml(item.url)}">Open ${escapeHtml(item.provider)}</a></p>`).join("")}</section>`
+      : delivery.cta_label && delivery.cta_url
+        ? `<p><a href="${escapeHtml(delivery.cta_url)}">${escapeHtml(delivery.cta_label)}</a></p>`
+        : "",
     `<p><a href="${escapeHtml(creatorUrl)}">Visit ${escapeHtml(delivery.creator_display_name)}’s creator page</a></p>`,
     `<p>Sent by ${escapeHtml(delivery.creator_display_name)} through AudienceOwn.</p>`,
   ].join("");
@@ -65,6 +70,7 @@ export function buildDeliveryMessage(
       creatorId: delivery.creator_id,
       creatorHandle: delivery.creator_public_slug,
       creatorName: delivery.creator_display_name,
+      broadcastType: delivery.broadcast_type,
     },
   };
 }

@@ -25,9 +25,9 @@ const message: DeliveryMessage = {
 describe("SMS provider", () => {
   it("builds a concise deterministic recovery message with the safe URL", () => {
     expect(buildSmsMessage(message)).toBe(
-      "AudienceOwn alert — Creator Name\n\n"
+      "AudienceOwn · Creator Name\n\n"
       + "The creator’s account is temporarily inaccessible.\n\n"
-      + "Official update: https://audienceown.example/c/creator",
+      + "Open: https://audienceown.example/c/creator",
     );
     expect(buildSmsMessage(message)).toBe(buildSmsMessage(message));
   });

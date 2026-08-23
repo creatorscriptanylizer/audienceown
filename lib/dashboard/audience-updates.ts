@@ -2,9 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import type { BroadcastIntent } from "@/lib/broadcast-studio";
 import type { BroadcastStatus, BroadcastType } from "@/lib/updates";
+import { getUpcomingScheduledCommunications } from "@/lib/upcoming-scheduled-communications";
 
 const SUCCESSFUL_SEND_STATUSES = ["accepted", "delivered", "bounced", "complained"] as const;
-const RECENT_LIMIT = 5;
+export const DASHBOARD_RECENT_BROADCAST_LIMIT = 3;
 
 type UpdateRow = {
   id: string;
@@ -103,6 +104,8 @@ function itemFromRow(
 export function buildAudienceUpdatesSummary(input: {
   now: Date;
   updates: UpdateRow[];
+  recentUpdates?: UpdateRow[];
+  upcomingScheduled?: UpdateRow[];
   deliveries: DeliveryRow[];
   platforms: Array<{ id: string; platform: string }>;
 }) {
@@ -115,12 +118,12 @@ export function buildAudienceUpdatesSummary(input: {
   const deliveredInPeriod = input.deliveries.filter((delivery) =>
     Boolean(delivery.delivered_at && delivery.delivered_at >= cutoff),
   );
-  const futureScheduled = input.updates
+  const futureScheduled = (input.upcomingScheduled ?? input.updates)
     .filter((row) => row.status === "scheduled" && Boolean(row.scheduled_for && row.scheduled_for > input.now.toISOString()))
     .sort((a, b) => a.scheduled_for!.localeCompare(b.scheduled_for!));
-  const recentRows = [...input.updates]
+  const recentRows = [...(input.recentUpdates ?? input.updates)]
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    .slice(0, RECENT_LIMIT);
+    .slice(0, DASHBOARD_RECENT_BROADCAST_LIMIT);
   const byPlatform = new Map<string, number>();
   for (const updateId of new Set(sentInPeriod.map((delivery) => delivery.update_id))) {
     const row = input.updates.find((update) => update.id === updateId);
@@ -153,20 +156,26 @@ export async function getAudienceUpdatesSummary(
   now = new Date(),
 ): Promise<AudienceUpdatesSummary> {
   const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const [{ data: updates, error: updatesError }, { data: periodDeliveries, error: periodError }] = await Promise.all([
+  const updateSelection = "id,broadcast_type,broadcast_intent,status,title,scheduled_for,sent_at,queued_at,updated_at,affected_platform_connection_id,source_provider";
+  const [{ data: updates, error: updatesError }, { data: recentUpdates, error: recentUpdatesError }, upcomingScheduled, { data: periodDeliveries, error: periodError }] = await Promise.all([
     db.from("creator_updates").select(
-      "id,broadcast_type,broadcast_intent,status,title,scheduled_for,sent_at,queued_at,updated_at,affected_platform_connection_id,source_provider",
+      updateSelection,
     ).eq("creator_id", creatorId).order("updated_at", { ascending: false }).limit(100),
+    db.from("creator_updates").select(updateSelection)
+      .eq("creator_id", creatorId).order("updated_at", { ascending: false }).limit(DASHBOARD_RECENT_BROADCAST_LIMIT),
+    getUpcomingScheduledCommunications(db, creatorId, now),
     db.from("update_deliveries").select(
       "update_id,contact_id,transport,status,accepted_at,delivered_at",
     ).eq("creator_id", creatorId).in("status", [...SUCCESSFUL_SEND_STATUSES])
       .or(`accepted_at.gte.${cutoff},delivered_at.gte.${cutoff}`),
   ]);
   if (updatesError) throw updatesError;
+  if (recentUpdatesError) throw recentUpdatesError;
   if (periodError) throw periodError;
 
   const updateRows = (updates ?? []) as UpdateRow[];
-  const recentIds = updateRows.slice(0, RECENT_LIMIT).map((row) => row.id);
+  const recentRows = (recentUpdates ?? []) as UpdateRow[];
+  const recentIds = recentRows.map((row) => row.id);
   const platformIds = [...new Set(updateRows.map((row) => row.affected_platform_connection_id).filter((id): id is string => Boolean(id)))];
   const [{ data: recentDeliveries, error: recentError }, { data: platforms, error: platformsError }] = await Promise.all([
     recentIds.length
@@ -186,6 +195,8 @@ export async function getAudienceUpdatesSummary(
   return buildAudienceUpdatesSummary({
     now,
     updates: updateRows,
+    recentUpdates: recentRows,
+    upcomingScheduled: upcomingScheduled as UpdateRow[],
     deliveries: [...deliveryByIdentity.values()],
     platforms: (platforms ?? []) as Array<{ id: string; platform: string }>,
   });

@@ -47,6 +47,16 @@ describe("BrowserPushProvider", () => {
     expect(JSON.stringify(payload)).not.toContain("private long body");
   });
 
+  it("renders channel-specific optional Update titles with the dynamic creator name", () => {
+    const payload = buildBrowserNotificationPayload({
+      ...message,
+      title: "Internal event title",
+      metadata: { ...message.metadata, creatorName: "Alex", broadcastType: "livestream" },
+    });
+    expect(payload.title).toBe("Alex is live");
+    expect(payload.title).not.toContain("Nana");
+  });
+
   it("returns accepted with an internal submission id and never delivered", async () => {
     const deps = dependencies(201);
     const result = await createBrowserPushProvider(deps).send(message);

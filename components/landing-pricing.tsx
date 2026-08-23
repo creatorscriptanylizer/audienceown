@@ -3,28 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { BellRing, Check, Headphones, Link2, Megaphone, ShieldCheck, Sparkles, Users } from "lucide-react";
-import {BillingAction}from"@/components/billing-action";
+import {freePlanFeatures as freeFeatures,proPlanFeatures}from"@/lib/billing/plan-catalog";
 
 type BillingInterval = "monthly" | "yearly";
 
-const freeFeatures = [
-  "1 Main Platform",
-  "1 Backup Platform",
-  "Up to 500 protected followers",
-  "1 Emergency Recovery Alert each month",
-  "1 Creator Update each month",
-  "Platform Health Monitoring",
-  "Permanent Creator Page",
-] as const;
-
 const proFeatures = [
-  [Link2, "blue", "Unlimited Connected Platforms"],
-  [ShieldCheck, "orange", "Unlimited Backup Platforms"],
-  [Users, "green", "Unlimited Protected Followers"],
-  [BellRing, "red", "Unlimited Emergency Recovery Alerts"],
-  [Megaphone, "purple", "Unlimited Creator Updates"],
-  [Headphones, "blue", "Priority Support"],
-  [Sparkles, "purple", "Premium Creator Tools"],
+  [Link2, "blue", proPlanFeatures[0]],
+  [ShieldCheck, "orange", proPlanFeatures[1]],
+  [Users, "green", proPlanFeatures[2]],
+  [BellRing, "red", proPlanFeatures[3]],
+  [Megaphone, "purple", proPlanFeatures[4]],
+  [Headphones, "blue", proPlanFeatures[5]],
+  [Sparkles, "purple", proPlanFeatures[6]],
 ] as const;
 
 export function LandingPricing() {
@@ -34,9 +24,9 @@ export function LandingPricing() {
   return <section className="landing-section pricing-section" id="pricing">
     <div className="pricing-ambient" aria-hidden />
     <header className="landing-section-heading">
-      <p className="landing-eyebrow">Simple pricing</p>
-      <h2>Choose the plan that grows with you.</h2>
-      <p>Start free. Upgrade whenever your audience and your needs grow.</p>
+      <p className="landing-eyebrow">Start protecting for free</p>
+      <h2>Start With the Essentials.<br/>Protect More as You Grow.</h2>
+      <p>Build your permanent audience foundation for free, then upgrade when you need greater protection, scale, and recovery capabilities.</p>
       <div className="billing-toggle" role="radiogroup" aria-label="Billing interval">
         <span className={`billing-toggle-thumb ${yearly ? "is-yearly" : ""}`} aria-hidden />
         <button type="button" role="radio" aria-checked={!yearly} onClick={() => setInterval("monthly")}>Monthly</button>
@@ -51,7 +41,7 @@ export function LandingPricing() {
         <h3 id="free-plan-heading"><span className="sr-only">Free plan, </span>$0</h3>
         <p>Build your permanent Creator Page, protect your audience, and get started for free.</p>
         <ul>{freeFeatures.map(item => <li key={item}><span className="plan-feature-icon feature-green" aria-hidden><Check /></span>{item}</li>)}</ul>
-        <Link href="/register" className="button button-secondary">Create your free page</Link>
+        <Link href="/register?mode=signup" className="button button-secondary">Create your free page</Link>
       </article>
 
       <article className="plan-card plan-pro" aria-labelledby="pro-plan-heading">
@@ -61,7 +51,7 @@ export function LandingPricing() {
         <div className="annual-price-note" aria-live="polite">{yearly ? <><span>Billed annually at $120</span><strong>Save $24 per year</strong></> : <span>Monthly billing</span>}</div>
         <p>Everything in Free, plus unlimited protection, unlimited updates, and more powerful tools for creators who are growing.</p>
         <ul>{proFeatures.map(([Icon,tone,item]) => <li key={item}><span className={`plan-feature-icon feature-${tone}`} aria-hidden><Icon /></span>{item}</li>)}</ul>
-        <BillingAction kind="checkout" interval={interval} className="button button-primary plan-pro-cta">Upgrade to Pro</BillingAction>
+        <Link href={`/register?mode=signup&intent=pro&interval=${interval}`} className="button button-primary plan-pro-cta">Upgrade to Pro</Link>
       </article>
     </div>
 

@@ -4,6 +4,7 @@ import type { BroadcastStatus, BroadcastType } from "@/lib/updates";
 export type PlatformAccount = {
   id: string; platform: string; account_type: string; label: string;
   url: string; is_primary: boolean; is_public: boolean; position: number;
+  external_account_id?:string|null;connection_health?:string|null;provider_status?:string|null;
 };
 
 export type AudienceEstimate = {
@@ -16,4 +17,7 @@ export type BroadcastValue = {
   affected_platform_connection_id: string | null;
   status: BroadcastStatus; title: string; subject: string; preview_text: string;
   content: string; cta_label: string | null; cta_url: string | null; scheduled_for: string | null;
+  publishing_account_ids?: string[];
+  recovery_destination_ids?: string[];
+  recovery_situation?: import("@/lib/recovery-communication").RecoverySituation;
 };

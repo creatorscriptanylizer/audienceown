@@ -15,9 +15,9 @@ const actionSource = readFileSync(
 );
 
 describe("creator publishing workflow", () => {
-  it("uses Publish now as the single final action with a pending state", () => {
-    expect(studioSource).toContain('"Publish now"');
-    expect(studioSource).toContain('"Publishing…"');
+  it("uses the alert-specific send label as the single final action with a pending state", () => {
+    expect(studioSource).toContain("composer.sendLabel");
+    expect(studioSource).toContain('publishPending ? definition.mandatory ? "Sending emergency alert…" : "Sending…" : composer.sendLabel');
     expect(studioSource).toContain("disabled={committing}");
     expect(studioSource).toContain("closeDisabled={committing}");
   });
@@ -33,7 +33,7 @@ describe("creator publishing workflow", () => {
   it("shows real routing and never embeds a fake audience count", () => {
     expect(studioSource).toContain("realEstimate?.eligible.toLocaleString()");
     expect(studioSource).toContain("exact selected Recovery Pass");
-    expect(studioSource).toContain("verified email according to their category preferences");
+    expect(studioSource).toContain("verified email according to their ${audienceCopy.preferenceLabel.toLowerCase()} consent");
     expect(studioSource).not.toMatch(/\b247\b/);
   });
 

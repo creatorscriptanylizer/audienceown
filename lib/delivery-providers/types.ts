@@ -15,6 +15,7 @@ export type DeliveryMessage = {
     creatorId: string;
     creatorHandle?: string;
     creatorName?: string;
+    broadcastType?: string;
   };
 };
 

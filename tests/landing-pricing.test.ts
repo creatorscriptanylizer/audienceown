@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const component = readFileSync(new URL("../components/landing-pricing.tsx", import.meta.url), "utf8");
+const planCatalog = readFileSync(new URL("../lib/billing/plan-catalog.ts", import.meta.url), "utf8");
 const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 
@@ -15,17 +16,17 @@ describe("landing pricing", () => {
   });
 
   it("states the Free and Pro plan limits and approved copy", () => {
-    for (const item of ["1 Main Platform", "1 Backup Platform", "Up to 500 protected followers", "1 Emergency Recovery Alert each month", "1 Creator Update each month", "Platform Health Monitoring", "Permanent Creator Page"]) expect(component).toContain(item);
-    for (const item of ["Unlimited Connected Platforms", "Unlimited Backup Platforms", "Unlimited Protected Followers", "Unlimited Emergency Recovery Alerts", "Unlimited Creator Updates", "Priority Support", "Premium Creator Tools"]) expect(component).toContain(item);
+    for (const item of ["1 Main Platform", "1 Backup Platform", "Up to 500 protected followers", "1 Emergency Recovery Alert each month", "1 Creator Update each month", "Platform Health Monitoring", "Permanent Creator Page"]) expect(planCatalog).toContain(item);
+    for (const item of ["Unlimited Connected Platforms", "Unlimited Backup Platforms", "Unlimited Protected Followers", "Unlimited Emergency Recovery Alerts", "Unlimited Creator Updates", "Priority Support", "Premium Creator Tools"]) expect(planCatalog).toContain(item);
     expect(component).not.toContain("as they become available");
   });
 
-  it("keeps Free signup truthful and routes Pro through server-created checkout", () => {
+  it("keeps Free signup truthful and preserves Pro interval through unified auth", () => {
     expect(component).toContain("Create your free page");
     expect(component).toContain("Upgrade to Pro");
-    expect(component).toContain('kind="checkout"');
-    expect(component).toContain("interval={interval}");
-    expect(component.match(/href="\/register"/g)).toHaveLength(1);
+    expect(component).toContain("/register?mode=signup&intent=pro&interval=${interval}");
+    expect(component).not.toContain('kind="checkout"');
+    expect(component).toContain('href="/register?mode=signup"');
   });
 
   it("uses accessible controls and announces price changes", () => {
@@ -39,7 +40,7 @@ describe("landing pricing", () => {
   });
 
   it("scopes responsive and reduced-motion presentation to pricing", () => {
-    expect(page).toContain("<LandingPricing />");
+    expect(page).toMatch(/<LandingPricing\s*\/>/);
     expect(css).toContain(".pricing-section");
     expect(css).toContain(".billing-toggle button:focus-visible");
     expect(css).toContain(".pricing-section .plan-card{padding:30px 22px}");

@@ -1,0 +1,36 @@
+begin;select plan(22);
+select has_table('public','recovery_networks','persistent Recovery Networks exist');
+select has_table('public','recovery_network_destinations','network destinations exist');
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='public.recovery_networks'::regclass),'network RLS forced');
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='public.recovery_network_destinations'::regclass),'destination RLS forced');
+select table_privs_are('public','recovery_networks','authenticated',array['SELECT'],'network writes use secured functions');
+select table_privs_are('public','recovery_network_destinations','authenticated',array['SELECT'],'destination writes use secured functions');
+select function_privs_are('public','assign_main_to_recovery_network',array['uuid','uuid','uuid'],'authenticated',array['EXECUTE'],'atomic replacement assignment is available');
+select function_privs_are('public','assign_recovery_account_to_network',array['uuid','uuid','uuid'],'authenticated',array['EXECUTE'],'exclusive Recovery assignment is available');
+select col_is_unique('public','recovery_network_destinations','recovery_connected_account_id','a Recovery account can belong to only one network');
+insert into auth.users(id,email,raw_user_meta_data)values('19200000-0000-4000-8000-000000000001','slots@example.test','{}');
+select set_config('tests.slot_creator',(select id::text from public.creators where owner_user_id='19200000-0000-4000-8000-000000000001'),true);
+insert into public.creator_plan_entitlements(creator_id,plan,subscription_status)values(current_setting('tests.slot_creator')::uuid,'pro','active');
+insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary,is_public,position,connection_health,provider_status)values
+('19210000-0000-4000-8000-000000000001',current_setting('tests.slot_creator')::uuid,'youtube','official','Main A','https://youtube.com/@slot-a',true,true,0,'healthy','ready'),
+('19210000-0000-4000-8000-000000000002',current_setting('tests.slot_creator')::uuid,'instagram','backup','Recovery','https://instagram.com/slot-backup',false,true,1,'healthy','ready');
+select is((select count(*)::integer from public.recovery_networks where creator_id=current_setting('tests.slot_creator')::uuid),1,'Main insert creates one stable slot');
+insert into public.recovery_network_destinations(recovery_network_id,recovery_connected_account_id)select id,'19210000-0000-4000-8000-000000000002' from public.recovery_networks where creator_id=current_setting('tests.slot_creator')::uuid;
+delete from public.connected_accounts where id='19210000-0000-4000-8000-000000000001';
+select is((select count(*)::integer from public.recovery_networks where creator_id=current_setting('tests.slot_creator')::uuid and main_connected_account_id is null),1,'deleting Main leaves empty slot');
+select is((select count(*)::integer from public.recovery_network_destinations d join public.recovery_networks n on n.id=d.recovery_network_id where n.creator_id=current_setting('tests.slot_creator')::uuid),1,'destinations survive Main deletion');
+select is((select count(*)::integer from public.connected_accounts where id='19210000-0000-4000-8000-000000000002'),1,'Recovery account survives Main deletion');
+insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary,is_public,position,connection_health,provider_status)values('19210000-0000-4000-8000-000000000003',current_setting('tests.slot_creator')::uuid,'instagram','official','Main B','https://instagram.com/slot-main',true,true,0,'healthy','ready');
+select set_config('request.jwt.claim.role','service_role',true);
+select lives_ok(format('select public.assign_main_to_recovery_network(%L,%L,%L)',current_setting('tests.slot_creator'),(select id from public.recovery_networks where creator_id=current_setting('tests.slot_creator')::uuid and main_connected_account_id is null), '19210000-0000-4000-8000-000000000003'),'replacement fills empty slot');
+select is((select count(*)::integer from public.recovery_network_destinations d join public.recovery_networks n on n.id=d.recovery_network_id where n.main_connected_account_id='19210000-0000-4000-8000-000000000003'),1,'replacement inherits destinations');
+select throws_ok(format('select public.assign_main_to_recovery_network(%L,%L,%L)',current_setting('tests.slot_creator'),(select id from public.recovery_networks where main_connected_account_id='19210000-0000-4000-8000-000000000003'),'19210000-0000-4000-8000-000000000003'),'23505',null,'occupied slot rejects race loser');
+select is((select count(*)::integer from public.recovery_networks where main_connected_account_id='19210000-0000-4000-8000-000000000003'),1,'one Main occupies only one network');
+insert into public.connected_accounts(id,creator_id,platform,account_type,label,url,is_primary,is_public,position,connection_health,provider_status)values('19210000-0000-4000-8000-000000000004',current_setting('tests.slot_creator')::uuid,'youtube','official','Main C','https://youtube.com/@slot-c',false,true,1,'healthy','ready');
+select throws_ok(format('select public.assign_recovery_account_to_network(%L,%L,%L)',current_setting('tests.slot_creator'),(select id from public.recovery_networks where main_connected_account_id='19210000-0000-4000-8000-000000000004'),'19210000-0000-4000-8000-000000000002'),'P0001','recovery_account_already_assigned','cross-network Recovery assignment is rejected');
+select is((select count(*)::integer from public.recovery_network_destinations where recovery_connected_account_id='19210000-0000-4000-8000-000000000002'),1,'one Recovery remains owned by exactly one network');
+delete from public.connected_accounts where id='19210000-0000-4000-8000-000000000002';
+select is((select count(*)::integer from public.recovery_network_destinations where recovery_connected_account_id='19210000-0000-4000-8000-000000000002'),0,'global Recovery delete removes every network link');
+select is((select count(*)::integer from public.recovery_networks where creator_id=current_setting('tests.slot_creator')::uuid),2,'global Recovery delete preserves network containers');
+select is((select count(*)::integer from public.connected_accounts where creator_id=current_setting('tests.slot_creator')::uuid and account_type='official'),2,'global Recovery delete preserves Main accounts');
+select * from finish();rollback;

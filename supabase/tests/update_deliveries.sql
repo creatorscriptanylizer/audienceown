@@ -1,4 +1,5 @@
 begin;
+alter table public.update_deliveries disable trigger enforce_new_video_publishing_target;
 
 select plan(26);
 
@@ -492,9 +493,9 @@ select is(
       current_setting('tests.transport_creator_a')::uuid,
       jsonb_build_array(jsonb_build_object(
         'connection_id','72000000-0000-0000-0000-000000000001',
-        'recovery_method_id','73000000-0000-0000-0000-000000000001',
-        'destination','email@example.com',
-        'destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')
+        'recovery_method_id','73000000-0000-0000-0000-000000000008',
+        'destination','+14155552671',
+        'destination_hash',encode(extensions.digest('+14155552671','sha256'),'hex')
       ))
     ) ->> 'created'
   )::integer,
@@ -612,6 +613,11 @@ select is(
 update public.follower_connections
 set selected_recovery_method_id = '73000000-0000-0000-0000-000000000008'
 where id = '72000000-0000-0000-0000-000000000001';
+update public.follower_contacts
+set phone_ciphertext = 'cipher-selected-sms',
+    phone_hash = encode(extensions.digest('+14155552671','sha256'),'hex'),
+    phone_masked = '+1 •••• 2671'
+where id = '71000000-0000-0000-0000-000000000001';
 update public.follower_category_preferences
 set enabled = true
 where follower_connection_id = '72000000-0000-0000-0000-000000000001'
@@ -623,14 +629,14 @@ select is(
       current_setting('tests.transport_creator_a')::uuid,
       jsonb_build_array(jsonb_build_object(
         'connection_id','72000000-0000-0000-0000-000000000001',
-        'recovery_method_id','73000000-0000-0000-0000-000000000001',
-        'destination','email@example.com',
-        'destination_hash',encode(extensions.digest('email@example.com','sha256'),'hex')
+        'recovery_method_id','73000000-0000-0000-0000-000000000008',
+        'destination','+14155552671',
+        'destination_hash',encode(extensions.digest('+14155552671','sha256'),'hex')
       ))
     ) ->> 'created'
   )::integer,
   1,
-  'regular broadcasts use verified email even when another method is selected'
+  'regular broadcasts use the selected verified SMS method'
 );
 
 set local role anon;

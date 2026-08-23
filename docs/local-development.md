@@ -4,7 +4,15 @@ Run `npx supabase start`, `npx supabase db reset`, and `npm run local:check`, th
 
 Next.js loads `.env.development.local` before `.env.local` in development. Supabase CLI `env(...)` substitutions load the root `.env`; shell environment variables also work. All `.env*` files except `.env.example` are ignored. Keep the local URL, publishable key, and server-only service-role key in ignored files. Never prefix service-role or OAuth secrets with `NEXT_PUBLIC_`.
 
+Contact fixtures and runtime delivery must use the same ignored local `CONTACT_ENCRYPTION_KEY` (minimum 20 characters). The Stage 8.8 seed fails before writing contacts when it is absent or too short. Existing sentinel or unknown-key local fixture rows must be replaced by resetting and rerunning the local seed; never guess a hosted key or add a plaintext fallback.
+
 Use values printed by `npx supabase status -o env` to configure the ignored Next.js files. Do not copy keys or tokens from a hosted project. `npm run local:check` reports URLs and booleans only; it never prints keys or tokens.
+
+For Google sign-in, use a Google OAuth client dedicated to local development. Its authorized redirect URI is the local Supabase Auth callback, `http://127.0.0.1:54321/auth/v1/callback`; this is separate from the AudienceOwn application callback, `https://audienceown.com/auth/callback`. Put that client's ID and secret in ignored local environment configuration as `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`. Do not register wildcard or LAN-address redirects.
+
+The hosted Google client must instead register the hosted Supabase Auth callback, `https://jngmxlcibqmtrvskxdcw.supabase.co/auth/v1/callback`. Hosted Supabase's redirect allowlist should contain the exact production application callback `https://audienceown.com/auth/callback`. Local Supabase uses that same exact application callback while retaining the local Supabase Auth provider callback above.
+
+Use `https://audienceown.com` as the normal browser origin for authentication, dashboard work, creator workflows, Recovery Pass, and provider connections. Cloudflare routes that canonical origin to the local Next.js server, which continues to use local Supabase. Direct loopback `/login` requests redirect to the canonical login before PKCE begins; localhost remains available only for unauthenticated diagnostics and UI inspection. Do not add a localhost AudienceOwn callback or copy session cookies between origins.
 
 If queries mention missing Stage 8.8 columns, confirm `NEXT_PUBLIC_SUPABASE_URL` is local, stop stale Next.js processes, run `npx supabase db reset`, and restart Next.js.
 

@@ -27,7 +27,29 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient:() => {
 import { GET } from "@/app/api/integrations/youtube/connect/route";
 
 describe("YouTube OAuth connect intent", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.maybeSingle.mockResolvedValue({ data:null, error:null }); mocks.encryptionState.mockReturnValue("configured"); });
+  beforeEach(() => { vi.clearAllMocks(); process.env.APP_URL = "https://app.test"; mocks.maybeSingle.mockResolvedValue({ data:null, error:null }); mocks.encryptionState.mockReturnValue("configured"); });
+
+  it("hands localhost to the styled canonical connection flow before Google", async () => {
+    process.env.APP_URL = "https://audienceown.com";
+    const response = await GET(new Request("http://localhost:3000/api/integrations/youtube/connect?role=official"));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://audienceown.com/connect/provider?provider=youtube&role=official");
+    expect(mocks.createState).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid localhost role instead of carrying it across domains", async () => {
+    process.env.APP_URL = "https://audienceown.com";
+    const response = await GET(new Request("http://localhost:3000/api/integrations/youtube/connect?role=owner"));
+    expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard/platforms?youtube=invalid_request");
+    expect(mocks.createState).not.toHaveBeenCalled();
+  });
+
+  it("accepts the canonical browser origin when the server sees trusted ingress headers", async () => {
+    process.env.APP_URL = "https://audienceown.com";
+    const response = await GET(new Request("http://localhost:3000/api/integrations/youtube/connect", { headers:{ "x-forwarded-host":"audienceown.com", "x-forwarded-proto":"https" } }));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://accounts.google.test/oauth");
+  });
 
   it.each(["missing", "invalid_format"] as const)("fails before Google OAuth when token encryption is %s", async (state) => {
     mocks.encryptionState.mockReturnValueOnce(state);

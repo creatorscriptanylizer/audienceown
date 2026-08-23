@@ -9,6 +9,7 @@ import {
   createAdminClient,
   resolveSupabaseAdminConfig,
   SupabaseAdminConfigurationError,
+  SupabaseAdminEnvironmentMismatchError,
 } from "@/lib/supabase/admin";
 
 const originalEnv = { ...process.env };
@@ -32,6 +33,7 @@ describe("Supabase admin configuration", () => {
       url: "https://project.supabase.co",
       key: "sb_secret_canonical-secret",
       keySource: "canonical",
+      conflictingAdminCredentials: false,
     });
     expect(createAdminClient()).toEqual(expect.objectContaining({ key: "sb_secret_canonical-secret" }));
   });
@@ -44,14 +46,39 @@ describe("Supabase admin configuration", () => {
     }));
   });
 
-  it("prefers the active stack secret over a stale canonical key on loopback", () => {
+  it("keeps canonical precedence on loopback and safely reports conflicting aliases", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
-    process.env.SUPABASE_ADMIN_KEY = "sb_secret_stale-canonical";
-    process.env.SUPABASE_SECRET_KEY = "sb_secret_active-local-stack";
+    process.env.SUPABASE_ADMIN_KEY = "sb_secret_active-local-stack";
+    process.env.SUPABASE_SECRET_KEY = "sb_secret_stale-alias";
     expect(resolveSupabaseAdminConfig()).toEqual(expect.objectContaining({
       key: "sb_secret_active-local-stack",
-      keySource: "legacy_alias",
+      keySource: "canonical",
+      conflictingAdminCredentials: true,
     }));
+  });
+
+  it("accepts a local URL with a local service-role JWT", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+    process.env.SUPABASE_ADMIN_KEY = jwt({ role:"service_role", iss:"supabase-demo" });
+    expect(resolveSupabaseAdminConfig()).toEqual(expect.objectContaining({ keySource:"canonical" }));
+  });
+
+  it("rejects a clearly hosted JWT paired with a local URL", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+    process.env.SUPABASE_ADMIN_KEY = jwt({ role:"service_role", ref:"hosted-project" });
+    expect(() => resolveSupabaseAdminConfig()).toThrowError(SupabaseAdminEnvironmentMismatchError);
+  });
+
+  it("accepts matching hosted URL and hosted JWT identity", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://hosted-project.supabase.co";
+    process.env.SUPABASE_ADMIN_KEY = jwt({ role:"service_role", ref:"hosted-project" });
+    expect(resolveSupabaseAdminConfig()).toEqual(expect.objectContaining({ keySource:"canonical" }));
+  });
+
+  it("rejects mismatched hosted URL and hosted JWT identity", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://expected-project.supabase.co";
+    process.env.SUPABASE_ADMIN_KEY = jwt({ role:"service_role", ref:"other-project" });
+    expect(() => resolveSupabaseAdminConfig()).toThrowError(SupabaseAdminEnvironmentMismatchError);
   });
 
   it("ignores a placeholder canonical key in favor of a valid legacy key", () => {
@@ -75,3 +102,7 @@ describe("Supabase admin configuration", () => {
     expect(() => createAdminClient()).toThrowError(SupabaseAdminConfigurationError);
   });
 });
+
+function jwt(payload:Record<string,unknown>) {
+  return `${Buffer.from("{}").toString("base64url")}.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.signature`;
+}

@@ -5,8 +5,10 @@ nextEnv.loadEnvConfig(process.cwd(), true);
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_ADMIN_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const contactEncryptionKey = process.env.CONTACT_ENCRYPTION_KEY;
 const isLocal = (() => { try { return ["localhost", "127.0.0.1"].includes(new URL(url).hostname); } catch { return false; } })();
 if (process.env.NODE_ENV === "production" || !isLocal || !serviceKey || !publishableKey) throw new Error("Stage 8.8 fixtures require a local Supabase URL, publishable key, and server-only service-role key.");
+if (!contactEncryptionKey || contactEncryptionKey.length < 20) throw new Error("Stage 8.8 fixtures require CONTACT_ENCRYPTION_KEY (at least 20 characters) in the local environment.");
 
 const db = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 const email = "stage88@audienceown.local";
@@ -24,14 +26,26 @@ function assert(result, label) {
   return result.data;
 }
 
+async function sha256(value) {
+  return Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))).toString("hex");
+}
+
+async function encryptContact(value) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await crypto.subtle.importKey("raw", await crypto.subtle.digest("SHA-256", new TextEncoder().encode(contactEncryptionKey)), "AES-GCM", false, ["encrypt"]);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(value)));
+  return Buffer.concat([Buffer.from(iv), Buffer.from(cipher)]).toString("base64");
+}
+
 const listed = assert(await db.auth.admin.listUsers({ page: 1, perPage: 1000 }), "list local users");
 let user = listed.users.find((candidate) => candidate.email === email);
 if (!user) user = assert(await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name: "Stage 8.8 Demo" } }), "create local auth user").user;
 else assert(await db.auth.admin.updateUserById(user.id, { password, email_confirm: true }), "reset local fixture login");
 
 await db.from("creators").delete().eq("owner_user_id", user.id);
-await db.from("follower_contacts").delete().in("email_hash", ["stage88-fixture-a", "stage88-fixture-b", "stage88-fixture-c"]);
-assert(await db.from("creators").insert({ id: ids.creator, owner_user_id: user.id, display_name: "Stage 8.8 Demo", public_slug: "stage-8-8-demo", public_profile_enabled: false, recovery_pass_enabled: true }), "create fixture creator");
+await db.from("follower_contacts").delete().in("id", ["88000000-0000-4000-8000-000000000020", "88000000-0000-4000-8000-000000000021", "88000000-0000-4000-8000-000000000022"]);
+assert(await db.from("creators").insert({ id: ids.creator, owner_user_id: user.id, display_name: "Stage 8.8 Demo", recovery_pass_name: "Stage 8.8 Demo's Recovery Pass", public_slug: "stage-8-8-demo", public_profile_enabled: false, recovery_pass_enabled: true }), "create fixture creator");
+assert(await db.from("creator_plan_entitlements").upsert({ creator_id: ids.creator, plan: "pro", subscription_status: "active", source: "internal", source_reference: "local_stage_8_8_fixture" }, { onConflict: "creator_id" }), "grant fixture connection capacity");
 assert(await db.from("creator_identity_profiles").insert({ id: ids.profile, creator_id: ids.creator, public_display_name: "Stage 8.8 Demo", identity_status: "verified" }), "create identity profile");
 
 const now = new Date().toISOString();
@@ -59,12 +73,23 @@ assert(await db.from("provider_audience_metrics").insert([
   { creator_id: ids.creator, connection_id: ids.youtubeBackup, provider: "youtube", account_category: "backup", audience_count: 4200, audience_unit: "subscribers", status: "available", source_observed_at: now, synchronized_at: now, error_code: "development_fixture" },
 ]), "create fixture-only metrics");
 
-const fans = ["a", "b", "c"].map((suffix, index) => ({
-  contact: { id: `88000000-0000-4000-8000-00000000002${index}`, email_ciphertext: `local-fixture-${suffix}`, email_hash: `stage88-fixture-${suffix}`, email_masked: "local fixture fan" },
-  connection: { id: `88000000-0000-4000-8000-00000000003${index}`, creator_id: ids.creator, follower_contact_id: `88000000-0000-4000-8000-00000000002${index}`, status: "active", preference_token_hash: `stage88-preference-${suffix}`, unsubscribe_token_hash: `stage88-unsubscribe-${suffix}` },
+const fans = await Promise.all(["a", "b", "c"].map(async (suffix, index) => {
+  const destination = `stage88-fan-${suffix}@example.invalid`;
+  const contactId = `88000000-0000-4000-8000-00000000002${index}`;
+  const connectionId = `88000000-0000-4000-8000-00000000003${index}`;
+  const methodId = `88000000-0000-4000-8000-00000000004${index}`;
+  const destinationHash = await sha256(destination);
+  return {
+    contact: { id: contactId, email_ciphertext: await encryptContact(destination), email_hash: destinationHash, email_masked: `s••••${suffix}@example.invalid` },
+    connection: { id: connectionId, creator_id: ids.creator, follower_contact_id: contactId, status: "active", selected_recovery_method_id: methodId, preference_token_hash: `stage88-preference-${suffix}`, unsubscribe_token_hash: `stage88-unsubscribe-${suffix}` },
+    method: { id: methodId, follower_contact_id: contactId, method_type: "email", method_status: "verified", destination_hash: destinationHash, destination_masked: `s••••${suffix}@example.invalid`, verified_at: now, consented_at: now },
+  };
 }));
 assert(await db.from("follower_contacts").insert(fans.map((fan) => fan.contact)), "create privacy-safe fixture fans");
+assert(await db.from("follower_recovery_methods").insert(fans.map((fan) => fan.method)), "create encrypted fixture recovery methods");
 assert(await db.from("follower_connections").insert(fans.map((fan) => fan.connection)), "create fixture relationships");
+assert(await db.from("follower_category_preferences").upsert(fans.map((fan) => ({ follower_connection_id: fan.connection.id, category_key: "videos", enabled: true })), { onConflict: "follower_connection_id,category_key" }), "create fixture video preferences");
+assert(await db.from("follower_connection_account_memberships").insert(fans.map((fan) => ({ creator_id: ids.creator, follower_connection_id: fan.connection.id, connected_account_id: ids.youtube }))), "create fixture Main account memberships");
 assert(await db.from("follower_recovery_destination_preferences").insert([
   { creator_id: ids.creator, follower_connection_id: fans[0].connection.id, connected_account_id: ids.tiktok },
   { creator_id: ids.creator, follower_connection_id: fans[0].connection.id, connected_account_id: ids.youtubeBackup },

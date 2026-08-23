@@ -725,23 +725,19 @@ select set_config(
 );
 
 -- 32
-select is(
-  (
-    select count(*)::int
-    from public.public_creator_profiles
-  ),
-  1,
-  'anonymous reads only published creator profile'
+select throws_ok(
+  $$select * from public.public_creator_profiles$$,
+  '42501',
+  null,
+  'anonymous cannot query the retired creator profile view'
 );
 
 -- 33
-select is(
-  (
-    select count(*)::int
-    from public.public_connected_accounts
-  ),
-  1,
-  'anonymous reads only published official public accounts'
+select throws_ok(
+  $$select * from public.public_connected_accounts$$,
+  '42501',
+  null,
+  'anonymous cannot query the retired connected-account view'
 );
 
 -- 34

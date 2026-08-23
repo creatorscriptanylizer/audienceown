@@ -17,11 +17,12 @@ describe("Configure accounts post-save navigation",()=>{
     expect(successEffect).toBeGreaterThan(-1);
     expect(manager.slice(manager.indexOf("<form action={action}"),successEffect)).not.toContain("router.push");
     expect(manager).not.toContain("onSubmit={()=>setDirty(false)}");
-    expect(manager).toContain('<button type="button" className="button button-secondary" onClick={closeModal}>Cancel</button>');
+    expect(manager).toContain('<button type="button" className="button button-secondary" onClick={closeModal}>Close</button>');
   });
 
   it("prevents duplicate submissions and duplicate success navigation",()=>{
-    expect(manager).toContain('disabled={pending||!dirty}');
+    expect(manager).toContain('dirty&&<form action={action}>');
+    expect(manager).toContain('<button className="button button-primary" disabled={pending}>');
     expect(manager).toContain('handledSuccessfulSave.current=true');
   });
 

@@ -1,2 +1,1 @@
-import{AuthenticityNetworkGraph}from"@/components/authenticity/authenticity-network-graph";import{getPublicAuthenticity}from"@/lib/authenticity/server";
-export default async function VerifyLayout({children,params}:{children:React.ReactNode;params:Promise<{slug:string}>}){const{slug}=await params,result=await getPublicAuthenticity(slug);return <>{children}{result.status==="available"&&<div className="bg-zinc-950 px-5 pb-12 text-white"><div className="mx-auto max-w-4xl"><AuthenticityNetworkGraph record={result.data}/></div></div>}</>}
+export default function VerifyLayout({ children }: { children: React.ReactNode }) { return children; }

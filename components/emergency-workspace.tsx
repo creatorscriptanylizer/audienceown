@@ -5,6 +5,7 @@ import { ArrowRight, Check, Circle, History, LifeBuoy, Radio, ShieldAlert, Trian
 import { PreparednessCenter } from "@/components/emergency/preparedness-center";
 import { UnavailableState } from "@/components/product-state";
 import type { RecoveryReadiness, RecoveryReadinessCheckStatus } from "@/lib/recovery-readiness";
+import { CREATE_EMERGENCY_ENTRY_ROUTE } from "@/lib/dashboard-routes";
 
 type EmergencyItem={id:string;emergency_type:string;lifecycle_status:string;severity:string;title:string;message:string;updated_at:string;
 emergency_affected_accounts:{display_handle:string;provider:string}[];emergency_replacement_accounts:{id:string;display_handle:string;provider:string;canonical_profile_url:string;stable_provider_account_id:string;verification_state:string;verification_method:string|null;verification_confidence:string|null;official:boolean;verified_at:string|null;last_revalidated_at:string|null;next_revalidation_at:string|null;revalidation_status:string}[];
@@ -99,7 +100,7 @@ export function EmergencyWorkspace({ readiness,primaryDestinationLabel=null,avai
         <h2>Send an important account update</h2>
         <p>Notify Recovery Pass holders about a hacked account, deleted channel, platform move, or another critical access change.</p>
         <div className="emergency-warning"><TriangleAlert size={16}/><span>Important account updates are reserved for critical access, recovery, and platform migration notices.</span></div>
-        <Link href="/dashboard/updates/new?type=account_update" className="button button-primary">Create emergency update <ArrowRight size={15}/></Link>
+        <Link prefetch={false} href={CREATE_EMERGENCY_ENTRY_ROUTE} className="button button-primary">Create emergency update <ArrowRight size={15}/></Link>
       </section>
 
       <section className="emergency-routing-panel">

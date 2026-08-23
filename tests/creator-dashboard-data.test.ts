@@ -19,7 +19,7 @@ import type { Creator } from "@/lib/database.helpers";
 
 function query(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "order", "limit", "in", "or", "maybeSingle"]) {
+  for (const method of ["select", "eq", "not", "gt", "order", "limit", "in", "or", "maybeSingle"]) {
     chain[method] = vi.fn(() => chain);
   }
   chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
@@ -86,12 +86,12 @@ describe("creator dashboard data isolation", () => {
     expect(result.platforms.every((platform) => !platform.connected)).toBe(true);
     expect(result.ecosystem).toMatchObject({ verifiedDestinations: 0, activeAutomations: 0, openIncidents: 0, health: "Setup available" });
     expect(result.emergency).toMatchObject({ activeEmergencyCount: 0, status: "No active emergency", lastDrillAt: null });
-    expect(result.recoveryPass).toEqual({ exists:false, active:false, canonicalUrl:null, displayUrl:null, href:"/onboarding/recovery-pass" });
+    expect(result.recoveryPass).toEqual({ exists:false, active:false, canonicalUrl:null, displayUrl:null, href:"/onboarding/recovery-pass", name:"New Creator's Recovery Pass" });
     expect(result.recoveryReadiness).toMatchObject({availability:"available",score:0,state:"Not configured"});
     expect(result.nextAction).toMatchObject({ label: "Publish your Recovery Page", href: "/dashboard/creator-page" });
   });
 
-  it("projects the persisted Recovery Pass slug and public state without another query",async()=>{const result=await getCreatorDashboard({...creator,public_profile_enabled:true,recovery_pass_enabled:true});expect(result.recoveryPass).toEqual({exists:true,active:true,canonicalUrl:"https://audienceown.com/new-creator",displayUrl:"audienceown.com/new-creator",href:"/new-creator"})});
+  it("projects the persisted Recovery Pass profile and public state without another query",async()=>{const result=await getCreatorDashboard({...creator,public_profile_enabled:true,recovery_pass_enabled:true,recovery_pass_name:"Creator Safety Net"}as Creator&{recovery_pass_name:string});expect(result.recoveryPass).toEqual({exists:true,active:true,canonicalUrl:"https://audienceown.com/new-creator",displayUrl:"audienceown.com/new-creator",href:"/new-creator",name:"Creator Safety Net"})});
 
   it("discovers connected and official providers without exposing stable IDs", async () => {
     mocks.createClient.mockResolvedValue(database({
@@ -179,6 +179,39 @@ describe("creator dashboard data isolation", () => {
     expect(result.dashboardAccounts[0]).toMatchObject({displayName:"Main",connectionLabel:"Connected"});
     expect(result.dashboardAccounts[0].linkedBackups[0]).toMatchObject({displayName:"Offline backup",connectionLabel:"Disconnected"});
     expect(result.unassignedBackups).toEqual([]);
+  });
+
+  it("returns only canonically connected official accounts with exact stored metrics",async()=>{
+    mocks.createClient.mockResolvedValue(database({
+      connected_accounts:[
+        {id:"connected",platform:"youtube",account_type:"official",label:"Real Main",connection_health:"healthy",provider_status:"ready"},
+        {id:"attention",platform:"instagram",account_type:"official",label:"Attention Main",connection_health:"degraded",provider_status:"asset_selection_required"},
+        {id:"disconnected",platform:"tiktok",account_type:"official",label:"Disconnected Main",connection_health:"disconnected",provider_status:"disconnected"},
+        {id:"incomplete",platform:"facebook",account_type:"official",label:"Incomplete Main",connection_health:"disconnected",provider_status:"configuration_pending"},
+        {id:"backup",platform:"spotify",account_type:"backup",label:"Backup only",connection_health:"healthy",provider_status:"ready"},
+      ],
+      provider_audience_metrics:[
+        {connection_id:"connected",provider:"youtube",account_category:"official",audience_count:1234,audience_unit:"subscribers",status:"available"},
+        {connection_id:"attention",provider:"instagram",account_category:"official",audience_count:null,audience_unit:"followers",status:"unavailable"},
+        {connection_id:"disconnected",provider:"tiktok",account_category:"official",audience_count:999999,audience_unit:"followers",status:"available"},
+      ],
+    }));
+    const result=await getCreatorDashboard(creator);
+    expect(result.dashboardAccounts.map((account)=>account.displayName)).toEqual(["Real Main","Attention Main"]);
+    expect(result.dashboardAccounts[0]).toMatchObject({audienceCount:1234,audienceUnit:"subscribers",connectionLabel:"Connected"});
+    expect(result.dashboardAccounts[1]).toMatchObject({audienceCount:null,connectionLabel:"Needs attention",actionRequired:true});
+    expect(JSON.stringify(result.dashboardAccounts)).not.toMatch(/Disconnected Main|Incomplete Main|Backup only|999999/);
+  });
+
+  it("returns an empty Main-account projection when the creator has no connected official account",async()=>{
+    mocks.createClient.mockResolvedValue(database({connected_accounts:[
+      {id:"catalog-like",platform:"pinterest",account_type:"official",label:"Unconnected",connection_health:"disconnected",provider_status:"disconnected"},
+      {id:"backup-only",platform:"discord",account_type:"backup",label:"Recovery",connection_health:"healthy",provider_status:"ready"},
+    ]}));
+    const result=await getCreatorDashboard(creator);
+    expect(result.dashboardAccounts).toEqual([]);
+    expect(result.nativeOfficialAudience).toBe(0);
+    expect(result.nativeOfficialAudienceAccountCount).toBe(0);
   });
 
   it("keeps a Backup in the creator hierarchy across Main removal and cross-provider replacement",async()=>{

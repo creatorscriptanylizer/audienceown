@@ -3,13 +3,13 @@ import type { BroadcastIntent } from "@/lib/broadcast-studio";
 
 export const emergencySubtypes = [
   { value: "account_hacked", label: "Account hacked", description: "Someone gained unauthorised access to the account." },
-  { value: "account_banned", label: "Account banned or suspended", description: "The platform restricted or removed access." },
+  { value: "account_banned", label: "Account suspended", description: "The platform restricted or removed access." },
   { value: "account_inaccessible", label: "Cannot access the account", description: "The account is unavailable or you cannot sign in." },
-  { value: "impersonation_warning", label: "Impersonation or security warning", description: "A fake account or unsafe message is misleading followers." },
+  { value: "impersonation_warning", label: "Being impersonated", description: "A fake account or unsafe message is misleading followers." },
 ] as const;
 
 export const broadcastChoices = [
-  { intent: "account_hacked", group: "protect", title: "Account inaccessible", description: "Alert followers when an account is hacked, suspended, inaccessible, or being impersonated.", delivery: "Mandatory Recovery Pass", icon: ShieldAlert, tone: "amber" },
+  { intent: "account_inaccessible", group: "protect", title: "Account inaccessible", description: "Alert followers when an account is hacked, suspended, inaccessible, or being impersonated.", delivery: "Mandatory Recovery Pass", icon: ShieldAlert, tone: "amber" },
   { intent: "platform_migration", group: "protect", title: "Platform migration", description: "Guide followers from an old or unavailable account to your verified destination.", delivery: "Mandatory Recovery Pass", icon: Route, tone: "blue" },
   { intent: "new_video", group: "share", title: "New video", description: "Notify followers interested in your latest video.", delivery: "Preference-based · Videos", icon: Play, tone: "violet" },
   { intent: "livestream", group: "share", title: "Livestream", description: "Invite followers who enabled livestream notifications.", delivery: "Preference-based · Livestreams", icon: Radio, tone: "magenta" },

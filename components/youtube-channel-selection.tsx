@@ -28,9 +28,9 @@ export function YouTubeChannelSelection({ pendingSelectionId, role, channels, re
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ pendingSelectionId, selectedChannelId: channelId }),
     });
-    const body = await response.json().catch(() => ({})) as { status?: string; message?: string };
+    const body = await response.json().catch(() => ({})) as { status?: string; message?: string;connectionId?:string };
     if (!response.ok) { setError(body.message ?? "This channel could not be selected. Please try again."); setBusy(null); return; }
-    router.replace(returnTo === "onboarding" ? `/onboarding/accounts?step=${role}&oauth=youtube:connected` : "/dashboard/platforms?youtube=connected");
+    router.replace(returnTo === "onboarding" ? `/onboarding/accounts?step=${role}&oauth=youtube:connected` : `/dashboard/platforms?youtube=${encodeURIComponent(body.status??"connected")}${body.connectionId?`&connectionId=${encodeURIComponent(body.connectionId)}`:""}`);
     router.refresh();
   }
   return <section className="surface mt-8 rounded-2xl p-5 sm:p-7" aria-labelledby="youtube-channel-picker-title">

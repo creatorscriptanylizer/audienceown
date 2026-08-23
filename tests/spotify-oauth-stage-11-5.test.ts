@@ -36,12 +36,12 @@ describe("Stage 11.5 Spotify OAuth",()=>{
 
   it("uses shared signed-state routes for both roles, reconnect, PKCE, cleanup, and exact disconnect",()=>{
     const connect=readFileSync("app/api/integrations/[provider]/connect/route.ts","utf8"),callback=readFileSync("app/api/integrations/[provider]/callback/route.ts","utf8"),disconnect=readFileSync("app/api/integrations/[provider]/disconnect/route.ts","utf8");
-    expect(connect).toContain('role=requestUrl.searchParams.get("role")==="backup"?"backup":"official"');expect(connect).toContain("connectionId");expect(connect).toContain('createOAuthState({creatorId:creator.id,userId:user.id,provider:raw,nonce,role,connectionId');expect(connect).toContain("adapter.pkce?createPkce():null");expect(getSocialProvider("spotify").pkce).toBe(true);
+    const compact=connect.replace(/\s+/g,"");expect(compact).toContain('requestedRole=requestUrl.searchParams.get("role")??"official"');expect(connect).toContain("connectionId");expect(compact).toContain('createOAuthState({creatorId:creator.id,userId:user.id,provider:raw,nonce,role,connectionId');expect(compact).toContain("adapter.pkce?createPkce():null");expect(getSocialProvider("spotify").pkce).toBe(true);
     expect(callback).toContain('raw==="tiktok"||raw==="x"||raw==="spotify"');expect(callback).toContain("reconnect_mismatch");expect(callback).toContain("encryptSocialSecret(tokens.accessToken)");expect(callback).toContain("if(createdId)");expect(callback.replace(/\s+/g,"")).toContain('provider:rawas"instagram"|"tiktok"|"x"|"spotify"');
     expect(disconnect).toContain('eq("id",parsed.data.connectionId)');expect(disconnect).toContain('"spotify","discord","snapchat"].includes(provider)');
   });
 
   it("labels the connected identity and unsupported metric without showing zero",()=>{
-    const ui=readFileSync("components/platforms-manager.tsx","utf8");expect(ui).toContain("Spotify profile");expect(ui).toContain("Audience metric unavailable");
+    const ui=readFileSync("components/recovery-network-manager.tsx","utf8");expect(ui).toContain("Spotify profile");expect(ui).toContain("Audience metric unavailable");
   });
 });

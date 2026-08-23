@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 describe("Authenticity read boundary", () => {
   const page = read("app/dashboard/authenticity/page.tsx");
   const layout = read("app/dashboard/authenticity/layout.tsx");
+  const service = read("lib/verified-identity-dashboard.ts");
   const actions = read("app/dashboard/authenticity/actions.ts");
 
   it("never invokes write-capable ensure RPCs while rendering", () => {
@@ -14,14 +15,15 @@ describe("Authenticity read boundary", () => {
       expect(source).not.toContain('rpc("ensure_creator_authenticity_profile")');
       expect(source).not.toMatch(/\.(insert|update|upsert|delete)\(/);
     }
-    expect(page).toContain('.maybeSingle()');
+    expect(page).toContain("getVerifiedIdentityDashboardData");
+    expect(service).toContain('.maybeSingle()');
   });
 
-  it("distinguishes a missing profile from a failed query", () => {
-    expect(page).toContain("Authenticity isn’t configured yet.");
-    expect(page).toContain("Authenticity temporarily unavailable");
-    expect(page).toContain("if (profileResult.error)");
-    expect(page).toContain("if (!profile)");
+  it("distinguishes the pending verified-presence experience from failed data", () => {
+    expect(page).toContain("Build your verified presence");
+    expect(page).toContain("Verified identity couldn’t be loaded.");
+    expect(page).toContain("try{data=await getVerifiedIdentityDashboardData");
+    expect(service).toContain('profile?.public_title??""');
   });
 
   it("creates both profiles only behind the explicit authenticated action", () => {
@@ -29,7 +31,7 @@ describe("Authenticity read boundary", () => {
     expect(actions).toContain("await requireCreator()");
     expect(actions.match(/rpc\("ensure_creator_identity_profile"\)/g)).toHaveLength(1);
     expect(actions.match(/rpc\("ensure_creator_authenticity_profile"\)/g)).toHaveLength(1);
-    expect(page).toContain("<form action={setupAuthenticity}>");
+    expect(page).not.toContain("setupAuthenticity");
   });
 
   it("keeps the public projection read-only and absent when unpublished", () => {

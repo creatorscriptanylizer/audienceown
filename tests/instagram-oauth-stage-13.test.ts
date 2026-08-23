@@ -199,7 +199,7 @@ describe("Stage 13 Instagram OAuth production contract", () => {
   it("keeps role, origin, replay, encryption, duplicate, and reconnect checks in shared routes", () => {
     const connect = readFileSync("app/api/integrations/[provider]/connect/route.ts", "utf8");
     const callback = readFileSync("app/api/integrations/[provider]/callback/route.ts", "utf8");
-    expect(connect).toContain("createOAuthState({creatorId:creator.id,userId:user.id,provider:raw,nonce,role,connectionId");
+    expect(connect.replace(/\s+/g,"")).toContain("createOAuthState({creatorId:creator.id,userId:user.id,provider:raw,nonce,role,connectionId");
     expect(connect).toContain("returnTo");
     expect(callback).toContain("store.delete(`social_oauth_${raw}`)");
     expect(callback).toContain('uniqueAcrossRoles=raw==="instagram"');

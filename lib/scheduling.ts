@@ -4,6 +4,17 @@ export type ScheduleInput = {
   isoValue: string;
 };
 
+export function combineScheduleLocalValue(date: string, time: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return "";
+  return `${date}T${time}`;
+}
+
+export function localScheduleToIso(localValue: string) {
+  if (!localParts(localValue)) return "";
+  const instant = new Date(localValue);
+  return Number.isNaN(instant.getTime()) ? "" : instant.toISOString();
+}
+
 function localParts(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!match) return null;

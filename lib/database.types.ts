@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -2707,6 +2702,70 @@ export type Database = {
           },
         ]
       }
+      creator_update_publishing_accounts: {
+        Row: {
+          account_display_snapshot: string
+          account_handle_snapshot: string | null
+          connected_account_id: string | null
+          connected_account_reference: string
+          created_at: string
+          id: string
+          provider_snapshot: string
+          role_snapshot: string
+          targeting_rule_snapshot: string
+          update_id: string
+        }
+        Insert: {
+          account_display_snapshot: string
+          account_handle_snapshot?: string | null
+          connected_account_id?: string | null
+          connected_account_reference: string
+          created_at?: string
+          id?: string
+          provider_snapshot: string
+          role_snapshot: string
+          targeting_rule_snapshot: string
+          update_id: string
+        }
+        Update: {
+          account_display_snapshot?: string
+          account_handle_snapshot?: string | null
+          connected_account_id?: string | null
+          connected_account_reference?: string
+          created_at?: string
+          id?: string
+          provider_snapshot?: string
+          role_snapshot?: string
+          targeting_rule_snapshot?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_update_publishing_accounts_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_update_publishing_accounts_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "creator_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_update_recovery_destinations: {
+        Row: {account_display_snapshot:string;connected_account_id:string;created_at:string;creator_id:string;destination_url_snapshot:string;provider_snapshot:string;update_id:string}
+        Insert: {account_display_snapshot:string;connected_account_id:string;created_at?:string;creator_id:string;destination_url_snapshot:string;provider_snapshot:string;update_id:string}
+        Update: {account_display_snapshot?:string;connected_account_id?:string;created_at?:string;creator_id?:string;destination_url_snapshot?:string;provider_snapshot?:string;update_id?:string}
+        Relationships: [
+          {foreignKeyName:"creator_update_recovery_destinations_connected_account_id_fkey";columns:["connected_account_id"];isOneToOne:false;referencedRelation:"connected_accounts";referencedColumns:["id"]},
+          {foreignKeyName:"creator_update_recovery_destinations_creator_id_fkey";columns:["creator_id"];isOneToOne:false;referencedRelation:"creators";referencedColumns:["id"]},
+          {foreignKeyName:"creator_update_recovery_destinations_update_id_fkey";columns:["update_id"];isOneToOne:false;referencedRelation:"creator_updates";referencedColumns:["id"]},
+        ]
+      }
       creator_updates: {
         Row: {
           affected_platform_connection_id: string | null
@@ -2831,7 +2890,9 @@ export type Database = {
           public_bio: string | null
           public_profile_enabled: boolean
           public_slug: string | null
+          public_tagline: string | null
           recovery_pass_enabled: boolean
+          recovery_pass_name: string
           updated_at: string
         }
         Insert: {
@@ -2849,7 +2910,9 @@ export type Database = {
           public_bio?: string | null
           public_profile_enabled?: boolean
           public_slug?: string | null
+          public_tagline?: string | null
           recovery_pass_enabled?: boolean
+          recovery_pass_name: string
           updated_at?: string
         }
         Update: {
@@ -2867,7 +2930,9 @@ export type Database = {
           public_bio?: string | null
           public_profile_enabled?: boolean
           public_slug?: string | null
+          public_tagline?: string | null
           recovery_pass_enabled?: boolean
+          recovery_pass_name?: string
           updated_at?: string
         }
         Relationships: []
@@ -4182,6 +4247,52 @@ export type Database = {
           },
         ]
       }
+      follower_connection_account_memberships: {
+        Row: {
+          connected_account_id: string
+          created_at: string
+          creator_id: string
+          follower_connection_id: string
+          id: string
+        }
+        Insert: {
+          connected_account_id: string
+          created_at?: string
+          creator_id: string
+          follower_connection_id: string
+          id?: string
+        }
+        Update: {
+          connected_account_id?: string
+          created_at?: string
+          creator_id?: string
+          follower_connection_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follower_connection_account_members_follower_connection_id_fkey"
+            columns: ["follower_connection_id"]
+            isOneToOne: false
+            referencedRelation: "follower_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_connection_account_membershi_connected_account_id_fkey"
+            columns: ["connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follower_connection_account_memberships_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follower_connections: {
         Row: {
           activated_at: string | null
@@ -4820,6 +4931,34 @@ export type Database = {
             referencedRelation: "connected_accounts"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      main_account_recovery_destinations: {
+        Row: { id: string; creator_id: string; main_connected_account_id: string; recovery_connected_account_id: string; created_at: string }
+        Insert: { id?: string; creator_id: string; main_connected_account_id: string; recovery_connected_account_id: string; created_at?: string }
+        Update: { id?: string; creator_id?: string; main_connected_account_id?: string; recovery_connected_account_id?: string; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "main_account_recovery_destinations_creator_id_fkey"; columns: ["creator_id"]; isOneToOne: false; referencedRelation: "creators"; referencedColumns: ["id"] },
+          { foreignKeyName: "main_account_recovery_destinations_main_connected_account_id_fkey"; columns: ["main_connected_account_id"]; isOneToOne: false; referencedRelation: "connected_accounts"; referencedColumns: ["id"] },
+          { foreignKeyName: "main_account_recovery_destinations_recovery_connected_account_id_fkey"; columns: ["recovery_connected_account_id"]; isOneToOne: false; referencedRelation: "connected_accounts"; referencedColumns: ["id"] },
+        ]
+      }
+      recovery_network_destinations: {
+        Row: { recovery_network_id: string; recovery_connected_account_id: string; created_at: string }
+        Insert: { recovery_network_id: string; recovery_connected_account_id: string; created_at?: string }
+        Update: { recovery_network_id?: string; recovery_connected_account_id?: string; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "recovery_network_destinations_recovery_network_id_fkey"; columns: ["recovery_network_id"]; isOneToOne: false; referencedRelation: "recovery_networks"; referencedColumns: ["id"] },
+          { foreignKeyName: "recovery_network_destinations_recovery_connected_account_id_fkey"; columns: ["recovery_connected_account_id"]; isOneToOne: false; referencedRelation: "connected_accounts"; referencedColumns: ["id"] },
+        ]
+      }
+      recovery_networks: {
+        Row: { id: string; creator_id: string; main_connected_account_id: string | null; position: number; created_at: string; updated_at: string }
+        Insert: { id?: string; creator_id: string; main_connected_account_id?: string | null; position?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; creator_id?: string; main_connected_account_id?: string | null; position?: number; created_at?: string; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: "recovery_networks_creator_id_fkey"; columns: ["creator_id"]; isOneToOne: false; referencedRelation: "creators"; referencedColumns: ["id"] },
+          { foreignKeyName: "recovery_networks_main_connected_account_id_fkey"; columns: ["main_connected_account_id"]; isOneToOne: true; referencedRelation: "connected_accounts"; referencedColumns: ["id"] },
         ]
       }
       manual_service_challenges: {
@@ -6314,6 +6453,7 @@ export type Database = {
           granted_scopes: string[]
           id: string
           protected_official_account_id: string | null
+          recovery_for_main_account_id: string | null
           reconnect_connection_id: string | null
           refresh_token_ciphertext: string | null
           requested_role: string
@@ -6331,6 +6471,7 @@ export type Database = {
           granted_scopes: string[]
           id: string
           protected_official_account_id?: string | null
+          recovery_for_main_account_id?: string | null
           reconnect_connection_id?: string | null
           refresh_token_ciphertext?: string | null
           requested_role: string
@@ -6348,6 +6489,7 @@ export type Database = {
           granted_scopes?: string[]
           id?: string
           protected_official_account_id?: string | null
+          recovery_for_main_account_id?: string | null
           reconnect_connection_id?: string | null
           refresh_token_ciphertext?: string | null
           requested_role?: string
@@ -6356,6 +6498,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "youtube_oauth_pending_selections_recovery_for_main_account_id_fkey"
+            columns: ["recovery_for_main_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "youtube_oauth_pending_selecti_protected_official_account_i_fkey"
             columns: ["protected_official_account_id"]
@@ -7670,6 +7819,10 @@ export type Database = {
       }
       get_public_creator_page: { Args: { p_slug: string }; Returns: Json }
       get_public_creator_trust: { Args: { p_slug: string }; Returns: Json }
+      get_public_recovery_pass_profile: {
+        Args: { p_slug: string }
+        Returns: Json
+      }
       get_social_automation_analytics: {
         Args: { p_provider?: string }
         Returns: Json
@@ -7860,6 +8013,13 @@ export type Database = {
         Args: { p_observation_id: string }
         Returns: string
       }
+      create_new_video_draft_with_publishing_accounts: {
+        Args: { p_creator_id: string; p_draft: Json; p_accounts: Json }
+        Returns: string
+      }
+      create_recovery_communication_draft: {Args:{p_creator_id:string;p_draft:Json;p_destination_ids:string[]};Returns:string}
+      replace_creator_update_recovery_destinations: {Args:{p_update_id:string;p_creator_id:string;p_destination_ids:string[]};Returns:number}
+      update_recovery_communication_draft: {Args:{p_update_id:string;p_creator_id:string;p_draft:Json;p_destination_ids:string[]};Returns:string}
       process_update_delivery_event: {
         Args: { p_event_id: string }
         Returns: Database["public"]["Enums"]["delivery_status"]
@@ -7991,6 +8151,22 @@ export type Database = {
           p_public_visible: boolean
         }
         Returns: Json
+      }
+      set_main_account_recovery_destinations: {
+        Args: { p_creator_id: string; p_main_account_id: string; p_recovery_account_ids: string[] }
+        Returns: number
+      }
+      assign_main_to_recovery_network: {
+        Args: { p_creator_id: string; p_recovery_network_id: string; p_main_account_id: string }
+        Returns: undefined
+      }
+      assign_recovery_account_to_network: {
+        Args: { p_creator_id: string; p_recovery_network_id: string; p_recovery_account_id: string }
+        Returns: undefined
+      }
+      set_recovery_network_destinations: {
+        Args: { p_creator_id: string; p_recovery_network_id: string; p_recovery_account_ids: string[] }
+        Returns: number
       }
       set_primary_ecosystem_destination: {
         Args: { p_destination_id: string }
@@ -8325,6 +8501,101 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      iceberg_namespaces: {
+        Row: {
+          bucket_name: string
+          catalog_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_name: string
+          catalog_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_name?: string
+          catalog_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_namespaces_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iceberg_tables: {
+        Row: {
+          bucket_name: string
+          catalog_id: string
+          created_at: string
+          id: string
+          location: string
+          name: string
+          namespace_id: string
+          remote_table_id: string | null
+          shard_id: string | null
+          shard_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          bucket_name: string
+          catalog_id: string
+          created_at?: string
+          id?: string
+          location: string
+          name: string
+          namespace_id: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bucket_name?: string
+          catalog_id?: string
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          namespace_id?: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iceberg_tables_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_analytics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iceberg_tables_namespace_id_fkey"
+            columns: ["namespace_id"]
+            isOneToOne: false
+            referencedRelation: "iceberg_namespaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       migrations: {
         Row: {

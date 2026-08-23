@@ -1,0 +1,14 @@
+.rp-completion-guidance{display:grid;grid-template-columns:34px minmax(0,1fr);gap:11px;align-items:start;margin-top:18px;padding:15px;border:1px solid #cfc2f2;border-radius:17px;background:linear-gradient(120deg,#f5f0ff,#edfbff);color:#4c435a;transition:border-color .2s ease,background-color .2s ease}
+.rp-completion-guidance>svg{width:34px;height:34px;padding:8px;border-radius:11px;background:#7448e915;color:#6840df}
+.rp-completion-guidance .rp-kicker{grid-column:2;margin:0 0 4px;font-size:9px}
+.rp-completion-guidance p{grid-column:2;margin:0;font-size:12px;line-height:1.5}
+.rp-completion-guidance strong{grid-column:2;margin-top:3px;color:#3a3148;font-size:12px;line-height:1.45}
+.rp-completion-guidance.is-ready{border-color:#9bdcc3;background:#effbf6;color:#225e4b}
+.rp-completion-guidance.is-ready>svg{background:#159a6d;color:#fff}
+.rp-completion-guidance.is-ready strong{color:#155e49;font-size:14px}
+.rp-identity-action.is-locked{border:1px solid #ddd7e7;background:#efedf3;color:#797280;cursor:not-allowed;box-shadow:none}
+.rp-stage-six-actions>button,.rp-stage-six-actions>a{transition:border-color .2s ease,background-color .2s ease,color .2s ease,box-shadow .2s ease}
+.rp-stage-six-helper{display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;color:#716a79;font-size:11px;line-height:1.45}
+.rp-stage-six-helper svg{width:13px}
+@media(max-width:430px){.rp-completion-guidance{grid-template-columns:30px minmax(0,1fr);padding:13px}.rp-completion-guidance>svg{width:30px;height:30px;padding:7px}.rp-stage-six-actions>button,.rp-stage-six-actions>a{min-height:52px;padding:9px 12px;line-height:1.3;text-align:center}}
+@media(prefers-reduced-motion:reduce){.rp-completion-guidance,.rp-stage-six-actions>button,.rp-stage-six-actions>a{transition:none}}

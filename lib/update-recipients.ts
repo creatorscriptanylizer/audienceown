@@ -76,10 +76,8 @@ export function resolveRecoveryTransport(
   broadcastType: BroadcastType,
   selectedMethod: RecoveryDestination | null,
 ): DeliveryTransport | null {
-  if (broadcastType !== "account_update") return "email";
-  return selectedMethod
-    ? recoveryMethodTypeToTransport(selectedMethod.methodType)
-    : null;
+  if (selectedMethod) return recoveryMethodTypeToTransport(selectedMethod.methodType);
+  return broadcastType === "account_update" ? null : "email";
 }
 
 export function normaliseEmail(email: string) {
@@ -196,13 +194,30 @@ export function evaluateRecipientEligibility(
   };
 }
 
+export function evaluateRecipientEligibilities(
+  candidate: RecipientCandidate,
+  broadcastType: BroadcastType,
+): RecipientEvaluation[] {
+  if (broadcastType === "account_update") return [evaluateRecipientEligibility(candidate, broadcastType)];
+  const email = candidate.destinations.find((destination) => destination.methodType === "email" && destination.verified);
+  const pushDevices = candidate.destinations.filter((destination) => destination.methodType === "web_push" && destination.verified && destination.active);
+  const deliveryMethods = [...(email ? [email] : []), ...pushDevices];
+  if (!deliveryMethods.length) return [evaluateRecipientEligibility(candidate, broadcastType)];
+  return deliveryMethods.map((destination) => evaluateRecipientEligibility({
+    ...candidate,
+    selectedRecoveryMethodId: destination.recoveryMethodId,
+  }, broadcastType));
+}
+
 export function deduplicateRecipients(recipients: EligibleRecipient[]) {
   const seen = new Set<string>();
   const unique: EligibleRecipient[] = [];
   let duplicates = 0;
 
   for (const recipient of recipients) {
-    const key = `${recipient.connectionId}:${recipient.transport}`;
+    const key = recipient.transport === "browser_notification"
+      ? `${recipient.connectionId}:${recipient.transport}:${recipient.recoveryMethodId}`
+      : `${recipient.connectionId}:${recipient.transport}`;
     if (seen.has(key)) {
       duplicates += 1;
       continue;

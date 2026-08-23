@@ -17,17 +17,21 @@ describe("Broadcast Studio main choices", () => {
     ]);
     expect(broadcastChoices.map(({ title }) => title)).not.toEqual(expect.arrayContaining([
       "Account hacked",
-      "Account banned or suspended",
-      "Impersonation or security warning",
+      "Account suspended",
+      "Being impersonated",
     ]));
+  });
+
+  it("starts the Account inaccessible card with its canonical subtype", () => {
+    expect(broadcastChoices.find(({ title }) => title === "Account inaccessible")?.intent).toBe("account_inaccessible");
   });
 
   it("offers all four account situations in the focused form", () => {
     expect(emergencySubtypes.map(({ label }) => label)).toEqual([
       "Account hacked",
-      "Account banned or suspended",
+      "Account suspended",
       "Cannot access the account",
-      "Impersonation or security warning",
+      "Being impersonated",
     ]);
   });
 

@@ -6,7 +6,7 @@ select table_privs_are('public','app_admins','authenticated',array[]::text[],'us
 select table_privs_are('public','qa_entitlement_overrides','authenticated',array[]::text[],'users cannot enumerate or mutate QA overrides');
 insert into auth.users(id,email)values('91190000-0000-4000-8000-000000000001','admin@example.test'),('91190000-0000-4000-8000-000000000002','free@example.test');
 delete from public.creators where owner_user_id in('91190000-0000-4000-8000-000000000001','91190000-0000-4000-8000-000000000002');
-insert into public.creators(id,owner_user_id,display_name,public_slug)values('91190000-0000-4000-8000-000000000011','91190000-0000-4000-8000-000000000001','QA Admin','stage-1119-admin'),('91190000-0000-4000-8000-000000000012','91190000-0000-4000-8000-000000000002','Free User','stage-1119-free');
+insert into public.creators(id,owner_user_id,display_name,public_slug,recovery_pass_name)values('91190000-0000-4000-8000-000000000011','91190000-0000-4000-8000-000000000001','QA Admin','stage-1119-admin','QA Admin Recovery Pass'),('91190000-0000-4000-8000-000000000012','91190000-0000-4000-8000-000000000002','Free User','stage-1119-free','Free User Recovery Pass');
 insert into public.app_admins(user_id,role)values('91190000-0000-4000-8000-000000000001','admin');
 select throws_ok($$insert into public.app_admins(user_id,role)values('91190000-0000-4000-8000-000000000001','admin')$$,'23505',null,'admin user is unique');
 select ok(public.is_app_admin('91190000-0000-4000-8000-000000000001'),'admin resolves by UUID');select isnt(public.is_app_admin('91190000-0000-4000-8000-000000000002'),true,'normal user is not admin');

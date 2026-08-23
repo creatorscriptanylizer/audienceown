@@ -4,6 +4,7 @@ const isDevelopment = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  deploymentId: process.env.DEPLOYMENT_VERSION,
 
   allowedDevOrigins: ["dev.audienceown.com", "audienceown.com"],
 

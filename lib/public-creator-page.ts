@@ -66,10 +66,11 @@ function action(platform: string): PublicLink["action"] {
   return "Follow";
 }
 
-function parsePayload(value: unknown): PublicCreatorPage {
+function parsePayload(value: unknown, canonicalValue: unknown): PublicCreatorPage {
   const root = object(value);
   const profile = object(root?.profile);
-  if (!root || !profile || !Array.isArray(root.links) || !Array.isArray(root.updates)) {
+  const canonical = object(canonicalValue);
+  if (!root || !profile || !canonical || !Array.isArray(root.links) || !Array.isArray(root.updates)) {
     throw new PublicCreatorPageUnavailableError("Invalid public creator page payload.");
   }
 
@@ -122,6 +123,8 @@ function parsePayload(value: unknown): PublicCreatorPage {
     creator: {
       handle: slug,
       displayName,
+      recoveryPassName: requiredString(canonical.recoveryPassName, "canonical.recoveryPassName"),
+      tagline: string(canonical.tagline),
       avatar: string(profile.profileImagePath) ?? undefined,
       bio: string(profile.bio),
       bannerImagePath: string(profile.bannerImagePath),
@@ -148,7 +151,10 @@ function parsePayload(value: unknown): PublicCreatorPage {
 export const getPublicCreatorPage = cache(async (slug: string): Promise<PublicCreatorPage | null> => {
   const supabase = await createClient();
   if (!supabase) throw new PublicCreatorPageUnavailableError();
-  const { data, error } = await supabase.rpc("get_public_creator_page", { p_slug: slug });
-  if (error) throw new PublicCreatorPageUnavailableError();
-  return data === null ? null : parsePayload(data);
+  const [pageResult, profileResult] = await Promise.all([
+    supabase.rpc("get_public_creator_page", { p_slug: slug }),
+    supabase.rpc("get_public_recovery_pass_profile" as never, { p_slug: slug } as never) as unknown as Promise<{ data: unknown; error: unknown }>,
+  ]);
+  if (pageResult.error || profileResult.error) throw new PublicCreatorPageUnavailableError();
+  return pageResult.data === null || profileResult.data === null ? null : parsePayload(pageResult.data, profileResult.data);
 });

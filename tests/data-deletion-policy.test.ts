@@ -20,7 +20,7 @@ describe("Data Deletion Policy public surface", () => {
   });
 
   it("is public and discoverable in footer and Trust navigation", () => {
-    expect(proxy).toContain('matcher: ["/dashboard/:path*", "/onboarding/:path*"]');
+    expect(proxy).toContain('matcher: ["/login", "/dashboard/:path*", "/onboarding/:path*"]');
     expect(footer).toContain('href="/data-deletion"');
     expect(footer).toContain("Data Deletion Policy");
     expect(homepage).not.toContain('href="/trust"');

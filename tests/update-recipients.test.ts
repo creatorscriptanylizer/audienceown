@@ -4,6 +4,7 @@ import {
   aggregateRecipientsByTransport,
   createDeliveryInsert,
   deduplicateRecipients,
+  evaluateRecipientEligibilities,
   evaluateRecipientEligibility,
   normaliseEmail,
   normalisePhoneNumber,
@@ -70,8 +71,8 @@ describe("transport-aware recipient resolution", () => {
     expect(resolveRecoveryTransport("account_update", selected)).toBe(expected);
   });
 
-  it("preserves email for regular broadcasts regardless of the selected method", () => {
-    expect(resolveRecoveryTransport("announcement", destinations[1])).toBe("email");
+  it("uses the selected verified transport for regular broadcasts", () => {
+    expect(resolveRecoveryTransport("announcement", destinations[1])).toBe("sms");
   });
 
   it("normalises email", () => {
@@ -156,7 +157,7 @@ describe("transport-aware recipient resolution", () => {
     }, "account_update")).toMatchObject({ eligible: false, reason: "unsupported_transport" });
   });
 
-  it("uses verified email for a regular broadcast even when SMS is selected", () => {
+  it("uses the verified selected SMS route for an eligible regular broadcast", () => {
     const result = evaluateRecipientEligibility({
       ...base,
       selectedRecoveryMethodId: "method-sms",
@@ -169,9 +170,41 @@ describe("transport-aware recipient resolution", () => {
       ],
     }, "announcement");
     expect(result.eligible && result.recipient).toMatchObject({
-      transport: "email",
-      recoveryMethodId: "method-email",
+      transport: "sms",
+      recoveryMethodId: "method-sms",
     });
+  });
+
+  it("supplements optional Update Email with every active Push device", () => {
+    const results = evaluateRecipientEligibilities({
+      ...base,
+      destinations: [
+        destination("email", "fan@example.com"),
+        destination("web_push", "push-one", { recoveryMethodId: "push-one" }),
+        destination("web_push", "push-two", { recoveryMethodId: "push-two" }),
+      ],
+    }, "announcement");
+    expect(results.flatMap((result) => result.eligible ? [result.recipient.transport] : [])).toEqual([
+      "email", "browser_notification", "browser_notification",
+    ]);
+  });
+
+  it("keeps optional Update Email eligible when Push is inactive", () => {
+    const results = evaluateRecipientEligibilities({
+      ...base,
+      destinations: [
+        destination("email", "fan@example.com"),
+        destination("web_push", null, { active: false }),
+      ],
+    }, "announcement");
+    expect(results).toHaveLength(1);
+    expect(results[0].eligible && results[0].recipient.transport).toBe("email");
+  });
+
+  it("does not add Push to mandatory recovery alerts", () => {
+    const results = evaluateRecipientEligibilities(base, "account_update");
+    expect(results).toHaveLength(1);
+    expect(results[0].eligible && results[0].recipient.transport).toBe("email");
   });
 
   it("deduplicates by relationship and transport", () => {

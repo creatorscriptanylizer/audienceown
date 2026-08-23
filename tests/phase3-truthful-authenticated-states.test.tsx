@@ -45,29 +45,30 @@ describe("Phase 3 truthful authenticated data states", () => {
 
   it("makes platform account failure explicit and metric failure independent from connection state", () => {
     const page = source("app/dashboard/platforms/page.tsx");
-    const manager = source("components/platforms-manager.tsx");
+    const manager = source("components/recovery-network-manager.tsx");
     expect(page).toContain("Platforms unavailable");
     expect(page).toContain("audience_unavailable:Boolean(audienceMetricsResult.error)");
     expect(manager).toContain("Native audience unavailable");
     expect(manager).toContain("resolveConnectionStatus");
   });
 
-  it("preserves audience membership while marking failed secondary methods and preferences unavailable", () => {
+  it("renders audience data only after the canonical service succeeds", () => {
     const page = source("app/dashboard/audience/page.tsx");
-    expect(page).toContain("methodsAvailable");
-    expect(page).toContain("preferencesAvailable");
-    expect(page).toContain('!methodsAvailable?"Unavailable"');
-    expect(page).toContain('!preferencesAvailable?"Unavailable"');
-    expect(page).toContain("Protected fans");
+    expect(page).toContain("getAudienceDashboardData(db,creator.id");
+    expect(page).toContain('title="Audience data couldn’t be loaded."');
+    expect(page).toContain("data.summary.protectedFollowers===0");
+    expect(page).toContain("Protected followers");
+    expect(page).not.toContain('.from("follower_');
   });
 
-  it("uses defaults only after a successful missing AI row and never invents Free billing", () => {
+  it("does not load removed AI settings UI and never invents Free billing", () => {
     const page = source("app/dashboard/settings/page.tsx");
-    expect(page).toContain("settingsResult.error?<UnavailableState");
-    expect(page).toContain("settings={stored??defaults}");
-    expect(page).toContain("billingResult.error||!entitlements");
-    expect(page).toContain("Billing unavailable");
-    expect(page).toContain("usageAvailable={!usageResult.error}");
+    expect(page).not.toContain("settingsResult");
+    expect(page).not.toContain("AiSettingsPanel");
+    expect(page).not.toContain("creator_ai_settings");
+    expect(page).toContain("!entitlements");
+    expect(page).toContain("Plan unavailable");
+    expect(page).not.toContain("usageResult");
   });
 
   it("logs only sanitized page/query failure categories through the shared contract", () => {

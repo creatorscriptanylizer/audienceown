@@ -15,17 +15,14 @@ describe("emergency workspace", () => {
       ["Updates", "/dashboard/updates"],
       ["Audience", "/dashboard/audience"],
       ["Platforms", "/dashboard/platforms"],
-      ["Identity", "/dashboard/identity"],
-      ["Ecosystem", "/dashboard/ecosystem"],
-      ["Authenticity", "/dashboard/authenticity"],
-      ["Recovery Analytics", "/dashboard/analytics/recovery"],
-      ["Emergency", "/dashboard/emergency"],
-      ["Settings", "/dashboard/settings"],
+      ["Verified Identity", "/dashboard/authenticity"],
     ]);
   });
 
+  it("hides advanced destinations from primary navigation without deleting their routes",()=>{for(const [label,href,file] of [["Identity","/dashboard/identity","app/dashboard/identity/page.tsx"],["Ecosystem","/dashboard/ecosystem","app/dashboard/ecosystem/page.tsx"],["Recovery Analytics","/dashboard/analytics/recovery","app/dashboard/analytics/recovery/page.tsx"],["Emergency","/dashboard/emergency","app/dashboard/emergency/page.tsx"]]){expect(dashboardLinks.some(item=>item.label===label||item.href===href)).toBe(false);expect(()=>readFileSync(file,"utf8")).not.toThrow();}});
+
   it("keeps Settings separate from Security", () => {
-    expect(dashboardLinks.find(({ label }) => label === "Settings")?.href).toBe("/dashboard/settings");
+    expect(dashboardLinks.find(({ label }) => String(label) === "Settings")).toBeUndefined();
     expect(dashboardLinks.some(({ href }) => String(href) === "/dashboard/security")).toBe(false);
   });
 
@@ -34,7 +31,8 @@ describe("emergency workspace", () => {
     expect(html).toContain("<h1>Emergency</h1>");
     expect(html).toContain("Recovery setup");
     expect(html).toContain("100% · Recovery ready");
-    expect(html).toContain('href="/dashboard/updates/new?type=account_update"');
+    expect(html).toContain('href="/dashboard/updates/new?intent=emergency"');
+    expect(html).not.toContain("?type=account_update");
     expect(html).toContain("Create emergency update");
   });
   it("keeps setup completion, plan validation, and incident lifecycle explicitly separate",()=>{const source=readFileSync("components/emergency/preparedness-center.tsx","utf8");expect(source).toContain("server-validated execution status, separate from Recovery setup completion");const html=renderToStaticMarkup(<EmergencyWorkspace readiness={calculateRecoveryReadiness({page:"complete",pass:"complete",official:"complete",backup:"complete",plan:"incomplete"})}/>);expect(html).toContain("80% · Almost ready");expect(html).toContain("No active emergency");});

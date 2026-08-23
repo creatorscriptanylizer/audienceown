@@ -24,8 +24,16 @@ export type BrowserPushDependencies = {
 export function buildBrowserNotificationPayload(message: DeliveryMessage) {
   const emergency = message.title.toLowerCase().includes("inaccessible")
     || message.title.toLowerCase().includes("recovery");
+  const creator = message.metadata.creatorName?.trim() || message.title;
+  const titles: Record<string, string> = {
+    new_content: `${creator} shared something new`,
+    livestream: `${creator} is live`,
+    product_launch: `New from ${creator}`,
+    event: `Upcoming event from ${creator}`,
+    announcement: `Update from ${creator}`,
+  };
   return {
-    title: (emergency ? message.title : `Update from ${message.title}`).slice(0, 100),
+    title: (emergency ? message.title : titles[message.metadata.broadcastType ?? ""] ?? `Update from ${creator}`).slice(0, 100),
     body: message.text.split("\n")[0].trim().slice(0, 240),
     icon: "/favicon.ico",
     badge: "/favicon.ico",

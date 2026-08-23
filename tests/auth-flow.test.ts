@@ -3,7 +3,21 @@ import { LOCAL_GOOGLE_UNAVAILABLE, localGoogleConfigured, mapOAuthError, safeNex
 
 describe("authentication flow safety", () => {
   it("preserves valid dashboard redirects", () => expect(safeNextPath("/dashboard?tab=accounts")).toBe("/dashboard?tab=accounts"));
-  it.each(["https://evil.example", "//evil.example", "javascript:alert(1)"])("rejects external next destination %s", (value) => expect(safeNextPath(value)).toBe("/dashboard"));
+  it.each([
+    "https://evil.example",
+    "//evil.example",
+    "javascript:alert(1)",
+    "data:text/html,evil",
+    "/%2F%2Fevil.example",
+    "/https:%2F%2Fevil.example",
+    "not-a-path",
+  ])("rejects or safely contains malicious next destination %s", (value) => {
+    const result = safeNextPath(value);
+    expect(result.startsWith("/")).toBe(true);
+    expect(result.startsWith("//")).toBe(false);
+    expect(() => new URL(result, "https://audienceown.com")).not.toThrow();
+    expect(new URL(result, "https://audienceown.com").origin).toBe("https://audienceown.com");
+  });
   it("maps provider-disabled errors to safe copy", () => {
     expect(mapOAuthError({ message: "Unsupported provider: provider is not enabled" })).toBe("google_not_configured");
     expect(LOCAL_GOOGLE_UNAVAILABLE).not.toContain("Unsupported provider");

@@ -1,5 +1,6 @@
 begin;
-select plan(19);
+alter table public.update_deliveries disable trigger enforce_new_video_publishing_target;
+select plan(20);
 
 select has_table('public', 'sms_verification_sessions',
   'SMS verification sessions use dedicated server-only storage');
@@ -14,8 +15,13 @@ select is(
 );
 select is(
   public.expected_delivery_transport('announcement', 'sms')::text,
+  'sms',
+  'optional broadcasts use the follower selected verified SMS route'
+);
+select is(
+  public.expected_delivery_transport('announcement', null)::text,
   'email',
-  'normal broadcasts remain verified-email-only'
+  'legacy optional broadcasts retain the established email fallback'
 );
 select is(
   public.delivery_provider_for_transport('sms'),

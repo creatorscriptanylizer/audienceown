@@ -75,8 +75,25 @@ describe("Audience Updates dashboard summary", () => {
   it("keeps recent history bounded and contains no recipient identity fields", () => {
     const updates = Array.from({ length: 8 }, (_, index) => update({ id: `update-${index}`, updated_at: `2026-08-${String(index + 1).padStart(2, "0")}T09:00:00.000Z` }));
     const result = buildAudienceUpdatesSummary({ now, updates, deliveries: [], platforms: [] });
-    expect(result.recent).toHaveLength(5);
+    expect(result.recent).toHaveLength(3);
+    expect(result.recent.map((row) => row.id)).toEqual(["update-7", "update-6", "update-5"]);
     expect(JSON.stringify(result)).not.toContain("contact_id");
     expect(JSON.stringify(result)).not.toContain("fan-");
+  });
+
+  it("uses dedicated recent rows while preserving full draft counts", () => {
+    const updates = Array.from({ length: 8 }, (_, index) => update({ id: `all-${index}`, status: index < 4 ? "draft" : "queued" }));
+    const recentUpdates = [
+      update({ id: "aug-10", updated_at: "2026-08-10T09:00:00.000Z" }),
+      update({ id: "aug-19", updated_at: "2026-08-19T09:00:00.000Z" }),
+      update({ id: "aug-15", updated_at: "2026-08-15T09:00:00.000Z" }),
+      update({ id: "aug-18", updated_at: "2026-08-18T09:00:00.000Z" }),
+    ];
+    const upcomingScheduled = [update({ id: "future-scheduled", status: "scheduled", scheduled_for: "2026-09-06T00:47:00.000Z" })];
+    const result = buildAudienceUpdatesSummary({ now, updates, recentUpdates, upcomingScheduled, deliveries: [], platforms: [] });
+    expect(result.drafts).toBe(4);
+    expect(result.recent.map((row) => row.id)).toEqual(["aug-19", "aug-18", "aug-15"]);
+    expect(result.scheduled).toBe(1);
+    expect(result.nextScheduled?.id).toBe("future-scheduled");
   });
 });

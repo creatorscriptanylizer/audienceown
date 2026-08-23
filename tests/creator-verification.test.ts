@@ -1,0 +1,15 @@
+import { describe, expect, it } from "vitest";
+import { CREATOR_VERIFICATION_BASIS, creatorVerificationSummary, resolveCreatorVerification } from "@/lib/creator-verification";
+
+const main=(id:string)=>({id,account_type:"official"});
+const recovery=(id:string)=>({id,account_type:"backup"});
+const evidence=(id:string,status="verified")=>({source_connection_id:id,verification_status:status});
+
+describe("canonical creator account-control verification",()=>{
+  it("verifies a creator from two currently verified Main accounts",()=>{const result=resolveCreatorVerification([main("KwaMoon"),main("WatchBoost")],[evidence("KwaMoon"),evidence("WatchBoost")]);expect(result).toEqual({status:"verified",verified:true,verifiedMainAccountCount:2,totalMainAccountCount:2,basis:CREATOR_VERIFICATION_BASIS,verifiedMainAccountIds:["KwaMoon","WatchBoost"]});expect(creatorVerificationSummary("Nana",result)).toBe("AudienceOwn has verified Nana's control of 2 Main accounts.");});
+  it("uses an at-least-one threshold for partial Main verification",()=>{const result=resolveCreatorVerification([main("KwaMoon"),main("WatchBoost")],[evidence("KwaMoon"),evidence("WatchBoost","pending")]);expect(result).toMatchObject({status:"verified",verifiedMainAccountCount:1,totalMainAccountCount:2});expect(creatorVerificationSummary("Nana",result)).toBe("AudienceOwn has verified Nana's control of 1 Main account.");});
+  it("stays pending with zero verified Mains",()=>{const result=resolveCreatorVerification([main("KwaMoon"),main("WatchBoost")],[evidence("KwaMoon","pending"),evidence("WatchBoost","unverified")]);expect(result).toMatchObject({status:"pending",verifiedMainAccountCount:0,totalMainAccountCount:2});expect(creatorVerificationSummary("Nana",result)).toBe("AudienceOwn has not yet verified control of any Main accounts.");});
+  it("never counts verified Recovery accounts or lets their state downgrade a verified creator",()=>{const recoveryOnly=resolveCreatorVerification([main("main"),recovery("a"),recovery("b"),recovery("c")],[evidence("a"),evidence("b"),evidence("c")]);expect(recoveryOnly.status).toBe("pending");const mixed=resolveCreatorVerification([main("main"),recovery("a"),recovery("b")],[evidence("main"),evidence("a","unverified"),evidence("b","pending")]);expect(mixed).toMatchObject({status:"verified",verifiedMainAccountCount:1});});
+  it("excludes revoked evidence and removed Main accounts",()=>{expect(resolveCreatorVerification([main("main")],[evidence("main","revoked")]).status).toBe("pending");expect(resolveCreatorVerification([], [evidence("deleted-main")])).toMatchObject({status:"pending",totalMainAccountCount:0,verifiedMainAccountCount:0});});
+  it("derives from persisted verification independently of presentation and current connection state",()=>{const privateDisconnected={...main("private-disconnected"),is_public:false,connection_health:"disconnected"};const result=resolveCreatorVerification([privateDisconnected],[evidence("private-disconnected")]);expect(result.status).toBe("verified");});
+});

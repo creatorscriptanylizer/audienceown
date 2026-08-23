@@ -16,9 +16,9 @@ insert into auth.users(id,email) values
  ('91130000-0000-4000-8000-000000000001','free-entitlement@example.test'),
  ('91130000-0000-4000-8000-000000000002','pro-entitlement@example.test');
 delete from public.creators where owner_user_id in('91130000-0000-4000-8000-000000000001','91130000-0000-4000-8000-000000000002');
-insert into public.creators(id,owner_user_id,display_name,public_slug) values
- ('91130000-0000-4000-8000-000000000011','91130000-0000-4000-8000-000000000001','Free Creator','stage-1113-free'),
- ('91130000-0000-4000-8000-000000000012','91130000-0000-4000-8000-000000000002','Pro Creator','stage-1113-pro');
+insert into public.creators(id,owner_user_id,display_name,public_slug,recovery_pass_name) values
+ ('91130000-0000-4000-8000-000000000011','91130000-0000-4000-8000-000000000001','Free Creator','stage-1113-free','Free Creator Recovery Pass'),
+ ('91130000-0000-4000-8000-000000000012','91130000-0000-4000-8000-000000000002','Pro Creator','stage-1113-pro','Pro Creator Recovery Pass');
 insert into public.creator_plan_entitlements(creator_id,plan,subscription_status) values
  ('91130000-0000-4000-8000-000000000012','pro','active');
 

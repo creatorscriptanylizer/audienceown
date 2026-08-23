@@ -751,7 +751,8 @@ function HealthyPage({ creator, pass, onSave, onManage, onDeactivate }: {
         <Profile creator={creator} />
         {creator.bio && <p className="mx-auto mt-4 max-w-xl text-sm text-zinc-300">{creator.bio}</p>}
         <div className="fan-status fan-status-online" aria-live="polite"><i /> Verified creator</div>
-        <h1>Never lose touch with <span>{creator.displayName}.</span></h1>
+        <h1><span>{creator.recoveryPassName??creator.displayName}</span></h1>
+        {creator.tagline&&<p className="fan-hero-tagline">{creator.tagline}</p>}
         <p className="fan-hero-promise"><span>Creators get hacked. Accounts get banned.</span><span>Profiles disappear.</span><span>Save one pass. Always find the real, verified destination.</span></p>
         <div className="fan-actions">
           <button className="button button-primary" onClick={onSave}><ShieldCheck size={17} /> Save My Recovery Pass</button>

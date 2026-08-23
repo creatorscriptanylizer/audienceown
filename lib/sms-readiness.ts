@@ -9,6 +9,17 @@ export type SmsReadiness = {
   webhook: ReadinessState;
 };
 
+export type SmsReadinessDiagnostic = {
+  accountSidConfigured: boolean;
+  authTokenConfigured: boolean;
+  verifyServiceConfigured: boolean;
+  messagingServiceConfigured: boolean;
+  otpReady: boolean;
+  outboundReady: boolean;
+  smsAvailable: boolean;
+  reason: string | null;
+};
+
 const accountSidPattern = /^AC[a-fA-F0-9]{32}$/;
 const messagingSidPattern = /^MG[a-fA-F0-9]{32}$/;
 const verifySidPattern = /^VA[a-fA-F0-9]{32}$/;
@@ -79,6 +90,51 @@ export function smsReadiness(
     otp: otpCredentials,
     webhook: webhookCredentials === "configured" ? appUrl : webhookCredentials,
   };
+}
+
+export function smsReadinessDiagnostic(
+  environment: NodeJS.ProcessEnv = process.env,
+  production = environment.NODE_ENV === "production",
+): SmsReadinessDiagnostic {
+  const readiness = smsReadiness(environment, production);
+  const required = [
+    ["TWILIO_ACCOUNT_SID", environment.TWILIO_ACCOUNT_SID],
+    ["TWILIO_AUTH_TOKEN", environment.TWILIO_AUTH_TOKEN],
+    ["TWILIO_VERIFY_SERVICE_SID", environment.TWILIO_VERIFY_SERVICE_SID],
+    ["TWILIO_MESSAGING_SERVICE_SID", environment.TWILIO_MESSAGING_SERVICE_SID],
+  ] as const;
+  const missing = required.filter(([, value]) => !value).map(([name]) => name);
+  const invalid = [
+    environment.TWILIO_ACCOUNT_SID && !accountSidPattern.test(environment.TWILIO_ACCOUNT_SID) ? "TWILIO_ACCOUNT_SID" : null,
+    environment.TWILIO_AUTH_TOKEN && (environment.TWILIO_AUTH_TOKEN.length < 20 || /^(placeholder|changeme|example|test|your[-_])/i.test(environment.TWILIO_AUTH_TOKEN)) ? "TWILIO_AUTH_TOKEN" : null,
+    environment.TWILIO_VERIFY_SERVICE_SID && !verifySidPattern.test(environment.TWILIO_VERIFY_SERVICE_SID) ? "TWILIO_VERIFY_SERVICE_SID" : null,
+    environment.TWILIO_MESSAGING_SERVICE_SID && !messagingSidPattern.test(environment.TWILIO_MESSAGING_SERVICE_SID) ? "TWILIO_MESSAGING_SERVICE_SID" : null,
+  ].filter((name): name is string => Boolean(name));
+  const reason = missing.length
+    ? `missing_configuration: ${missing.join(", ")}`
+    : invalid.length
+      ? `invalid_configuration: ${invalid.join(", ")}`
+      : readiness.otp !== "configured" || readiness.outbound !== "configured"
+        ? "invalid_configuration: CONTACT_ENCRYPTION_KEY or NEXT_PUBLIC_APP_URL"
+        : null;
+  return {
+    accountSidConfigured: Boolean(environment.TWILIO_ACCOUNT_SID),
+    authTokenConfigured: Boolean(environment.TWILIO_AUTH_TOKEN),
+    verifyServiceConfigured: Boolean(environment.TWILIO_VERIFY_SERVICE_SID),
+    messagingServiceConfigured: Boolean(environment.TWILIO_MESSAGING_SERVICE_SID),
+    otpReady: readiness.otp === "configured",
+    outboundReady: readiness.outbound === "configured",
+    smsAvailable: readiness.otp === "configured" && readiness.outbound === "configured",
+    reason,
+  };
+}
+
+const readinessLogKey = Symbol.for("audienceown.sms.readiness");
+export function reportSmsReadiness(environment: NodeJS.ProcessEnv = process.env) {
+  const shared = globalThis as unknown as Record<PropertyKey, unknown>;
+  if (!(["1", "true"].includes(environment.AUDIENCEOWN_DEBUG ?? "")) || shared[readinessLogKey]) return;
+  shared[readinessLogKey] = true;
+  console.info("[AUDIENCEOWN SMS READINESS]", smsReadinessDiagnostic(environment));
 }
 
 export function canonicalAppUrl(

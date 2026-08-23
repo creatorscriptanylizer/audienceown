@@ -1,26 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Copy, Link2, Share2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Copy, ExternalLink, Link2, Share2, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { copyRecoveryPassLink, shareRecoveryPassLink } from "@/lib/recovery-pass-client";
+import "./recovery-pass-card.css";
 
-const focus="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400";
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400";
 
-export function RecoveryPassShareButton({url,className=""}:{url:string;className?:string}) {
-  const[copied,setCopied]=useState(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
-  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current)},[]);
-  function announceCopied(){setCopied(true);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),1800)}
-  async function share(){if(await shareRecoveryPassLink(url)==="copied")announceCopied()}
-  return <button type="button" aria-label="Share Recovery Pass" onClick={share} className={`${focus} ${className}`}><Share2 aria-hidden size={15}/><span aria-live="polite">{copied?"Copied ✓":"Share Recovery Pass"}</span></button>;
+function useCopiedState() {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function announce() {
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1800);
+  }
+  return { copied, announce };
 }
 
-export function RecoveryPassCard({recoveryPass}:{recoveryPass:{exists:boolean;active:boolean;canonicalUrl:string|null;displayUrl:string|null;href:string}}) {
-  const[copied,setCopied]=useState(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
-  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current)},[]);
-  function announceCopied(){setCopied(true);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),1800)}
-  if(!recoveryPass.exists||!recoveryPass.canonicalUrl||!recoveryPass.displayUrl)return <section className="rounded-[20px] border border-violet-300/10 bg-[linear-gradient(125deg,rgba(124,58,237,.08),rgba(12,12,18,.94)_55%)] p-5 sm:p-6" aria-labelledby="recovery-pass-title"><p className="text-sm font-semibold uppercase tracking-[.16em] text-violet-300">Recovery Pass</p><h2 id="recovery-pass-title" className="mt-2 text-xl font-semibold">Create your Recovery Pass</h2><p className="mt-2 text-base leading-[1.6] text-zinc-300">Give your audience one permanent place to find you.</p><Link href="/onboarding/recovery-pass" className={`${focus} mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-600 px-4 text-[15px] font-semibold transition hover:bg-violet-500 motion-reduce:transition-none`}>Create Recovery Pass <ArrowRight aria-hidden size={15}/></Link></section>;
-  async function copy(){await copyRecoveryPassLink(recoveryPass.canonicalUrl!);announceCopied()}
-  async function share(){if(await shareRecoveryPassLink(recoveryPass.canonicalUrl!)==="copied")announceCopied()}
-  return <section className="relative overflow-hidden rounded-[20px] border border-violet-300/10 bg-[linear-gradient(125deg,rgba(124,58,237,.1),rgba(12,12,18,.94)_55%)] p-5 shadow-[0_18px_55px_rgba(0,0,0,.16)] sm:p-6" aria-labelledby="recovery-pass-title"><div aria-hidden className="absolute -right-20 -top-24 size-52 rounded-full bg-violet-600/10 blur-3xl"/><div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold uppercase tracking-[.16em] text-violet-300">Your Recovery Pass</p><span className={`inline-flex items-center gap-1.5 text-sm font-medium ${recoveryPass.active?"text-emerald-300":"text-zinc-300"}`}><Check aria-hidden size={13}/>{recoveryPass.active?"Active":"Ready"}</span></div><h2 id="recovery-pass-title" className="mt-2 text-xl font-semibold">Your Recovery Pass</h2><p className="mt-1 text-base leading-[1.6] text-zinc-300">Share this link with your followers so they always know where to find you.</p><div className="mt-5 flex min-w-0 items-center gap-3 rounded-xl border border-white/[.08] bg-black/20 px-4 py-3"><Link2 aria-hidden className="shrink-0 text-violet-300" size={17}/><span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-base font-medium text-violet-100 sm:text-[17px]">{recoveryPass.displayUrl}</span></div></div><div className="relative flex shrink-0 flex-wrap gap-2"><button type="button" aria-label="Copy Recovery Pass link" onClick={copy} className={`${focus} inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.045] px-4 text-[15px] font-medium transition hover:bg-white/[.08] motion-reduce:transition-none sm:flex-none`}>{copied?<Check aria-hidden size={15}/>:<Copy aria-hidden size={15}/>}<span aria-live="polite">{copied?"Copied ✓":"Copy link"}</span></button><button type="button" aria-label="Share Recovery Pass" onClick={share} className={`${focus} inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-[15px] font-semibold transition hover:bg-violet-500 motion-reduce:transition-none sm:flex-none`}><Share2 aria-hidden size={15}/> Share</button><Link aria-label="View Recovery Pass" href={recoveryPass.href} className={`${focus} inline-flex min-h-11 w-full items-center justify-center gap-1 text-[15px] font-medium text-violet-300 hover:text-violet-200 sm:w-auto`}>View Recovery Pass <ArrowRight aria-hidden size={14}/></Link></div></div><ShieldCheck aria-hidden className="absolute bottom-4 right-5 text-violet-300/5" size={72}/></section>;
+export function RecoveryPassShareButton({ url, className = "" }: { url: string; className?: string }) {
+  const { copied, announce } = useCopiedState();
+  async function share() { if (await shareRecoveryPassLink(url) === "copied") announce(); }
+  return <button type="button" aria-label="Share Recovery Pass" onClick={share} className={`${focus} ${className}`}><Share2 aria-hidden size={15} /><span aria-live="polite">{copied ? "Copied ✓" : "Share Recovery Pass"}</span></button>;
+}
+
+type Pass = { exists: boolean; active: boolean; canonicalUrl: string | null; displayUrl: string | null; href: string; name?: string };
+
+export function RecoveryPassCard({ recoveryPass, showViewAction = true }: { recoveryPass: Pass; showViewAction?: boolean }) {
+  const { copied, announce } = useCopiedState();
+  if (!recoveryPass.exists || !recoveryPass.canonicalUrl || !recoveryPass.displayUrl) return <section className="dashboard-recovery-pass-create" aria-labelledby="recovery-pass-title"><p>Recovery Pass</p><h2 id="recovery-pass-title">Create your Recovery Pass</h2><span>Give your audience one permanent place to find you.</span><Link href="/onboarding/recovery-pass" className={`${focus} recovery-pass-action recovery-pass-action-primary`}>Create Recovery Pass <ArrowRight aria-hidden size={15} /></Link></section>;
+
+  async function copy() { await copyRecoveryPassLink(recoveryPass.canonicalUrl!); announce(); }
+  async function share() { if (await shareRecoveryPassLink(recoveryPass.canonicalUrl!) === "copied") announce(); }
+
+  return <section className="recovery-pass-feature" aria-labelledby="recovery-pass-title">
+    <div className="recovery-pass-feature-head"><p className="text-sm font-semibold uppercase tracking-[.16em] text-violet-300">Your Recovery Pass</p><span className={`recovery-pass-status ${recoveryPass.active ? "ready text-emerald-300" : "action text-amber-200"}`}>{recoveryPass.active ? <Check aria-hidden size={13} /> : <AlertTriangle aria-hidden size={13} />} {recoveryPass.active ? "Ready" : "Action required"}</span></div>
+    <h2 id="recovery-pass-title">{recoveryPass.name ?? "Your Recovery Pass"}</h2>
+    <p className="mt-1 text-base leading-[1.6] text-zinc-300">Share this link with your followers so they always know where to find you.</p>
+    <div className="recovery-pass-url"><Link2 aria-hidden size={17} /><span className="overflow-hidden text-ellipsis whitespace-nowrap text-base">{recoveryPass.displayUrl}</span></div>
+    <div className="recovery-pass-actions"><button type="button" aria-label="Copy Recovery Pass link" onClick={copy} className={`${focus} recovery-pass-action recovery-pass-action-secondary`}>{copied ? <Check aria-hidden size={15} /> : <Copy aria-hidden size={15} />}<span aria-live="polite">{copied ? "Copied ✓" : "Copy link"}</span></button><button type="button" aria-label="Share Recovery Pass" onClick={share} className={`${focus} recovery-pass-action recovery-pass-action-primary`}><Share2 aria-hidden size={15} />Share</button>{showViewAction && <Link aria-label="View Recovery Pass" href={recoveryPass.href} className={`${focus} recovery-pass-action recovery-pass-action-tertiary`}>View Recovery Pass <ExternalLink aria-hidden size={14} /></Link>}</div>
+    <ShieldCheck aria-hidden className="recovery-pass-watermark" size={86} />
+  </section>;
 }

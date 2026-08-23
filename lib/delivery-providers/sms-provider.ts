@@ -4,19 +4,29 @@ import type {
   DeliveryProviderResult,
 } from "@/lib/delivery-providers/types";
 
-export const SMS_MAX_CHARACTERS = 480;
+export const SMS_MAX_CHARACTERS = 320;
 
 export function buildSmsMessage(message: DeliveryMessage) {
   const creator = message.metadata.creatorName ?? message.title;
-  const heading = `AudienceOwn alert — ${creator}`.slice(0, 100);
+  const heading = message.metadata.broadcastType === "account_update"
+    ? `AudienceOwn · Recovery alert from ${creator}`
+    : message.metadata.broadcastType === "livestream"
+      ? `AudienceOwn · ${creator} is live`
+      : message.metadata.broadcastType === "product_launch"
+        ? `AudienceOwn · New from ${creator}`
+        : message.metadata.broadcastType === "event"
+          ? `AudienceOwn · Event from ${creator}`
+          : message.metadata.broadcastType === "new_content"
+            ? `AudienceOwn · New from ${creator}`
+            : `AudienceOwn · ${creator}`;
   const url = message.notificationUrl ?? "/";
-  const essential = `${heading}\n\nOfficial update: ${url}`;
+  const essential = `${heading.slice(0, 100)}\n\nOpen: ${url}`;
   const available = Math.max(0, SMS_MAX_CHARACTERS - essential.length - 2);
   const preview = message.text.split("\n")[0].trim();
   const summary = preview.length <= available
     ? preview
     : `${preview.slice(0, Math.max(0, available - 1)).trimEnd()}…`;
-  return summary ? `${heading}\n\n${summary}\n\nOfficial update: ${url}` : essential;
+  return summary ? `${heading.slice(0, 100)}\n\n${summary}\n\nOpen: ${url}` : essential;
 }
 
 export type SmsSendResult =

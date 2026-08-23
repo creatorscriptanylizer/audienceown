@@ -10,11 +10,19 @@ describe("requireSameOrigin", () => {
 
   it("rejects a mismatched request URL origin", () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_URL", "https://audienceown.com");
     expect(requireSameOrigin(request("http://localhost:3000"))).toBe(false);
+  });
+
+  it("accepts the configured public origin behind an internal reverse-proxy URL", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_URL", "https://audienceown.com");
+    expect(requireSameOrigin(request("https://audienceown.com"))).toBe(true);
   });
 
   it("rejects a foreign origin in development", () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_URL", "https://audienceown.com");
     expect(requireSameOrigin(request("https://evil.example"))).toBe(false);
   });
 
@@ -35,6 +43,7 @@ describe("requireSameOrigin", () => {
 
   it("does not trust spoofed forwarded host and protocol headers", () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_URL", "https://audienceown.com");
     expect(requireSameOrigin(request("https://evil.example", "https://audienceown.com/api/contact", {
       "x-forwarded-host": "evil.example",
       "x-forwarded-proto": "https",

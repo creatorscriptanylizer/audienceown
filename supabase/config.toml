@@ -19,18 +19,12 @@ enabled = true
 site_url = "https://audienceown.com"
 
 additional_redirect_urls = [
-  "https://audienceown.com/auth/callback",
-  "https://audienceown.com/auth/callback?next=/onboarding",
-  "https://dev.audienceown.com/auth/callback",
-  "https://dev.audienceown.com/auth/callback?next=/onboarding",
-  "http://localhost:3000/auth/callback",
-  "http://localhost:3000/**",
-  "http://127.0.0.1:3000/"
+  "https://audienceown.com/auth/callback"
 ]
 
 [auth.email]
 enable_signup = true
-enable_confirmations = false
+enable_confirmations = true
 
 [auth.external.google]
 enabled = true

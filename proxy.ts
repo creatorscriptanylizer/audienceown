@@ -1,6 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const CANONICAL_APP_ORIGIN = "https://audienceown.com";
+
+function configuredApplicationOrigin() {
+  try {
+    const url = new URL(process.env.APP_URL ?? CANONICAL_APP_ORIGIN);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : CANONICAL_APP_ORIGIN;
+  } catch {
+    return CANONICAL_APP_ORIGIN;
+  }
+}
+
 function logDevelopmentTiming(label: "auth" | "request", pathname: string, startedAt: number) {
   if (process.env.NODE_ENV === "development") {
     console.info(`[proxy] ${label} route=${pathname} elapsed_ms=${Date.now() - startedAt}`);
@@ -11,6 +22,19 @@ export async function proxy(request: NextRequest) {
   const requestStartedAt = Date.now();
   const pathname = request.nextUrl.pathname;
   try {
+    if (pathname === "/login") {
+      const configuredOrigin = configuredApplicationOrigin();
+      const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+      const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+      const canonical = new URL(configuredOrigin);
+      const canonicalProxyRequest = forwardedHost === canonical.host && forwardedProto === canonical.protocol.slice(0, -1);
+      const directLoopbackRequest = ["localhost", "127.0.0.1", "[::1]"].includes(request.nextUrl.hostname);
+      if (directLoopbackRequest && !canonicalProxyRequest) {
+        return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, configuredOrigin));
+      }
+      return NextResponse.next({ request });
+    }
+
     let response = NextResponse.next({ request });
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -49,5 +73,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*"],
+  matcher: ["/login", "/dashboard/:path*", "/onboarding/:path*"],
 };

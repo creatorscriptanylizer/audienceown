@@ -29,7 +29,7 @@ async function expectCleanNavigationHydration(pathname: string, activeHref: stri
   serverContainer.innerHTML = server;
 
   expect(serverContainer.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
-  expect([...serverContainer.querySelectorAll("svg")]).toHaveLength(11);
+  expect([...serverContainer.querySelectorAll("svg")]).toHaveLength(6);
   for (const icon of serverContainer.querySelectorAll("svg")) {
     expect(icon.getAttribute("width")).toBe("19");
     expect(icon.getAttribute("height")).toBe("19");
@@ -83,8 +83,14 @@ describe("dashboard navigation routing", () => {
     ["/dashboard/audience", "/dashboard/audience"],
     ["/dashboard/audience/", "/dashboard/audience"],
     ["/dashboard/platforms", "/dashboard/platforms"],
-    ["/dashboard/analytics/recovery", "/dashboard/analytics/recovery"],
+    ["/dashboard/authenticity", "/dashboard/authenticity"],
   ])("hydrates %s without changing initial attributes and activates only %s", async (pathname, activeHref) => {
     await expectCleanNavigationHydration(pathname, activeHref);
+  });
+
+  it("does not expose Settings as a primary navigation item", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<DashboardNavigation/>);
+    expect(container.querySelector('a[href="/dashboard/settings"]')).toBeNull();
   });
 });

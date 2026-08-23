@@ -30,23 +30,20 @@ describe("Authenticity route-tree availability", () => {
     await expect(getPublicAuthenticity("broken-ecosystem")).resolves.toEqual({status:"unavailable",data:null});
   });
 
-  it("distinguishes successful empty continuity and subscriptions from failures", () => {
-    const layout = source("app/dashboard/authenticity/layout.tsx");
-    expect(layout).toContain("No continuity statements yet.");
-    expect(layout).toContain("Continuity statements unavailable");
-    expect(layout).toContain("No network subscriptions yet.");
-    expect(layout).toContain("Network subscriptions unavailable");
-    expect(layout).toContain("statementsResult.error ?");
-    expect(layout).toContain("subscriptionsResult.error ?");
+  it("keeps technical verification tools out of creator-facing authenticity UI", () => {
+    const layout = source("app/dashboard/authenticity/layout.tsx"),page=source("app/dashboard/authenticity/page.tsx");
+    expect(layout).not.toContain("Webhook subscriptions");
+    expect(layout).not.toContain("Portable identity proofs");
+    for(const removed of["Advanced verification tools","Embed verification","Verification assertions","Verification history"])expect(page).not.toContain(removed);
+    expect(source("app/api/public/creators/[slug]/authenticity/assertion/route.ts")).toContain("GET");
+    expect(source("app/embed/verify/[slug]/page.tsx")).toContain("authenticity.embedEnabled");
   });
 
-  it("keeps public, continuity, and subscription availability independent", () => {
-    const layout = source("app/dashboard/authenticity/layout.tsx");
-    expect(layout).toContain('publicResult.status === "unavailable"');
-    expect(layout).toContain('publicResult.status === "absent"');
-    expect(layout).toContain("statementsResult.error ?");
-    expect(layout).toContain("subscriptionsResult.error ?");
-    expect(layout).not.toMatch(/if \(.*(?:statementsResult|subscriptionsResult)\.error.*\) return/);
+  it("uses the canonical public projection in the verified identity service", () => {
+    const service=source("lib/verified-identity-dashboard.ts");
+    expect(service).toContain('rpc("get_public_creator_authenticity"');
+    expect(service).toContain("parseAuthenticityRecord(publicResult.data)");
+    expect(service).toContain("record?.emergency??null");
   });
 
   it("preserves the no-write-on-read boundary", () => {
@@ -60,12 +57,13 @@ describe("Authenticity route-tree availability", () => {
 
   it("updates every consumer to inspect the discriminant", () => {
     const files = [
-      "lib/authenticity/lookup.ts","app/verify/[slug]/page.tsx","app/verify/[slug]/layout.tsx","app/embed/verify/[slug]/page.tsx",
-      "app/dashboard/authenticity/layout.tsx","app/api/internal/authenticity/network/refresh-manifests/route.ts","app/api/internal/authenticity/check-domains/route.ts",
+      "lib/authenticity/lookup.ts","app/verify/[slug]/page.tsx","app/embed/verify/[slug]/page.tsx",
+      "app/api/internal/authenticity/network/refresh-manifests/route.ts","app/api/internal/authenticity/check-domains/route.ts",
       "app/api/public/creators/[slug]/authenticity/events/route.ts","app/api/public/creators/[slug]/authenticity/route.ts","app/api/public/creators/[slug]/authenticity/assertion/route.ts",
       "app/api/public/creators/[slug]/manifest/route.ts","app/api/public/creators/[slug]/continuity/route.ts","app/api/public/creators/[slug]/continuity/[statementId]/route.ts",
     ];
     for (const file of files) expect(source(file),file).toMatch(/\.status\s*(?:===|!==)/);
+    expect(source("app/verify/[slug]/layout.tsx")).not.toContain("getPublicAuthenticity");
   });
 
   it("keeps 503 unavailable separate from 404 absent on public APIs", () => {

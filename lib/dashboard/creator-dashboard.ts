@@ -195,6 +195,7 @@ export async function getCreatorDashboard(creator: Creator) {
       growthPercent: null, trend: null, href: "/dashboard/platforms", updatedAt: audienceMetric?.source_observed_at ?? account?.last_sync_at ?? asset?.last_successful_sync_at ?? null, color: presentation.color };
   });
   const activeAccounts = accountProjection.filter((row) => row.connected && !row.archived && !row.revoked);
+  const activeAccountKeys = new Set(activeAccounts.map((row) => row.accountKey));
   // Keep disconnected accounts visible so each account can report its own health.
   // Revoked and archived accounts remain outside the dashboard projection.
   const visibleDashboardAccounts=accountProjection.filter((row)=>!row.archived&&!row.revoked);
@@ -208,7 +209,7 @@ export async function getCreatorDashboard(creator: Creator) {
   });
   const backupAccountKeys=new Set(canonicalBackupAccounts.map((account)=>account.accountKey));
   const backupAccounts=projectedDashboardAccounts.filter((account)=>account.role==="backup"&&backupAccountKeys.has(account.accountKey));
-  const dashboardAccounts=projectedDashboardAccounts.filter((account)=>account.role==="official").map((official)=>({
+  const dashboardAccounts=projectedDashboardAccounts.filter((account)=>account.role==="official"&&activeAccountKeys.has(account.accountKey)).map((official)=>({
     ...official,
     linkedBackups:official.accountKey===canonicalMainAccount?.accountKey?backupAccounts:[],
   }));
@@ -246,7 +247,8 @@ export async function getCreatorDashboard(creator: Creator) {
   const publicSlug=creator.public_slug;
   const recoveryPassExists=Boolean(publicSlug&&creator.recovery_pass_enabled);
   const recoveryPassOrigin=appUrl();
-  const recoveryPass=recoveryPassExists&&publicSlug?{exists:true as const,active:Boolean(creator.public_profile_enabled),canonicalUrl:canonicalRecoveryPassUrl(recoveryPassOrigin,publicSlug),displayUrl:displayRecoveryPassUrl(recoveryPassOrigin,publicSlug),href:`/${encodeURIComponent(publicSlug)}`}:{exists:false as const,active:false,canonicalUrl:null,displayUrl:null,href:"/onboarding/recovery-pass"};
+  const recoveryPassName=(creator as Creator&{recovery_pass_name?:string|null}).recovery_pass_name??`${creator.display_name}'s Recovery Pass`;
+  const recoveryPass=recoveryPassExists&&publicSlug?{exists:true as const,active:Boolean(creator.public_profile_enabled),canonicalUrl:canonicalRecoveryPassUrl(recoveryPassOrigin,publicSlug),displayUrl:displayRecoveryPassUrl(recoveryPassOrigin,publicSlug),href:`/${encodeURIComponent(publicSlug)}`,name:recoveryPassName}:{exists:false as const,active:false,canonicalUrl:null,displayUrl:null,href:"/onboarding/recovery-pass",name:recoveryPassName};
   return { calculatedAt: new Date().toISOString(), creator: { displayName: creator.display_name, handle: creator.public_slug }, recoveryPass, protection,
     availability: {
       recoveryAudience: recoveryAudienceState.availability,

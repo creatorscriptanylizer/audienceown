@@ -3,7 +3,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import type { SocialProvider } from "./types";
 
 export type SocialOAuthState = {
-  creatorId:string;userId:string;provider:SocialProvider;nonce:string;role:"official"|"backup";connectionId?:string;protectedOfficialAccountId?:string;expiresAt:number;codeChallenge?:string;returnTo?:"onboarding";
+  creatorId:string;userId:string;provider:SocialProvider;nonce:string;role:"official"|"backup";connectionId?:string;protectedOfficialAccountId?:string;recoveryForMainAccountId?:string;recoveryNetworkId?:string;expiresAt:number;codeChallenge?:string;returnTo?:"onboarding";
 };
 export type OAuthStateValidationFailure = "state_signature_invalid"|"nonce_mismatch"|"state_expired"|"provider_mismatch"|"state_payload_invalid";
 export type OAuthStateValidation = {ok:true;state:SocialOAuthState}|{ok:false;reason:OAuthStateValidationFailure};
@@ -15,8 +15,8 @@ export function validateOAuthState(value:string,provider:SocialProvider,nonce:st
   try{const parts=value.split(".");if(parts.length!==2||!parts[0]||!parts[1])return{ok:false,reason:"state_signature_invalid"};const[body,sig]=parts;const expected=createHmac("sha256",secret()).update(body).digest();
     const supplied=Buffer.from(sig,"base64url");if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return{ok:false,reason:"state_signature_invalid"};
     const payload=JSON.parse(Buffer.from(body,"base64url").toString()) as SocialOAuthState;
-    const validRole=payload.role==="official"||payload.role==="backup",validConnection=payload.connectionId===undefined||/^[0-9a-f-]{36}$/i.test(payload.connectionId),validOfficial=payload.protectedOfficialAccountId===undefined||/^[0-9a-f-]{36}$/i.test(payload.protectedOfficialAccountId),validReturn=payload.returnTo===undefined||payload.returnTo==="onboarding";
-    if(!validRole||!validConnection||!validOfficial||!validReturn||typeof payload.creatorId!=="string"||typeof payload.userId!=="string"||typeof payload.nonce!=="string"||typeof payload.expiresAt!=="number"||!Number.isFinite(payload.expiresAt))return{ok:false,reason:"state_payload_invalid"};
+    const validRole=payload.role==="official"||payload.role==="backup",validConnection=payload.connectionId===undefined||/^[0-9a-f-]{36}$/i.test(payload.connectionId),validOfficial=payload.protectedOfficialAccountId===undefined||/^[0-9a-f-]{36}$/i.test(payload.protectedOfficialAccountId),validRecoveryMain=payload.recoveryForMainAccountId===undefined||/^[0-9a-f-]{36}$/i.test(payload.recoveryForMainAccountId),validNetwork=payload.recoveryNetworkId===undefined||/^[0-9a-f-]{36}$/i.test(payload.recoveryNetworkId),validReturn=payload.returnTo===undefined||payload.returnTo==="onboarding";
+    if(!validRole||!validConnection||!validOfficial||!validRecoveryMain||!validNetwork||!validReturn||typeof payload.creatorId!=="string"||typeof payload.userId!=="string"||typeof payload.nonce!=="string"||typeof payload.expiresAt!=="number"||!Number.isFinite(payload.expiresAt)||payload.recoveryNetworkId!==undefined&&payload.role!=="official")return{ok:false,reason:"state_payload_invalid"};
     if(payload.provider!==provider)return{ok:false,reason:"provider_mismatch"};
     if(payload.expiresAt<now)return{ok:false,reason:"state_expired"};
     if(!(payload.nonce===nonce))return{ok:false,reason:"nonce_mismatch"};

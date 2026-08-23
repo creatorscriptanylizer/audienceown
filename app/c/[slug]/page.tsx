@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicCreatorExperience } from "@/components/public-creator-experience";
-import { getCreator, getViewer } from "@/lib/dal";
+import { getOptionalCreator, getOptionalViewer } from "@/lib/dal";
 import { canAccessRecoveryDeveloperTools } from "@/lib/recovery-access";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicCreatorPage } from "@/lib/public-creator-page";
 import { parsePublicIdentityGraph, parsePublicTrust } from "@/lib/identity/public";
 import { parseAuthenticityRecord } from "@/lib/authenticity/public";
 import { appUrl } from "@/lib/app-url";
+import { getPublicRecoveryPassEnrollment } from "@/lib/recovery-pass-enrollment";
+import { RecoveryPassFlow } from "@/components/recovery-pass-flow";
+import { getRecoveryPassMemberState } from "@/lib/recovery-pass-member";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -32,8 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Creator not found", robots: { index: false, follow: false } };
   }
   const image = metadataImage(page.bannerImagePath ?? page.creator.avatar ?? null);
-  const title = `${page.creator.displayName} — Recovery Pass`;
-  const description = page.bio?.trim() || `The verified AudienceOwn recovery page for ${page.creator.displayName}.`;
+  const title = `${page.creator.recoveryPassName ?? page.creator.displayName} | AudienceOwn`;
+  const description = page.creator.tagline?.trim() || page.bio?.trim() || `The verified AudienceOwn recovery page for ${page.creator.displayName}.`;
   return {
     title,
     description,
@@ -54,9 +57,11 @@ export default async function Page({ params, searchParams }: Props) {
   if (!publicPage || !publicPage.creator.recoveryPassPublished) notFound();
 
   const supabase = await createClient();
+  const enrollmentPromise = getPublicRecoveryPassEnrollment(publicPage.creator.handle);
+  const memberStatePromise = getRecoveryPassMemberState(publicPage.creator.handle);
   const [viewer, ownedCreator, identityResults] = await Promise.all([
-    getViewer(),
-    getCreator(),
+    getOptionalViewer(),
+    getOptionalCreator(),
     supabase
       ? Promise.all([
         supabase.rpc("get_public_creator_identity_graph", { p_slug: publicPage.creator.handle }),
@@ -65,6 +70,8 @@ export default async function Page({ params, searchParams }: Props) {
       ])
       : Promise.resolve([{ data: null, error: new Error("database unavailable") }, { data: null, error: new Error("database unavailable") }, { data: null, error: new Error("database unavailable") }]),
   ]);
+  const enrollment = await enrollmentPromise;
+  const memberState = await memberStatePromise;
 
   const metadataRole = viewer?.app_metadata?.role ?? viewer?.user_metadata?.role;
   const isAdmin = metadataRole === "admin" || viewer?.app_metadata?.is_admin === true;
@@ -81,6 +88,13 @@ export default async function Page({ params, searchParams }: Props) {
   const parsedIdentity = parsePublicIdentityGraph(identityData);
   const trust = parsePublicTrust(trustData);
   const identityGraph = parsedIdentity ? { ...parsedIdentity, trust: trust ?? undefined } : null;
+
+  if (!publicPage.creator.emergencyMode) return <RecoveryPassFlow
+    creator={publicPage.creator}
+    accounts={enrollment.accounts}
+    memberState={memberState}
+    source={src}
+  />;
 
   return <PublicCreatorExperience
     fallback={publicPage.creator}

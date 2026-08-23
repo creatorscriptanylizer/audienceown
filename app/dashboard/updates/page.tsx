@@ -1,83 +1,29 @@
-import Link from "next/link";
-import { ArrowRight, CalendarClock, MailPlus } from "lucide-react";
+import { UpdatesActivityCommandCenter } from "@/components/updates-activity-command-center";
 import { requireCreator } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { getIntentDefinition, type BroadcastIntent } from "@/lib/broadcast-studio";
-import { formatBroadcastStatus, formatBroadcastType, type BroadcastStatus, type BroadcastType } from "@/lib/updates";
-import { LocalDateTime } from "@/components/local-date-time";
-import { UnavailableState } from "@/components/product-state";
 import { logPageQueryFailure } from "@/lib/data-availability";
+import { buildUpdatesActivity, type AccountActivityRow, type DeliveryActivityRow, type EmergencyActivityRow, type PublishingAccountActivityRow, type UpdateActivityRow } from "@/lib/updates-activity";
+import { getUpcomingScheduledCommunications } from "@/lib/upcoming-scheduled-communications";
 
-const filters = [
-  ["all", "All"],
-  ["draft", "Drafts"],
-  ["scheduled", "Scheduled"],
-  ["sent", "Sent"],
-  ["failed", "Failed"],
-] as const;
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
-
-export default async function UpdatesPage({ searchParams }: PageProps<"/dashboard/updates">) {
-  const creator = await requireCreator();
-  const { filter = "all" } = await searchParams;
-  const activeFilter = filters.some(([key]) => key === filter) ? filter : "all";
-  const supabase = await createClient();
-  const [updatesResult, deliveriesResult] = supabase ? await Promise.all([
-    supabase.from("creator_updates").select(
-      "id,broadcast_type,broadcast_intent,status,title,subject,scheduled_for,updated_at",
-    ).eq("creator_id", creator.id).order("updated_at", { ascending: false }),
-    supabase.from("update_deliveries").select("update_id").eq("creator_id", creator.id),
-  ]) : [{ data: null, error: new Error("Database unavailable") }, { data: null, error: new Error("Database unavailable") }];
-  logPageQueryFailure("dashboard/updates", "creator_updates", updatesResult.error);
-  logPageQueryFailure("dashboard/updates", "update_deliveries", deliveriesResult.error);
-  if (updatesResult.error) return <div className="updates-page"><header className="updates-page-header"><div><p className="eyebrow">Direct connection</p><h1>Updates</h1><p>Write the message once, preview it carefully, and choose when it should reach your audience.</p></div></header><UnavailableState title="Update history unavailable" description="We could not load your updates right now. Your saved updates were not changed."/></div>;
-  const data = updatesResult.data;
-  const deliveries = deliveriesResult.error ? null : deliveriesResult.data;
-  const recipientCounts = new Map<string, number>();
-  for (const delivery of deliveries ?? []) {
-    recipientCounts.set(delivery.update_id, (recipientCounts.get(delivery.update_id) ?? 0) + 1);
-  }
-  const updates = (data ?? []).filter((update) => activeFilter === "all" || update.status === activeFilter);
-
-  return <div className="updates-page">
-    <header className="updates-page-header">
-      <div>
-        <p className="eyebrow">Direct connection</p>
-        <h1>Updates</h1>
-        <p>Write the message once, preview it carefully, and choose when it should reach your audience.</p>
-      </div>
-      <Link href="/dashboard/updates/new" className="button button-primary"><MailPlus size={16}/> Create update</Link>
-    </header>
-
-    <nav className="update-filter-tabs" aria-label="Filter updates">
-      {filters.map(([key, label]) => <Link key={key} href={key === "all" ? "/dashboard/updates" : `/dashboard/updates?filter=${key}`} aria-current={activeFilter === key ? "page" : undefined}>{label}</Link>)}
-    </nav>
-
-    {updates.length === 0 ? <section className="updates-empty">
-      <span><MailPlus size={24}/></span>
-      <h2>{activeFilter === "all" ? "Your first weekly update starts here." : `No ${activeFilter} updates yet.`}</h2>
-      <p>Keep your audience close with a short weekly note about what you made, what is next, or where they can find you.</p>
-      <Link href="/dashboard/updates/new" className="button button-secondary">Create a draft <ArrowRight size={15}/></Link>
-    </section> : <div className="update-history-list">
-      {updates.map((update) => <Link href={`/dashboard/updates/${update.id}`} key={update.id} className="update-history-card">
-        <div className="update-history-copy">
-          <div className="update-history-meta">
-            <span>{getIntentDefinition(update.broadcast_intent as BroadcastIntent).title} · {formatBroadcastType(update.broadcast_type as BroadcastType)}</span>
-            <i className={`update-status status-${update.status}`}>{formatBroadcastStatus(update.status as BroadcastStatus)}</i>
-          </div>
-          <h2>{update.title || "Untitled update"}</h2>
-          <p>{update.subject || "No subject yet"}</p>
-        </div>
-        <div className="update-history-time">
-          {update.status === "scheduled" && update.scheduled_for && <strong><CalendarClock size={14}/><LocalDateTime value={update.scheduled_for}/></strong>}
-          {deliveriesResult.error ? <span>— · Delivery data unavailable</span> : <span>{recipientCounts.get(update.id) ?? 0} prepared recipients</span>}
-          <span>Updated {formatDate(update.updated_at)}</span>
-          <ArrowRight size={17}/>
-        </div>
-      </Link>)}
-    </div>}
-  </div>;
+export const dynamic="force-dynamic";
+export default async function UpdatesPage({searchParams}:PageProps<"/dashboard/updates">){
+ const query=await searchParams,notice=query.notice==="draft_deleted"?"Draft deleted":null;
+ const creator=await requireCreator(),supabase=await createClient(),generatedAt=new Date().toISOString();
+ if(!supabase)return <UpdatesActivityCommandCenter items={[]} attention={[]} generatedAt={generatedAt} available={false} notice={notice}/>;
+ const[updatesResult,deliveriesResult,accountsResult,emergenciesResult,publishingAccountsResult,upcomingResult]=await Promise.all([
+  supabase.from("creator_updates").select("id,broadcast_type,broadcast_intent,status,title,subject,content,cta_url,scheduled_for,sent_at,queued_at,updated_at,affected_platform_connection_id,source_provider").eq("creator_id",creator.id).order("updated_at",{ascending:false}).limit(100),
+  supabase.from("update_deliveries").select("update_id,status,accepted_at,delivered_at,failed_at").eq("creator_id",creator.id).order("updated_at",{ascending:false}).limit(1000),
+  supabase.from("connected_accounts").select("id,platform,label,external_account_name,account_type,connection_health,provider_status,last_connection_error,updated_at").eq("creator_id",creator.id).eq("account_type","official").limit(100),
+  supabase.from("creator_emergencies").select("id,emergency_type,lifecycle_status,title,message,activated_at,resolved_at,cancelled_at,updated_at,creator_update_id,emergency_alert_snapshots(affected_accounts,replacement_accounts,created_at)").eq("creator_id",creator.id).order("updated_at",{ascending:false}).limit(100),
+  supabase.from("creator_update_publishing_accounts").select("update_id,provider_snapshot,account_display_snapshot,role_snapshot,targeting_rule_snapshot,creator_updates!inner(creator_id)").eq("creator_updates.creator_id",creator.id).limit(500),
+  getUpcomingScheduledCommunications(supabase,creator.id,new Date(generatedAt)).then(data=>({data,error:null})).catch(error=>({data:[],error})),
+ ]);
+ for(const[name,result]of [["creator_updates",updatesResult],["update_deliveries",deliveriesResult],["connected_accounts",accountsResult],["creator_emergencies",emergenciesResult],["creator_update_publishing_accounts",publishingAccountsResult],["upcoming_scheduled_communications",upcomingResult]] as const)logPageQueryFailure("dashboard/updates",name,result.error);
+ const available=!updatesResult.error&&!accountsResult.error&&!emergenciesResult.error&&!publishingAccountsResult.error&&!upcomingResult.error;
+ if(!available)return <UpdatesActivityCommandCenter items={[]} attention={[]} generatedAt={generatedAt} available={false} notice={notice}/>;
+ const emergencies=(emergenciesResult.data??[]).map(row=>{const snapshot=[...(row.emergency_alert_snapshots??[])].sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];return{...row,affected_accounts:snapshot?.affected_accounts??[],replacement_accounts:snapshot?.replacement_accounts??[]}}) as EmergencyActivityRow[];
+ const updatesById=new Map<string,UpdateActivityRow>();
+ for(const row of [...(updatesResult.data??[]),...upcomingResult.data] as UpdateActivityRow[])updatesById.set(row.id,row);
+ const model=buildUpdatesActivity({updates:[...updatesById.values()],deliveries:deliveriesResult.error?[]:(deliveriesResult.data??[]) as DeliveryActivityRow[],accounts:(accountsResult.data??[]) as AccountActivityRow[],emergencies,publishingAccounts:(publishingAccountsResult.data??[]) as PublishingAccountActivityRow[]});
+ return <UpdatesActivityCommandCenter items={model.items} attention={model.attention} generatedAt={generatedAt} notice={notice}/>;
 }
